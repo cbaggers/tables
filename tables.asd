@@ -8,6 +8,7 @@
   :components ((:file "package")
                (:file "types")
                (:file "generics")
+               (:file "flat-types")
                (:file "tables")
                (:file "expression-queries")
                (:file "function-queries")))

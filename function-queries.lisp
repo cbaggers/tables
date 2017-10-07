@@ -5,7 +5,7 @@
 (defmacro define-function-query
     (name (&rest uniforms &key &allow-other-keys) &body body)
   (let* ((proto (make-proto-func-query name uniforms body))
-         (processed (validate-proto-query proto)))
+         (processed (validate-prototype proto)))
     (etypecase processed
       (query (add-query processed)
              `(defun ,(name processed) (,@(mapcar #'name (uniforms processed)))

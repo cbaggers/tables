@@ -2,7 +2,7 @@
 
 ;;------------------------------------------------------------
 
-(defgeneric validate-proto-query (proto-query))
+(defgeneric validate-prototype (proto-query))
 
 (defgeneric add-query (query))
 
