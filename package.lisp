@@ -1,5 +1,4 @@
 ;;;; package.lisp
 
 (defpackage #:tables
-  (:use #:cl))
-
+  (:use #:cl #:alexandria))

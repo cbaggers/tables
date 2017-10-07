@@ -25,4 +25,16 @@
 
 ;;------------------------------------------------------------
 
-(defmethod validate-prototype ((proto-table prototype-table)))
+(defmethod validate-prototype ((proto-table prototype-table))
+  (validate-in-issolation proto-table)
+  (validate-in-context proto-table))
+
+(defmethod validate-in-issolation ((proto-table prototype-table))
+  ;; check that the table prototype itself is well formed
+  (symbolp (name proto-table))
+  (mapcar #'validate-in-issolation (columns proto-table)))
+
+(defmethod validate-in-issolation ((proto-col prototype-column))
+  ;; check that the table prototype itself is well formed
+  (and (symbolp (name proto-col))
+       (flat-typep (flat-type proto-col))))
