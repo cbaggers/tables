@@ -13,7 +13,15 @@
 ;;------------------------------------------------------------
 
 (defun make-proto-table (name column-definitions)
-  )
+  (make-instance 'prototype-table
+                 :name name
+                 :columns (mapcar (lambda (x) (apply #'make-proto-column x))
+                                  column-definitions)))
+
+(defun make-proto-column (name type)
+  (make-instance 'prototype-column
+                 :name name
+                 :type type))
 
 ;;------------------------------------------------------------
 
