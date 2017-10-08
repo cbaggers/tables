@@ -3,7 +3,8 @@
 ;;------------------------------------------------------------
 
 (defclass build-report ()
-  ((successes :initform nil :reader successes)
+  ((name :initarg :name :accessor name)
+   (successes :initform nil :reader successes)
    (failures :initform nil :reader failures)))
 
 ;;------------------------------------------------------------
