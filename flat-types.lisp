@@ -22,7 +22,7 @@
       (flat-type-specifier-p type/type-specifier)))
 
 (defun flat-type-specifier-p (type/type-specifier)
-  (member type/type-specifier (hash-table-keys type/type-specifier)))
+  (member type/type-specifier (hash-table-keys *registered-flat-types*p)))
 
 (defun announce-flat-type-replacement (flat-type-already-exists flat-type)
   (format t "~%Whatevs ~s ~s" flat-type-already-exists flat-type))

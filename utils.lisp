@@ -14,6 +14,9 @@
 (defun p-symb (package &rest parts)
   (intern (format nil "~{~a~}" parts) package))
 
+(defun gsymb (&rest parts)
+  (intern (format nil "~{~a~}" parts)))
+
 (defun kwd (&rest parts)
   (intern (format nil "~{~a~}" parts) :keyword))
 
