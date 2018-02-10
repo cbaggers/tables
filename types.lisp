@@ -2,32 +2,27 @@
 
 ;;------------------------------------------------------------
 
-(defclass prototype-table ()
-  ((name :initarg :name :accessor name)
-   (columns :initarg :columns :accessor columns)))
+(defclass table-metadata () ())
 
-(defclass table () ())
-
-(defclass prototype-column ()
-  ((name :initarg :name :accessor name)
-   (type :initarg :type :accessor flat-type)))
-
-(defclass column () ())
+(defclass table ()
+  ((metadata :initarg :metadata)
+   (clusters :initform (make-array 10 :adjustable t :fill-pointer 0))))
 
 ;;------------------------------------------------------------
 
-(defclass prototype-expression-query () ())
+(defclass cluster-metadata () ())
 
-(defclass expression-query () ())
-
-;;------------------------------------------------------------
-
-(defclass prototype-function-query () ())
-
-(defclass function-query () ())
+(defclass cluster ()
+  ((metadata :initarg :metadata)
+   (chunks :initform (make-array 10 :adjustable t :fill-pointer 0))))
 
 ;;------------------------------------------------------------
 
-;; root of all flat type internal representations
-(defclass flat-type ()
-  ((specifier :initarg :specifier :accessor specifier)))
+(defclass chunk-metadata () ())
+
+(defclass chunk ()
+  ((metadata :initarg :metadata)
+   (data-ptr :initarg :data-ptr)
+   (skip-list-ptr :initarg :skip-list-ptr)))
+
+;;------------------------------------------------------------

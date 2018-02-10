@@ -1,4 +1,6 @@
 ;;;; package.lisp
 
-(defpackage #:tables
-  (:use #:cl #:alexandria))
+(uiop:define-package #:tables
+  (:use #:cl)
+  (:import-from #:alexandria
+                :with-gensyms))
