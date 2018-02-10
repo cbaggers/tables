@@ -6,6 +6,15 @@
   (declare (ignore name slots))
   nil)
 
+;;------------------------------------------------------------
+;; it's a mask, we will try to pack this with other sub-word
+;; sized data. tables can be clustered on enum values.
+;;
+;; define-enum should, when recompiled, keep current values valid
+;; this means not reassigning all the values. If a value is removed
+;; keep track of this value so it can be reused before extending
+;; the bit-length of the type.
+
 (defmacro define-enum (name &body constants)
   (declare (ignore name constants))
   nil)
