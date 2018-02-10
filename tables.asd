@@ -5,7 +5,9 @@
   :author "Your Name <your.name@example.com>"
   :license "Specify license here"
   :serial t
-  :depends-on (:alexandria)
+  :depends-on (:alexandria
+               :bordeaux-threads
+               :cffi)
   :components ((:file "package")
                (:file "utils")
                (:file "errors")
