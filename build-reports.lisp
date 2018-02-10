@@ -2,61 +2,48 @@
 
 ;;------------------------------------------------------------
 
-(defmacro build-report-validate (name &body validation-forms)
-  (with-gensyms (report)
-    `(let ((,report (make-instance 'build-report :name ',name)))
-       ,@(loop :for (test err-template . args) :in validation-forms
-            :for i :from 0
-            :for gtest := (gsymb "TEST-" i)
-            :for gtest-code := (gsymb "TEST-CODE-" i)
-            :do (assert (stringp err-template))
-            :collect `(process-build-report-result
-                       ,test ',test ,report ,err-template ,@args))
-       ,report)))
+(defclass failure ()
+  ((message :initarg :message :accessor message)
+   (data :initarg :data :accessor data)))
 
-(defun process-build-report-result (gtest
-                                    gtest-code
-                                    report
-                                    err-template
-                                    &rest args)
-  (labels ((report-p (x) (typep x 'build-report)))
-    (print gtest)
-    (cond
-      ((report-p gtest)
-       (merge-subreport report gtest gtest-code err-template args))
-      ((and gtest (listp gtest) (every #'report-p gtest))
-       (merge-subreports report gtest gtest-code err-template args))
-      (gtest (add-success report gtest-code))
-      (t (add-failure report gtest-code err-template args nil)))))
+(defmethod print-object ((thing failure) stream)
+  (let* ((len 30)
+         (msg (message thing))
+         (msg (if (< (length msg) len)
+                  msg
+                  (format nil "~a…" (subseq msg 0 len))))
+         (msg (substitute #\space #\newline msg))
+         (msg (string-left-trim '(#\space) msg)))
+    (format stream "#<FAILURE ~s>" msg)))
 
-(defun add-success (report test-code)
-  (push test-code (slot-value report 'successes)))
+(defun fail (pattern &rest data)
+  (make-instance 'failure
+                 :message (apply #'format nil pattern data)
+                 :data data))
 
-(defun add-failure (report test-code error-template args sub-report)
-  (push (append (list test-code
-                      (apply #'format nil error-template args)
-                      args)
-                (when sub-report
-                  (list :subreport sub-report)))
-        (slot-value report 'failures)))
-
-(defun merge-subreport (report subreport test-code error-template &rest args)
-  (if (slot-value subreport 'failures)
-      (add-failure report test-code error-template args subreport)
-      (add-success report test-code)))
-
-(defun merge-subreports (report subreports test-code error-template &rest args)
-  (let ((failures (remove-if-not (lambda (s) (slot-value s 'failures))
-                                 subreports)))
+(defun collate-failures (list &optional header-pattern &rest data)
+  (assert (listp list))
+  (let ((failures (remove-if-not (lambda (x) (typep x 'failure)) list)))
     (if failures
-        (add-failure report test-code error-template args failures)
-        (add-success report test-code))))
+        (make-instance
+         'failure
+         :message (format nil "~@[~%~a~]~{~%~a~}"
+                          (when header-pattern
+                            (format nil header-pattern data))
+                          (mapcar #'message failures))
+         :data (cons data (reduce #'append (mapcar #'data failures))))
+        list)))
 
+(defun mapcar-collating-failures (function list
+                                  &optional header-pattern &rest data)
+  (collate-failures (mapcar function list) header-pattern data))
+
+;;------------------------------------------------------------
 
 #+nil
-(defun test (a b)
-  (build-report-validate :test-some-stuff
-    ((< a 10)
-     "Expected a to be less than 10, instead recieved ~a" a)
-    ((symbolp b)
-     "~a is not a symbol" b)))
+(defun foo (a)
+  (if (symbolp a)
+      (list :yay a)
+      (fail "woops, not that: ~a" a)))
+
+;;------------------------------------------------------------

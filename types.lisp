@@ -2,13 +2,6 @@
 
 ;;------------------------------------------------------------
 
-(defclass build-report ()
-  ((name :initarg :name :accessor name)
-   (successes :initform nil :reader successes)
-   (failures :initform nil :reader failures)))
-
-;;------------------------------------------------------------
-
 (defclass prototype-table ()
   ((name :initarg :name :accessor name)
    (columns :initarg :columns :accessor columns)))
