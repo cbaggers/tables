@@ -4,6 +4,8 @@
 ;; Functions that can be used in queries. These will always be
 ;; inlined. The code is made of macros, query-ops, query-functions and
 ;; a small section of special-operators.
+;;
+;; We perform cascading recompiles when query-function op is redefined.
 
 (defmacro define-query-function (name typed-args &body body)
   (let ((in-args (process-query-func-args typed-args)))

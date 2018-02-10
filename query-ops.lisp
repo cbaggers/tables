@@ -5,6 +5,8 @@
 ;; Whilst users can define these, they are more low level than
 ;; query-functions and can't be inlined or optimized.
 ;; Wherever possible query-functions should be used.
+;;
+;; We do not perform cascading recompiles when an op is redefined.
 
 (defmacro define-query-op (name typed-args &body body)
   (destructuring-bind (in-args out-args)

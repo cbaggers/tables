@@ -1,6 +1,12 @@
 (in-package #:tables)
 
 ;;------------------------------------------------------------
+;; By forcing the definition of outputs we can more easily work
+;; backwards to identify every allocation in the query, we know
+;; that there are no 'instances' of data that can be passed out
+;; of anywhere else and no arrays or loops so we know exactly
+;; what vars will be needed in the query, this lets us allocate
+;; all of that before the query runs and reuse it across calls.
 
 (defmacro define-query (name typed-in-args-&-uniforms out-args
                         &body body)
