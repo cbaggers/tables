@@ -26,6 +26,7 @@
   (declare (ignore in-args body))
   nil)
 
+#+nil
 (define-query-function test ((a single-float) (b vec2))
   (* b s))
 

@@ -28,6 +28,7 @@
   (declare (ignore in-args out-args body))
   nil)
 
+#+nil
 (define-query-op test ((a single-float) (b vec2))
   blah
   blah

@@ -2,6 +2,8 @@
 
 ;;------------------------------------------------------------
 
+(defclass table-spec () ())
+
 (defclass table-metadata () ())
 
 (defclass table ()

@@ -29,6 +29,7 @@
   (declare (ignore in-args uniforms out-args body))
   nil)
 
+#+nil
 (define-query test ((a single-float) (b vec2)
                     &uniform
                     (time single-float))

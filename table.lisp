@@ -1,4 +1,4 @@
-(in-package :table)
+(in-package :tables)
 
 (defmacro define-table (name &body columns)
   (declare (ignore columns))

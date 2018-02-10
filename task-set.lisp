@@ -21,6 +21,8 @@
 ;; Running the primary function produced by a define-task-set (test-set in
 ;; this case) enqueues the task using the arbiter, if no threading is
 ;; set up then it might run immediately.
+
+#+nil
 (define-task-set test-set ()
   query-a
   (pq-a pq-b)
