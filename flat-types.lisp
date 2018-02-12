@@ -41,11 +41,12 @@
 ;; it's just not a very accessible one.
 ;; In functions the accessors should abstract the read/write and any alignment
 ;; involved.
+;;
+;; due to ↑↑↑↑ size & alignment were removed from the top level decl of layout
 
-(defmacro define-data-layout (name layout-family
-                              (satisfies &key packed size alignment)
+(defmacro define-data-layout (name layout-family (satisfies &key packed-into)
                               &body slots)
-  (declare (ignore name layout-family satisfies packed size alignment slots))
+  (declare (ignore name layout-family satisfies packed-into slots))
   nil)
 
 #+nil
@@ -67,42 +68,36 @@
   (w :type f32))
 
 #+nil
-(define-data-layout vec2-128 aos
-    (vec2 :size 64 :alignment 128)
+(define-data-layout vec2-128 aos (vec2)
   (x :offset 0)
   (y :offset 32))
 
 #+nil
-(define-data-layout vec3-128 aos
-    (vec3 :size 96 :alignment 128)
+(define-data-layout vec3-128 aos (vec3)
   (x :offset 0)
   (y :offset 32)
   (z :offset 64))
 
 #+nil
-(define-data-layout vec4-128 aos
-    (vec4 :size 128 :alignment 128)
+(define-data-layout vec4-128 aos (vec4)
   (x :offset 0)
   (y :offset 32)
   (z :offset 64)
   (w :offset 96))
 
 #+nil
-(define-data-layout vec2-32 aos
-    (vec2 :size 64 :alignment 32)
+(define-data-layout vec2-32 aos (vec2)
   (x :offset 0)
   (y :offset 32))
 
 #+nil
-(define-data-layout vec3-32 aos
-    (vec3 :size 96 :alignment 32)
+(define-data-layout vec3-32 aos (vec3)
   (x :offset 0)
   (y :offset 32)
   (z :offset 64))
 
 #+nil
-(define-data-layout vec4-32 aos
-    (vec4 :size 128 :alignment 32)
+(define-data-layout vec4-32 aos (vec4)
   (x :offset 0)
   (y :offset 32)
   (z :offset 64)
