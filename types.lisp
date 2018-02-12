@@ -33,11 +33,28 @@
 
 ;;------------------------------------------------------------
 
-(defclass flat-type-spec ()
+(defclass flat-primitive-spec ()
+  ((name :initarg :name)
+   (size :initarg :size)
+   (ffi-type :initarg :ffi-type)
+   (lisp-type :initarg :lisp-type)
+   (alignment :initarg :alignment)))
+
+(defmethod make-load-form ((obj flat-primitive-spec) &optional env)
+  (declare (ignore env))
+  (with-slots (name size alignment lisp-type ffi-type) obj
+    `(make-instance 'flat-primitive-spec
+                    :name ',name
+                    :size ',size
+                    :alignment ',alignment
+                    :lisp-type ',lisp-type
+                    :ffi-type ',ffi-type)))
+
+(defclass flat-struct-spec ()
   ((name :initarg :name)
    (slots :initarg :slots)))
 
-(defclass flat-type-slot-definition ()
+(defclass flat-struct-slot-definition ()
   ((name :initarg :name)
    (type :initarg :type)))
 

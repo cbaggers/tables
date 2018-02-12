@@ -7,13 +7,16 @@
   :serial t
   :depends-on (:alexandria
                :bordeaux-threads
-               :cffi)
+               :cffi
+               :optima)
   :components ((:file "package")
                (:file "utils")
                (:file "errors")
                (:file "types")
                (:file "generics")
                (:file "base")
+               (:file "flat-types")
+               (:file "primitive-types")
                (:file "table")
                (:file "query-ops")
                (:file "query-functions")
