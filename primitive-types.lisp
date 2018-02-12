@@ -4,54 +4,48 @@
 
 ;; functions & columns/sequences to resolve
 
-(define-flat-primitive u8 ()
-  :size 8
-  :lisp-type (unsigned-byte 8)
-  :ffi-type :uint8)
+(define-packed-type u8 ((unsigned-byte 8)
+                        :ffi-type :uint8)
+  8)
 
-(define-flat-primitive u16 ()
-  :size 16
-  :lisp-type (unsigned-byte 16)
-  :ffi-type :uint16)
+(define-packed-type u16 ((unsigned-byte 16)
+                         :ffi-type :uint16)
+  16)
 
-(define-flat-primitive u32 ()
-  :size 32
-  :lisp-type (unsigned-byte 32)
-  :ffi-type :uint32)
+(define-packed-type u32 ((unsigned-byte 32)
+                         :ffi-type :uint32)
+  32)
 
-(define-flat-primitive u64 ()
-  :size 64
-  :lisp-type (unsigned-byte 64)
-  :ffi-type :uint64)
+(define-packed-type u64 ((unsigned-byte 64)
+                         :ffi-type :uint64)
+  64)
 
-(define-flat-primitive i8 ()
-  :size 8
-  :lisp-type (signed-byte 8)
-  :ffi-type :int8)
+(define-packed-type i8 ((signed-byte 8)
+                        :ffi-type :int8)
+  8)
 
-(define-flat-primitive i16 ()
-  :size 16
-  :lisp-type (signed-byte 16)
-  :ffi-type :int16)
+(define-packed-type i16 ((signed-byte 16)
+                         :ffi-type :int16)
+  16)
 
-(define-flat-primitive i32 ()
-  :size 32
-  :lisp-type (signed-byte 32)
-  :ffi-type :int32)
+(define-packed-type i32 ((signed-byte 32)
+                         :ffi-type :int32)
+  32)
 
-(define-flat-primitive i64 ()
-  :size 64
-  :lisp-type (signed-byte 64)
-  :ffi-type :int64)
+(define-packed-type i64 ((signed-byte 64)
+                         :ffi-type :int64)
+  64)
 
-(define-flat-primitive f32 ()
-  :size 32
-  :lisp-type single-float
-  :ffi-type :float)
+(define-packed-type f32 (single-float
+                         :ffi-type :float)
+  (1 sign)
+  (8 exponent)
+  (23 mantissa))
 
-(define-flat-primitive f64 ()
-  :size 64
-  :lisp-type double-float
-  :ffi-type :double)
+(define-packed-type f64 (single-float
+                         :ffi-type :float)
+  (1 sign)
+  (11 exponent)
+  (52 mantissa))
 
 ;;------------------------------------------------------------

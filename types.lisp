@@ -33,22 +33,33 @@
 
 ;;------------------------------------------------------------
 
-(defclass flat-primitive-spec ()
-  ((name :initarg :name)
-   (size :initarg :size)
-   (ffi-type :initarg :ffi-type)
-   (lisp-type :initarg :lisp-type)
-   (alignment :initarg :alignment)))
+(defclass packed-part ()
+  ((size :initarg :size)
+   (name :initarg :name)))
 
-(defmethod make-load-form ((obj flat-primitive-spec) &optional env)
+(defclass packed-type-spec ()
+  ((name :initarg :name)
+   (lisp-type :initarg :lisp-type)
+   (ffi-type :initarg :ffi-type)
+   (parts :initarg :parts)))
+
+(defmethod make-load-form ((obj packed-type-spec) &optional env)
   (declare (ignore env))
-  (with-slots (name size alignment lisp-type ffi-type) obj
-    `(make-instance 'flat-primitive-spec
+  (with-slots (name lisp-type ffi-type parts) obj
+    `(make-instance 'packed-type-spec
                     :name ',name
-                    :size ',size
-                    :alignment ',alignment
                     :lisp-type ',lisp-type
-                    :ffi-type ',ffi-type)))
+                    :ffi-type ',ffi-type
+                    :parts (list ,@parts))))
+
+(defmethod make-load-form ((obj packed-part) &optional env)
+  (declare (ignore env))
+  (with-slots (name size) obj
+    `(make-instance 'packed-part
+                    :size ',size
+                    :name ',name)))
+
+;;------------------------------------------------------------
 
 (defclass flat-struct-spec ()
   ((name :initarg :name)

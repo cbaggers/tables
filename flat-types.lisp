@@ -2,25 +2,28 @@
 
 ;;------------------------------------------------------------
 
-(defvar *primitive-types* (make-hash-table))
+(defvar *packed-types* (make-hash-table))
 
-(defmacro define-flat-primitive (name options &key size alignment lisp-type ffi-type)
-  (assert (null options))
-  (check-primtive-values name size alignment lisp-type ffi-type)
-  (let ((def (make-instance 'flat-primitive-spec
-                            :name name
-                            :size size
-                            :alignment alignment
-                            :lisp-type lisp-type
-                            :ffi-type ffi-type)))
-    (setf (gethash name *primitive-types*) def)
+(defmacro define-packed-type (name (lisp-type &key ffi-type) &body parts)
+  ;; parts are ordered from most to least significant bits
+  (let* ((parts (process-packed-values name lisp-type ffi-type parts))
+         (def (make-instance 'packed-type-spec
+                             :name name
+                             :lisp-type lisp-type
+                             :ffi-type ffi-type
+                             :parts parts)))
+    (setf (gethash name *packed-types*) def)
     `(progn
-       (setf (gethash ',name *primitive-types*) ,def)
+       (setf (gethash ',name *packed-types*) ,def)
        ',name)))
 
-(defun check-primtive-values (name size alignment lisp-type ffi-type)
-  (declare (ignore name size alignment lisp-type ffi-type))
-  nil)
+(defun process-packed-values (name lisp-type ffi-type parts)
+  (declare (ignore name lisp-type ffi-type))
+  (loop :for part :in parts :collect
+     (destructuring-bind (size &optional name) (ensure-list part)
+       (make-instance 'packed-part
+                      :name name
+                      :size size))))
 
 ;;------------------------------------------------------------
 
