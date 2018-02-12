@@ -2,6 +2,9 @@
 
 ;;------------------------------------------------------------
 
+(defclass column-definition ()
+  ())
+
 (defclass table-definition ()
   ((columns :initarg :columns)))
 

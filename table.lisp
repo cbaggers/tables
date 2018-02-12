@@ -3,8 +3,10 @@
 ;;------------------------------------------------------------
 
 (defmacro define-table (name &body columns)
-  (declare (ignore columns))
-  `(progn ',name))
+  (let ((definiton (make-table-definition name columns)))
+    `(progn
+       (register-table ,definition)
+       ',name)))
 
 #+nil
 (define-table test-table
@@ -15,6 +17,10 @@
 
 ;;------------------------------------------------------------
 
-(defun make-table (definition)
+(defun make-table-definition (name columns)
+  (declare (ignore name columns))
+  nil)
+
+(defun register-table (definition)
   (declare (ignore definition))
   nil)
