@@ -2,6 +2,13 @@
 
 ;;------------------------------------------------------------
 
+;; what to do about quintword?
+(defmacro declare-machine-type-size (size)
+  (declare (ignore size))
+  nil)
+
+;;------------------------------------------------------------
+
 ;; removed lisp-type & ffi-type. The lisp-type equivelence should
 ;; be made though some kind of implcicit casting function and the
 ;; ffi-type is irrelevent as the size of this will just be the sum
@@ -26,22 +33,29 @@
 ;; involved.
 ;; due to this size & alignment were removed from these macros
 
-(defmacro define-data-trait (name (&key)
-                            &body slots)
+(defmacro define-data-trait (name (&key) &body slots)
   (declare (ignore name slots))
   nil)
 
-;; in ffi impls maybe the name is really a formality, all layouts with the same
-;; offset, alignment, etc values are the same.
-(defmacro define-data-ffi-impl (name satisfies &body accessors)
-  (declare (ignore name satisfies accessors))
-  nil)
+;; in these data types maybe the name is really a formality, all layouts with
+;; the same offset, alignment, etc values are the same.
+;;
+;; parts with the integer in the type slot are packed types
+;;
+;; TODO: Should we add jai's 'using' to this? Would be nice.
+(defmacro define-data-type (name (&key) &body parts)
+  (declare (ignore name))
+  (let ((parts (mapcar (lambda (x) (if (listp x) x (list nil x)))
+                       parts)))
+    (loop :for (name type/size offset) :in parts :do
+       ;; dummy shit here
+       (list :> name type/size))))
 
-(defmacro define-data-lisp-impl (lisp-type satisfies constructor-function
-                                 &body accessors)
-  (declare (ignore lisp-type satisfies accessors))
+;; you use this to define how a given type (lisp type or tables type) satifies
+;; a given data trait.
+(defmacro define-trait-impl (lisp/tables-type satisfies &body accessors)
+  (declare (ignore lisp/tables-type satisfies accessors))
   nil)
-
 
 ;;------------------------------------------------------------
 ;; it's a mask, we will try to pack this with other sub-word

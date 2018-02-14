@@ -14,6 +14,15 @@
   ((metadata :initarg :metadata)
    (clusters :initform (make-array 10 :adjustable t :fill-pointer 0))))
 
+;; TODO: Maybe we have joins as well a clusters. So:
+;;
+;; table
+;;   joins
+;;     clusters
+;;       chunks
+
+;; This is just so simplify 1-to-1 structural joins.
+
 ;;------------------------------------------------------------
 
 (defclass cluster-metadata () ())
