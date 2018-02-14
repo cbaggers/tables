@@ -27,7 +27,8 @@
   nil)
 
 #+nil
-(define-query-function test ((a single-float) (b vec2))
+(define-query-function test ((a f32)
+                             (b vec2))
   (* b s))
 
 ;;------------------------------------------------------------

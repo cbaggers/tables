@@ -8,6 +8,7 @@
   :depends-on (:alexandria
                :bordeaux-threads
                :cffi
+               :rtg-math ;; only here for example/testing. Will remove soon
                :optima)
   :components ((:file "package")
                (:file "utils")
