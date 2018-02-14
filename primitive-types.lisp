@@ -43,9 +43,24 @@
   (23 mantissa))
 
 (define-packed-type f64 (single-float
-                         :ffi-type :float)
+                         :ffi-type :double)
   (1 sign)
   (11 exponent)
   (52 mantissa))
 
 ;;------------------------------------------------------------
+
+
+#+nil
+(progn
+  (define-packed-type 3bit (nil)
+    3)
+
+  (define-packed-type foo ((unsigned-byte 64)
+                           :ffi-type :uint64)
+    5
+    (3bit threefiddy)
+    (56 body))
+
+  (unpack-as (unsigned-byte 8) some-foo '3bit)
+  (unpack-into place some-foo '3bit))
