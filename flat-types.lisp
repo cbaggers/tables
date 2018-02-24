@@ -1,4 +1,5 @@
 (in-package :tables)
+(in-readtable :fn.reader)
 
 ;;------------------------------------------------------------
 
@@ -9,23 +10,7 @@
 
 ;;------------------------------------------------------------
 
-;; removed lisp-type & ffi-type. The lisp-type equivelence should
-;; be made though some kind of implcicit casting function and the
-;; ffi-type is irrelevent as the size of this will just be the sum
-;; of the sizes of the parts, rounded up to the nearest machine type
-;; size.
-(defmacro define-packed-type (name (&key) &body parts)
-  ;; parts are ordered from most to least significant bits
-  (declare (ignore name parts))
-  nil)
-
-;; - needs some kind of default alignment info
-(define-packed-type f32 ()
-  (1 sign)
-  (8 exponent)
-  (23 mantissa))
-
-;;------------------------------------------------------------
+(defvar *data-traits* (make-hash-table))
 
 ;; stride & alignment kinda seem like column/sequence parameters. an f32 is
 ;; still an f32 if packed inside an i64.. it's just not a very accessible one.
@@ -33,23 +18,59 @@
 ;; involved.
 ;; due to this size & alignment were removed from these macros
 
+(defun get-trait (name &key (error t))
+  (assert (symbolp name))
+  (or (gethash name *data-traits*)
+      (when error
+        (error "Tables: Unknown trait ~a" name))))
+
+(defun parse-type-specifier (specifier)
+  (or (if (listp specifier)
+          (parse-type-specifier-form (first specifier) (rest specifier))
+          (or (get-trait specifier :error nil)
+              (get-data-type specifier)))
+      (error "Tables: Unknown type specifier ~a" specifier)))
+
+(defun get-data-type (specifier)
+  (print "get-data-type not implemented yet")
+  specifier)
+
+(defgeneric parse-type-specifier-form (name args)
+  (:method (name args)
+    (error "Tables: Unknown type specifier (~a ~{~a~^ ~}"
+           name args)))
+
 (defmacro define-data-trait (name (&key) &body slots)
-  (declare (ignore name slots))
-  nil)
+  (flet ((parse-slot (slot)
+           (destructuring-bind (name type) slot
+             (make-instance 'data-trait-slot-definition
+                            :name name
+                            :type (parse-type-specifier type)))))
+    `(enqueue-definition
+      ,(make-instance 'data-trait-definition
+                      :name name
+                      :slots (mapcar #'parse-slot slots)))))
+
+;;------------------------------------------------------------
 
 ;; in these data types maybe the name is really a formality, all layouts with
-;; the same offset, alignment, etc values are the same.
-;;
-;; parts with the integer in the type slot are packed types
+;; the same offset, alignment, etc values are the same. (maybe)
 ;;
 ;; TODO: Should we add jai's 'using' to this? Would be nice.
-(defmacro define-data-type (name (&key) &body parts)
+(defmacro define-data-type (name (&key packed) &body parts)
   (declare (ignore name))
-  (let ((parts (mapcar (lambda (x) (if (listp x) x (list nil x)))
-                       parts)))
-    (loop :for (name type/size offset) :in parts :do
-       ;; dummy shit here
-       (list :> name type/size))))
+  (if packed
+      (gen-packed-data-type name parts)
+      (gen-regular-data-type name parts)))
+
+(defun gen-packed-data-type (name parts)
+  (make-instance '))
+
+(defun gen-regular-data-type (name parts)
+  )
+
+
+;;------------------------------------------------------------
 
 ;; you use this to define how a given type (lisp type or tables type) satifies
 ;; a given data trait.

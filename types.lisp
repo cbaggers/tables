@@ -72,6 +72,11 @@
 
 (defclass chunk-metadata () ())
 
+;; posibility:
+;; removing things is a bugger as it breaks any indexes used internally
+;; instead of reorganising slots in the data-ptrs array just free and leave
+;; empty, always push a new entry.
+;; Doesnt matter as next session each will assign new indices anyhoo.
 (defclass chunk ()
   ((metadata :initarg :metadata)
    (data-ptrs :initarg :data-ptr) ;; an array of pointers
@@ -79,40 +84,54 @@
 
 ;;------------------------------------------------------------
 
-(defclass packed-part ()
+(defclass data-trait-definition ()
+  ((name :initarg :name)
+   (slots :initarg :slots)))
+
+(defclass data-trait-slot-definition ()
+  ((name :initarg :name)
+   (type :initarg :type)))
+
+(defmethod make-load-form ((obj data-trait-definition) &optional env)
+  (declare (ignore env))
+  (with-slots (name slots) obj
+    `(make-instance 'data-trait-definition
+                    :name ',name
+                    :slots (list ,@slots))))
+
+(defmethod make-load-form ((obj data-trait-slot-definition) &optional env)
+  (declare (ignore env))
+  (with-slots (name type) obj
+    `(make-instance 'data-trait-slot-definition
+                    :name ',name
+                    :type ',type)))
+
+;;------------------------------------------------------------
+
+(defclass data-type-part-definition ()
   ((size :initarg :size)
    (name :initarg :name)))
 
-(defclass packed-type-spec ()
+(defclass data-type-definition ()
   ((name :initarg :name)
    (lisp-type :initarg :lisp-type)
    (ffi-type :initarg :ffi-type)
    (parts :initarg :parts)))
 
-(defmethod make-load-form ((obj packed-type-spec) &optional env)
+(defmethod make-load-form ((obj data-type-definition) &optional env)
   (declare (ignore env))
   (with-slots (name lisp-type ffi-type parts) obj
-    `(make-instance 'packed-type-spec
+    `(make-instance 'data-type-definition
                     :name ',name
                     :lisp-type ',lisp-type
                     :ffi-type ',ffi-type
                     :parts (list ,@parts))))
 
-(defmethod make-load-form ((obj packed-part) &optional env)
+(defmethod make-load-form ((obj data-type-part-definition) &optional env)
   (declare (ignore env))
   (with-slots (name size) obj
-    `(make-instance 'packed-part
+    `(make-instance 'data-type-part-definition
                     :size ',size
                     :name ',name)))
-
-;;------------------------------------------------------------
-
-(defclass flat-struct-spec ()
-  ((name :initarg :name)
-   (slots :initarg :slots)))
-
-(defclass flat-struct-slot-definition ()
-  ((name :initarg :name)
-   (type :initarg :type)))
 
 ;;------------------------------------------------------------

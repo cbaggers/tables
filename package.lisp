@@ -2,7 +2,8 @@
 
 (uiop:define-package #:tables
     (:use :cl :cffi :bordeaux-threads
-          :completable-types)
+          :completable-types
+          :named-readtables)
   (:import-from :alexandria
                 :with-gensyms
                 :ensure-list))
