@@ -2,22 +2,45 @@
 
 ;;------------------------------------------------------------
 
-(defclass column-definition ()
-  ())
+(define-completable column-definition ()
+  name
+  element-type
+  cluster)
 
-(defclass table-definition ()
-  ((columns :initarg :columns)))
+(define-completable table-definition ()
+  name
+  columns)
 
-(defclass table-metadata () ())
+(defmethod make-load-form ((obj table-definition) &optional env)
+  (declare (ignore env))
+  (with-contents (name columns) obj
+    `(make-table-definition
+      :name ',name
+      :columns (list ,@columns))))
 
-(defclass table ()
-  ((metadata :initarg :metadata)
-   (clusters :initform (make-array 10 :adjustable t :fill-pointer 0))))
+(defmethod make-load-form ((obj column-definition) &optional env)
+  (declare (ignore env))
+  (with-contents (name element-type cluster) obj
+    `(make-column-definition
+      :name ',name
+      :element-type ',element-type
+      :cluster ',cluster)))
+
+(define-completable table-metadata ()
+  columns)
+
+(define-completable table ()
+  name
+  metadata
+  join-groups)
+
+(defun make-join-group-array ()
+  (make-array 10 :adjustable t :fill-pointer 0))
 
 ;; TODO: Maybe we have joins as well a clusters. So:
 ;;
 ;; table
-;;   joins
+;;   join-groups
 ;;     clusters
 ;;       chunks
 
@@ -25,11 +48,25 @@
 
 ;;------------------------------------------------------------
 
-(defclass cluster-metadata () ())
+(define-completable join-group-metadata ())
 
-(defclass cluster ()
-  ((metadata :initarg :metadata)
-   (chunks :initform (make-array 10 :adjustable t :fill-pointer 0))))
+(define-completable join-group ()
+  metadata
+  clusters)
+
+(defun make-cluster-array ()
+  (make-array 10 :adjustable t :fill-pointer 0))
+
+;;------------------------------------------------------------
+
+(define-completable cluster-metadata ())
+
+(define-completable cluster ()
+  metadata
+  chunks)
+
+(defun make-chunk-array ()
+  (make-array 10 :adjustable t :fill-pointer 0))
 
 ;;------------------------------------------------------------
 

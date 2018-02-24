@@ -1,12 +1,39 @@
 (in-package :tables)
 
+(defvar *tables*
+  (make-hash-table))
+
+(defun get-table (name)
+  (gethash name *tables*))
+
+(defun set-table (table)
+  (assert (name table))
+  (setf (gethash (name table) *tables*) table))
+
+(defun nuke-shit ()
+  (setf *tables* (make-hash-table)))
+
 ;;------------------------------------------------------------
 
 (defmacro define-table (name (&key) &body columns)
-  (let ((definiton (make-table-definition name columns)))
+  (let ((definition (make-table-definition
+                     :name name
+                     :columns (parse-table-columns columns))))
     `(progn
-       (register-table ,definition)
+       (enqueue-definition ,definition)
        ',name)))
+
+(defun parse-table-columns (columns)
+  (mapcar #'parse-table-column columns))
+
+(defun parse-table-column (column)
+  (destructuring-bind (name type &key cluster) column
+    (make-column-definition
+     :name name
+     :element-type type
+     :cluster cluster)))
+
+;;------------------------------------------------------------
 
 (defmacro define-join (&body who-knows)
   (declare (ignore who-knows))
@@ -14,21 +41,16 @@
 
 ;;------------------------------------------------------------
 
-(defun make-table-definition (name columns)
-  (declare (ignore name columns))
-  nil)
-
-(defun register-table (definition)
-  (declare (ignore definition))
-  nil)
-
 
 #+nil
-(define-table test-table ()
-  (position :type vec3)
-  (rotation :type quaternion)
-  (health :type (integer 0 100))
-  (shot-recharge-time :type single-float))
+(progn
+  (define-table test-table ()
+    (position vec3)
+    (rotation quaternion)
+    (foo beans)
+    (health (integer 0 100))
+    (shot-recharge-time single-float))
+  (arbiter-run-dev-tasks))
 
 #+nil
 (define-table metadata ()
