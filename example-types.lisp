@@ -60,6 +60,31 @@
   (z f32)
   (w f32))
 
+(define-data-trait quaternion ()
+  (w f32)
+  (x f32)
+  (y f32)
+  (z f32))
+
+;;------------------------------------------------------------
+
+(define-data-type soa-vec2 ()
+  (x f32)
+  (y f32))
+
+
+(define-data-type soa-vec3 ()
+  (x f32)
+  (y f32)
+  (z f32))
+
+
+(define-data-type soa-vec4 ()
+  (x f32)
+  (y f32)
+  (z f32)
+  (w f32))
+
 ;;------------------------------------------------------------
 
 ;; Packed tightly packs data, often this can be an issue
@@ -97,21 +122,57 @@
 ;; from tables types.
 ;; or maybe just (subtypep 'rtg-math.types:vec2 t) will do.
 
-(define-trait-impl rtg-math.types:vec2 vec2
-  (x v:x)
-  (y v:y))
 
-
-(define-trait-impl rtg-math.types:vec3 vec3
-  (x v:x)
-  (y v:y)
-  (z v:z))
-
-
-(define-trait-impl rtg-math.types:vec4 vec4
-  (x v:x)
-  (y v:y)
-  (z v:z)
-  (w v:w))
+;; These are incorrect, vec2 wants f32, not single-float
+;; (define-trait-impl rtg-math.types:vec2 vec2
+;;   (x v:x)
+;;   (y v:y))
+;;
+;;
+;; (define-trait-impl rtg-math.types:vec3 vec3
+;;   (x v:x)
+;;   (y v:y)
+;;   (z v:z))
+;;
+;;
+;; (define-trait-impl rtg-math.types:vec4 vec4
+;;   (x v:x)
+;;   (y v:y)
+;;   (z v:z)
+;;   (w v:w))
 
 ;;------------------------------------------------------------
+
+#||
+
+Hmm, so we have a conundrum. We have f32, which is an 32bit ieee-754 float
+common lisp does not have this.
+
+We have vec2, which is a data-trait which has f32 slots.
+
+We cant represent an f32 in lisp.
+
+Whilst we inline functions (and thus dont need to worry about calls for the
+most part) we still need to be able to have f32 vars.
+
+A given impl/machine combo may have a compatible type. For example sbcl's
+single-float is an f32 (unless boxed). However once it is a single-float it
+isnt valid to assume we can extract the f32 fields
+Q: is it not?
+A: No as we cant mask or shift a single-float
+
+We could allow some implicit conversions for types known to be structurally
+identical
+
+(define-var-type f32 single-float (ptr val)
+  :from (cffi:mem-aref ptr :float)
+  :to (setf (cffi:mem-aref ptr :float) val))
+
+I think we can get away with this, we can then pass f32 to funcs taking
+single-float (and vice-versa)
+
+blah blah drink all the gin
+
+
+
+||#
