@@ -29,12 +29,19 @@
            (destructuring-bind (name type) slot
              (make-data-trait-slot-definition
               :name name
-              :ttype (make-type-ref
-                      :ttype (parse-type-specifier type))))))
+              :ttype (parse-type-specifier type)))))
     `(enqueue-definition
       ,(make-data-trait-definition
         :name name
         :slots (mapcar #'parse-slot slots)))))
+
+;; TODO: propegate change to all tables/queries/etc
+(defmethod update-definition ((definition data-trait-definition))
+  (let ((current (gethash (name definition) *data-traits*)))
+    (if current
+        (setf (ttype current) definition)
+        (setf (gethash (name definition) *data-traits*)
+              (make-type-ref :ttype definition)))))
 
 ;;------------------------------------------------------------
 
@@ -67,8 +74,7 @@
                 "Tables: if unpacked slot is padding the name must be nil"))
              (make-data-type-part-definition
               :name name
-              :ttype (make-type-ref
-                      :ttype (parse-type-specifier type/size))
+              :ttype (parse-type-specifier type/size)
               :offset offset))))
     `(enqueue-definition
       ,(make-data-type-definition
@@ -76,17 +82,29 @@
         :packed packed
         :parts (mapcar #'parse-part parts)))))
 
+;; TODO: propegate change to all tables/queries/etc
+(defmethod update-definition ((definition data-type-definition))
+  (let ((current (gethash (name definition) *data-types*)))
+    (if current
+        (setf (ttype current) definition)
+        (setf (gethash (name definition) *data-types*)
+              (make-type-ref :ttype definition)))))
+
 ;;------------------------------------------------------------
 
 (defun parse-type-specifier (specifier)
-  (or (cond
-        ((listp specifier)
-         (parse-type-specifier-form (first specifier) (rest specifier)))
-        ((numberp specifier)
-         (make-anon-type :size specifier))
-        (t (or (get-trait specifier :error nil)
-               (get-data-type specifier))))
-      (error "Tables: Unknown type specifier ~a" specifier)))
+  (let ((type (cond
+                ((listp specifier)
+                 (parse-type-specifier-form (first specifier)
+                                            (rest specifier)))
+                ((numberp specifier)
+                 (make-type-ref
+                  :ttype (make-anon-type :size specifier)))
+                (t (or (get-trait specifier :error nil)
+                       (get-data-type specifier :error nil))))))
+    (assert type () "Tables: Unknown type specifier ~a" specifier)
+    (assert (typep type 'type-ref))
+    type))
 
 (defgeneric parse-type-specifier-form (name args)
   (:method (name args)

@@ -120,14 +120,23 @@
       (typep x 'data-type-definition)
       (typep x 'anon-type)))
 
-(define-completable type-ref ()
-  (ttype #'table-type-def-p))
+(defclass type-ref ()
+  ((ttype :initarg :ttype :accessor ttype)))
+
+(defmethod make-type-ref (&key ttype)
+  (assert (table-type-def-p ttype) ()
+          "Tables: Cannot make type-ref to ~a~%Value: ~a"
+          (type-of ttype) ttype)
+  (make-instance 'type-ref :ttype ttype))
+
+(defmethod print-object ((obj type-ref) stream)
+  (with-slots (ttype) obj
+    (format stream "#<TYPE-REF ~s>" ttype)))
 
 (defmethod make-load-form ((obj type-ref) &optional env)
   (declare (ignore env))
-  (with-contents (ttype) obj
-    `(make-type-ref
-      :ttype ,(parse-type-specifier (to-specifier ttype)))))
+  (with-slots (ttype) obj
+    `(parse-type-specifier ',(to-specifier ttype))))
 
 ;;------------------------------------------------------------
 
