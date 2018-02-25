@@ -24,51 +24,74 @@
       (when error
         (error "Tables: Unknown trait ~a" name))))
 
-(defun parse-type-specifier (specifier)
-  (or (if (listp specifier)
-          (parse-type-specifier-form (first specifier) (rest specifier))
-          (or (get-trait specifier :error nil)
-              (get-data-type specifier)))
-      (error "Tables: Unknown type specifier ~a" specifier)))
-
-(defun get-data-type (specifier)
-  (print "get-data-type not implemented yet")
-  specifier)
-
-(defgeneric parse-type-specifier-form (name args)
-  (:method (name args)
-    (error "Tables: Unknown type specifier (~a ~{~a~^ ~}"
-           name args)))
-
 (defmacro define-data-trait (name (&key) &body slots)
   (flet ((parse-slot (slot)
            (destructuring-bind (name type) slot
-             (make-instance 'data-trait-slot-definition
-                            :name name
-                            :type (parse-type-specifier type)))))
+             (make-data-trait-slot-definition
+              :name name
+              :ttype (make-type-ref
+                      :ttype (parse-type-specifier type))))))
     `(enqueue-definition
-      ,(make-instance 'data-trait-definition
-                      :name name
-                      :slots (mapcar #'parse-slot slots)))))
+      ,(make-data-trait-definition
+        :name name
+        :slots (mapcar #'parse-slot slots)))))
 
 ;;------------------------------------------------------------
+
+(defvar *data-types* (make-hash-table))
+
+(defun get-data-type (name &key (error t))
+  (assert (symbolp name))
+  (or (gethash name *data-types*)
+      (when error
+        (error "Tables: Unknown type ~a" name))))
 
 ;; in these data types maybe the name is really a formality, all layouts with
 ;; the same offset, alignment, etc values are the same. (maybe)
 ;;
 ;; TODO: Should we add jai's 'using' to this? Would be nice.
 (defmacro define-data-type (name (&key packed) &body parts)
-  (declare (ignore name))
-  (if packed
-      (gen-packed-data-type name parts)
-      (gen-regular-data-type name parts)))
+  (assert (member packed '(t nil)))
+  (flet ((parse-part (part)
+           (destructuring-bind (name type/size &key offset)
+               (if (numberp part)
+                    (list nil part)
+                   part)
+             (when (and packed (null name))
+               (assert
+                (numberp type/size) ()
+                "Tables: if packed slot is anonomous the type must be a bit size"))
+             (when (and (not packed) (numberp type/size))
+               (assert
+                (null name) ()
+                "Tables: if unpacked slot is padding the name must be nil"))
+             (make-data-type-part-definition
+              :name name
+              :ttype (make-type-ref
+                      :ttype (parse-type-specifier type/size))
+              :offset offset))))
+    `(enqueue-definition
+      ,(make-data-type-definition
+        :name name
+        :packed packed
+        :parts (mapcar #'parse-part parts)))))
 
-(defun gen-packed-data-type (name parts)
-  (make-instance '))
+;;------------------------------------------------------------
 
-(defun gen-regular-data-type (name parts)
-  )
+(defun parse-type-specifier (specifier)
+  (or (cond
+        ((listp specifier)
+         (parse-type-specifier-form (first specifier) (rest specifier)))
+        ((numberp specifier)
+         (make-anon-type :size specifier))
+        (t (or (get-trait specifier :error nil)
+               (get-data-type specifier))))
+      (error "Tables: Unknown type specifier ~a" specifier)))
 
+(defgeneric parse-type-specifier-form (name args)
+  (:method (name args)
+    (error "Tables: Unknown type specifier (~a ~{~a~^ ~}"
+           name args)))
 
 ;;------------------------------------------------------------
 

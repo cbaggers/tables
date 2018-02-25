@@ -84,54 +84,93 @@
 
 ;;------------------------------------------------------------
 
-(defclass data-trait-definition ()
-  ((name :initarg :name)
-   (slots :initarg :slots)))
-
-(defclass data-trait-slot-definition ()
-  ((name :initarg :name)
-   (type :initarg :type)))
-
-(defmethod make-load-form ((obj data-trait-definition) &optional env)
-  (declare (ignore env))
-  (with-slots (name slots) obj
-    `(make-instance 'data-trait-definition
-                    :name ',name
-                    :slots (list ,@slots))))
-
-(defmethod make-load-form ((obj data-trait-slot-definition) &optional env)
-  (declare (ignore env))
-  (with-slots (name type) obj
-    `(make-instance 'data-trait-slot-definition
-                    :name ',name
-                    :type ',type)))
+(defgeneric to-specifier (ttype))
 
 ;;------------------------------------------------------------
 
-(defclass data-type-part-definition ()
-  ((size :initarg :size)
-   (name :initarg :name)))
+(define-completable data-trait-definition ()
+  name
+  slots)
 
-(defclass data-type-definition ()
-  ((name :initarg :name)
-   (lisp-type :initarg :lisp-type)
-   (ffi-type :initarg :ffi-type)
-   (parts :initarg :parts)))
+(define-completable data-trait-slot-definition ()
+  name
+  (ttype type-ref))
+
+(defmethod make-load-form ((obj data-trait-definition) &optional env)
+  (declare (ignore env))
+  (with-contents (name slots) obj
+    `(make-data-trait-definition
+      :name ',name
+      :slots (list ,@slots))))
+
+(defmethod make-load-form ((obj data-trait-slot-definition) &optional env)
+  (declare (ignore env))
+  (with-contents (name ttype) obj
+    `(make-data-trait-slot-definition
+      :name ',name
+      :ttype ',ttype)))
+
+(defmethod to-specifier ((obj data-trait-definition))
+  (name obj))
+
+;;------------------------------------------------------------
+
+(defun table-type-def-p (x)
+  (or (typep x 'data-trait-definition)
+      (typep x 'data-type-definition)
+      (typep x 'anon-type)))
+
+(define-completable type-ref ()
+  (ttype #'table-type-def-p))
+
+(defmethod make-load-form ((obj type-ref) &optional env)
+  (declare (ignore env))
+  (with-contents (ttype) obj
+    `(make-type-ref
+      :ttype ,(parse-type-specifier (to-specifier ttype)))))
+
+;;------------------------------------------------------------
+
+(define-completable anon-type ()
+  size)
+
+(defmethod make-load-form ((obj anon-type) &optional env)
+  (declare (ignore env))
+  (with-contents (size) obj
+    `(make-anon-type :size ,size)))
+
+(defmethod to-specifier ((obj anon-type))
+  (size obj))
+
+;;------------------------------------------------------------
+
+(define-completable data-type-part-definition ()
+  name
+  (ttype type-ref)
+  offset)
+
+(define-completable data-type-definition ()
+  name
+  packed
+  parts)
+
+(defmethod to-specifier ((obj data-type-definition))
+  (name obj))
 
 (defmethod make-load-form ((obj data-type-definition) &optional env)
   (declare (ignore env))
-  (with-slots (name lisp-type ffi-type parts) obj
-    `(make-instance 'data-type-definition
-                    :name ',name
-                    :lisp-type ',lisp-type
-                    :ffi-type ',ffi-type
-                    :parts (list ,@parts))))
+  (with-contents (name packed parts) obj
+    `(make-data-type-definition
+      :name ',name
+      :packed ,packed
+      :parts (list ,@parts))))
 
 (defmethod make-load-form ((obj data-type-part-definition) &optional env)
   (declare (ignore env))
-  (with-slots (name size) obj
-    `(make-instance 'data-type-part-definition
-                    :size ',size
-                    :name ',name)))
+  (with-contents (name ttype offset) obj
+    `(make-data-type-part-definition
+      :name ',name
+      :ttype ',ttype
+      :offset ',offset)))
 
 ;;------------------------------------------------------------
