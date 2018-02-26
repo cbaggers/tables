@@ -51,11 +51,6 @@
 
 ;;------------------------------------------------------------
 
-(defmethod to-specifier ((obj anon-type))
-  (size obj))
-
-;;------------------------------------------------------------
-
 (defvar *bit-types* (make-hash-table))
 
 (defun bit-type-name-p (name)
@@ -92,6 +87,7 @@
 ;;
 (defmacro define-bit-type (name (&key packed) &body slots)
   (assert (member packed '(t nil)))
+  (assert (not (get-lisp-type name :error nil)))
   (flet ((parse-slot (slot)
            (destructuring-bind (name type/size &key offset)
                (if (numberp slot)

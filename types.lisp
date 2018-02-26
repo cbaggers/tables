@@ -1,4 +1,5 @@
 (in-package #:tables)
+(in-readtable :fn.reader)
 
 ;;------------------------------------------------------------
 
@@ -7,26 +8,50 @@
 
 ;;------------------------------------------------------------
 
-(defgeneric to-specifier (ttype))
+(defgeneric init-type (definition))
+
 
 (defgeneric update-definition (definition)
   (:method (definition)
     (error "Tables: update-definition not defined for ~a"
            definition)))
 
+
 (defgeneric validate-definition (definition)
   (:method (definition)
     (error "Tables: validate-definition not defined for ~a"
            definition)))
 
-(defgeneric init-type (definition))
+
+(defgeneric to-specifier (ttype))
+
+(defun parse-type-specifier (specifier)
+  (let ((type (cond
+                ((listp specifier)
+                 (parse-type-specifier-form (first specifier)
+                                            (rest specifier)))
+                ((numberp specifier)
+                 (make-type-ref
+                  :ttype (make-anon-type :size specifier)))
+                (t (or (get-lisp-type specifier :error nil )
+                       (get-trait specifier :error nil)
+                       (get-bit-type specifier :error nil))))))
+    (assert type () "Tables: Unknown type specifier ~a" specifier)
+    (assert (typep type 'type-ref))
+    type))
+
+(defgeneric parse-type-specifier-form (name args)
+  (:method (name args)
+    (error "Tables: Unknown type specifier (~a ~{~a~^ ~}"
+           name args)))
 
 ;;------------------------------------------------------------
 
 (defun table-type-def-p (x)
   (or (typep x 'data-trait)
-      (typep x 'bit-type)
-      (typep x 'anon-type)))
+      (typep x 'bit-type)p
+      (typep x 'anon-type)
+      (typep x 'lisp-type)))
 
 (defclass type-ref ()
   ((ttype :initarg :ttype :accessor ttype)))
@@ -48,84 +73,90 @@
 
 ;;------------------------------------------------------------
 
-(define-completable column-definition ()
-  name
-  element-type
-  cluster)
+(defclass lisp-type ()
+  ((ttype :initarg :ttype :reader ttype)))
 
-(define-completable table-definition ()
-  name
-  columns)
+(defun make-lisp-type (specifier)
+  (make-instance 'lisp-type :ttype specifier))
 
-(defmethod make-load-form ((obj table-definition) &optional env)
-  (declare (ignore env))
-  (with-contents (name columns) obj
-    `(make-table-definition
-      :name ',name
-      :columns (list ,@columns))))
+(defvar *allowed-lisp-types*
+  (alexandria:alist-hash-table
+   (list (cons 'single-float
+               (make-type-ref :ttype (make-lisp-type 'single-float)))
+         (cons 'double-float
+               (make-type-ref :ttype (make-lisp-type 'double-float)))
+         (cons '(unsigned-byte 8)
+               (make-type-ref :ttype (make-lisp-type '(unsigned-byte 8))))
+         (cons '(unsigned-byte 16)
+               (make-type-ref :ttype (make-lisp-type '(unsigned-byte 16))))
+         (cons '(unsigned-byte 32)
+               (make-type-ref :ttype (make-lisp-type '(unsigned-byte 32))))
+         (cons '(unsigned-byte 64)
+               (make-type-ref :ttype (make-lisp-type '(unsigned-byte 64))))
+         (cons '(signed-byte 8)
+               (make-type-ref :ttype (make-lisp-type '(signed-byte 8))))
+         (cons '(signed-byte 16)
+               (make-type-ref :ttype (make-lisp-type '(signed-byte 16))))
+         (cons '(signed-byte 32)
+               (make-type-ref :ttype (make-lisp-type '(signed-byte 32))))
+         (cons '(signed-byte 64)
+               (make-type-ref :ttype (make-lisp-type '(signed-byte 64)))))
+   :test #'equal))
 
-(defmethod make-load-form ((obj column-definition) &optional env)
-  (declare (ignore env))
-  (with-contents (name element-type cluster) obj
-    `(make-column-definition
-      :name ',name
-      :element-type ',element-type
-      :cluster ',cluster)))
+(defun get-lisp-type (name &key (error t))
+  (or (gethash name *allowed-lisp-types*)
+      (when error
+        (error "Tables: Invalid type ~a" name))))
 
-(define-completable table-metadata ()
-  columns)
+;;------------------------------------------------------------
 
-(define-completable table ()
-  name
-  metadata
-  join-groups)
+(defmethod to-specifier ((obj anon-type))
+  (size obj))
 
-(defun make-join-group-array ()
-  (make-array 10 :adjustable t :fill-pointer 0))
-
-;; TODO: Maybe we have joins as well a clusters. So:
+;;------------------------------------------------------------
+;; it's a mask, we will try to pack this with other sub-word
+;; sized data. tables can be clustered on enum values.
 ;;
-;; table
-;;   join-groups
-;;     clusters
-;;       chunks
+;; define-enum should, when recompiled, keep current values valid
+;; this means not reassigning all the values. If a value is removed
+;; keep track of this value so it can be reused before extending
+;; the bit-length of the type.
+;;
 
-;; This is just so simplify 1-to-1 structural joins.
+(defmacro define-enum (name &body constants)
+  (declare (ignore name constants))
+  nil)
 
-;;------------------------------------------------------------
-
-(define-completable join-group-metadata ())
-
-(define-completable join-group ()
-  metadata
-  clusters)
-
-(defun make-cluster-array ()
-  (make-array 10 :adjustable t :fill-pointer 0))
-
-;;------------------------------------------------------------
-
-(define-completable cluster-metadata ())
-
-(define-completable cluster ()
-  metadata
-  chunks)
-
-(defun make-chunk-array ()
-  (make-array 10 :adjustable t :fill-pointer 0))
+;; same syntax as enum but each entry can have multiple flags
+;; so flag values increase by power of 2 (1,2,4,8,etc) whereas
+;; enums increase by 1
+;;
+;; Also it is valid to a row to have 0 for flags (no flags) but
+;; that is not legal for enums. Enum column entries must always
+;; be one of the entries.
+(defmacro define-flags (name &body constants)
+  (declare (ignore name constants))
+  nil)
 
 ;;------------------------------------------------------------
 
-(defclass chunk-metadata () ())
+#+nil
+(define-enum entity-kinds
+  player
+  bat-enemy
+  turtle-enemy)
 
-;; posibility:
-;; removing things is a bugger as it breaks any indexes used internally
-;; instead of reorganising slots in the data-ptrs array just free and leave
-;; empty, always push a new entry.
-;; Doesnt matter as next session each will assign new indices anyhoo.
-(defclass chunk ()
-  ((metadata :initarg :metadata)
-   (data-ptrs :initarg :data-ptr) ;; an array of pointers
-   (skip-list-ptr :initarg :skip-list-ptr)))
+;;------------------------------------------------------------
+
+#||
+
+What data operations does a type need to provide? We need accessors for sure.
+with those we can make swap, so nothing else needed there. hmm
+
+||#
+
+;;------------------------------------------------------------
+
+;; TODO: gotta think about endianess and unions
 
 ;;------------------------------------------------------------
