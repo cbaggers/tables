@@ -6,7 +6,9 @@
   :license "Specify license here"
   :serial t
   :depends-on (:alexandria
+               :completable-types
                :bordeaux-threads
+               :fn
                :cffi
                :rtg-math ;; only here for example/testing. Will remove soon
                :optima)
