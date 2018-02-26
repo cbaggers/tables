@@ -97,4 +97,13 @@
 
 ;;------------------------------------------------------------
 
+#||
+
+What data operations does a type need to provide? We need accessors for sure.
+with those we can make swap, so nothing else needed there. hmm
+
+||#
+
+;;------------------------------------------------------------
+
 ;; TODO: gotta think about endianess and unions
