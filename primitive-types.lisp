@@ -6,10 +6,10 @@
 
 #+nil
 (progn
-  (define-data-type 3bit (nil)
+  (define-bit-type 3bit (nil)
     3)
 
-  (define-data-type foo ((unsigned-byte 64)
+  (define-bit-type foo ((unsigned-byte 64)
                            :ffi-type :uint64)
     5
     (3bit threefiddy)

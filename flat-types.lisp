@@ -57,7 +57,7 @@
 ;; the same offset, alignment, etc values are the same. (maybe)
 ;;
 ;; TODO: Should we add jai's 'using' to this? Would be nice.
-(defmacro define-data-type (name (&key packed) &body parts)
+(defmacro define-bit-type (name (&key packed) &body parts)
   (assert (member packed '(t nil)))
   (flet ((parse-part (part)
            (destructuring-bind (name type/size &key offset)

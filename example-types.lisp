@@ -5,36 +5,36 @@
 ;; bit layout. So u8 and i8 have identical definitions, the
 ;; user can then use/define functions to convert between them.
 
-(define-data-type u8 (:packed t)
+(define-bit-type u8 (:packed t)
   8)
 
-(define-data-type u16 (:packed t)
+(define-bit-type u16 (:packed t)
   16)
 
-(define-data-type u32 (:packed t)
+(define-bit-type u32 (:packed t)
   32)
 
-(define-data-type u64 (:packed t)
+(define-bit-type u64 (:packed t)
   64)
 
-(define-data-type i8 (:packed t)
+(define-bit-type i8 (:packed t)
   8)
 
-(define-data-type i16 (:packed t)
+(define-bit-type i16 (:packed t)
   16)
 
-(define-data-type i32 (:packed t)
+(define-bit-type i32 (:packed t)
   32)
 
-(define-data-type i64 (:packed t)
+(define-bit-type i64 (:packed t)
   64)
 
-(define-data-type f32 (:packed t)
+(define-bit-type f32 (:packed t)
   (sign 1)
   (exponent 8)
   (mantissa 23))
 
-(define-data-type f64 (:packed t)
+(define-bit-type f64 (:packed t)
   (sign 1)
   (exponent 11)
   (mantissa 52))
@@ -44,42 +44,42 @@
 ;; Provides the concept of vectors
 
 (define-data-trait vec2 ()
-  (x f32)
-  (y f32))
+  (x single-float)
+  (y single-float))
 
 
 (define-data-trait vec3 ()
-  (x f32)
-  (y f32)
-  (z f32))
+  (x single-float)
+  (y single-float)
+  (z single-float))
 
 
 (define-data-trait vec4 ()
-  (x f32)
-  (y f32)
-  (z f32)
-  (w f32))
+  (x single-float)
+  (y single-float)
+  (z single-float)
+  (w single-float))
 
 (define-data-trait quaternion ()
-  (w f32)
-  (x f32)
-  (y f32)
-  (z f32))
+  (w single-float)
+  (x single-float)
+  (y single-float)
+  (z single-float))
 
 ;;------------------------------------------------------------
 
-(define-data-type soa-vec2 ()
+(define-bit-type soa-vec2 ()
   (x f32)
   (y f32))
 
 
-(define-data-type soa-vec3 ()
+(define-bit-type soa-vec3 ()
   (x f32)
   (y f32)
   (z f32))
 
 
-(define-data-type soa-vec4 ()
+(define-bit-type soa-vec4 ()
   (x f32)
   (y f32)
   (z f32)
@@ -93,22 +93,59 @@
 ;; alignment restrictiosn of the functions will then push
 ;; the datatype to the correct alignment within the chunk
 
-(define-data-type flat-vec2 (:packed t)
+(define-bit-type aos-vec2 (:packed t)
   (x f32)
   (y f32))
 
 
-(define-data-type flat-vec3 (:packed t)
+(define-bit-type aos-vec3 (:packed t)
   (x f32)
   (y f32)
   (z f32))
 
 
-(define-data-type flat-vec4 (:packed t)
+(define-bit-type aos-vec4 (:packed t)
   (x f32)
   (y f32)
   (z f32)
   (w f32))
+
+;;------------------------------------------------------------
+
+;; unpack functions take a ptr
+;; pack functions take a value and a ptr
+;;
+;; pack and unpack is only valid for bit-types
+
+(define-trait-impl aos-vec2 vec2)
+  (x x :unpack #'single-float :pack #'single-float)
+  (y y :unpack #'single-float :pack #'single-float))
+
+(define-trait-impl soa-vec2 vec2
+  (x x :unpack #'single-float :pack #'single-float)
+  (y y :unpack #'single-float :pack #'single-float))
+
+(define-trait-impl aos-vec3 vec3
+  (x x :unpack #'single-float :pack #'single-float)
+  (y y :unpack #'single-float :pack #'single-float)
+  (z z :unpack #'single-float :pack #'single-float))
+
+(define-trait-impl soa-vec3 vec3
+  (x x :unpack #'single-float :pack #'single-float)
+  (y y :unpack #'single-float :pack #'single-float)
+  (z z :unpack #'single-float :pack #'single-float))
+
+(define-trait-impl aos-vec4 vec4
+  (x x :unpack #'single-float :pack #'single-float)
+  (y y :unpack #'single-float :pack #'single-float)
+  (z z :unpack #'single-float :pack #'single-float)
+  (w w :unpack #'single-float :pack #'single-float))
+
+(define-trait-impl soa-vec4 vec4
+  (x x :unpack #'single-float :pack #'single-float)
+  (y y :unpack #'single-float :pack #'single-float)
+  (z z :unpack #'single-float :pack #'single-float)
+  (w w :unpack #'single-float :pack #'single-float))
 
 ;;------------------------------------------------------------
 ;;
@@ -123,7 +160,6 @@
 ;; or maybe just (subtypep 'rtg-math.types:vec2 t) will do.
 
 
-;; These are incorrect, vec2 wants f32, not single-float
 ;; (define-trait-impl rtg-math.types:vec2 vec2
 ;;   (x v:x)
 ;;   (y v:y))
