@@ -2,6 +2,52 @@
 
 ;;------------------------------------------------------------
 
+;; Definitions are what are validated and used to create a type object.
+;; A specifier is the symbol/list that names a type object
+
+;;------------------------------------------------------------
+
+(defgeneric to-specifier (ttype))
+
+(defgeneric update-definition (definition)
+  (:method (definition)
+    (error "Tables: update-definition not defined for ~a"
+           definition)))
+
+(defgeneric validate-definition (definition)
+  (:method (definition)
+    (error "Tables: validate-definition not defined for ~a"
+           definition)))
+
+(defgeneric init-type (definition))
+
+;;------------------------------------------------------------
+
+(defun table-type-def-p (x)
+  (or (typep x 'data-trait)
+      (typep x 'bit-type)
+      (typep x 'anon-type)))
+
+(defclass type-ref ()
+  ((ttype :initarg :ttype :accessor ttype)))
+
+(defmethod make-type-ref (&key ttype)
+  (assert (table-type-def-p ttype) ()
+          "Tables: Cannot make type-ref to ~a~%Value: ~a"
+          (type-of ttype) ttype)
+  (make-instance 'type-ref :ttype ttype))
+
+(defmethod print-object ((obj type-ref) stream)
+  (with-slots (ttype) obj
+    (format stream "#<TYPE-REF ~s>" ttype)))
+
+(defmethod make-load-form ((obj type-ref) &optional env)
+  (declare (ignore env))
+  (with-slots (ttype) obj
+    `(parse-type-specifier ',(to-specifier ttype))))
+
+;;------------------------------------------------------------
+
 (define-completable column-definition ()
   name
   element-type
@@ -81,105 +127,5 @@
   ((metadata :initarg :metadata)
    (data-ptrs :initarg :data-ptr) ;; an array of pointers
    (skip-list-ptr :initarg :skip-list-ptr)))
-
-;;------------------------------------------------------------
-
-(defgeneric to-specifier (ttype))
-
-;;------------------------------------------------------------
-
-(define-completable data-trait-definition ()
-  name
-  slots)
-
-(define-completable data-trait-slot-definition ()
-  name
-  (ttype type-ref))
-
-(defmethod make-load-form ((obj data-trait-definition) &optional env)
-  (declare (ignore env))
-  (with-contents (name slots) obj
-    `(make-data-trait-definition
-      :name ',name
-      :slots (list ,@slots))))
-
-(defmethod make-load-form ((obj data-trait-slot-definition) &optional env)
-  (declare (ignore env))
-  (with-contents (name ttype) obj
-    `(make-data-trait-slot-definition
-      :name ',name
-      :ttype ',ttype)))
-
-(defmethod to-specifier ((obj data-trait-definition))
-  (name obj))
-
-;;------------------------------------------------------------
-
-(defun table-type-def-p (x)
-  (or (typep x 'data-trait-definition)
-      (typep x 'bit-type-definition)
-      (typep x 'anon-type)))
-
-(defclass type-ref ()
-  ((ttype :initarg :ttype :accessor ttype)))
-
-(defmethod make-type-ref (&key ttype)
-  (assert (table-type-def-p ttype) ()
-          "Tables: Cannot make type-ref to ~a~%Value: ~a"
-          (type-of ttype) ttype)
-  (make-instance 'type-ref :ttype ttype))
-
-(defmethod print-object ((obj type-ref) stream)
-  (with-slots (ttype) obj
-    (format stream "#<TYPE-REF ~s>" ttype)))
-
-(defmethod make-load-form ((obj type-ref) &optional env)
-  (declare (ignore env))
-  (with-slots (ttype) obj
-    `(parse-type-specifier ',(to-specifier ttype))))
-
-;;------------------------------------------------------------
-
-(define-completable anon-type ()
-  size)
-
-(defmethod make-load-form ((obj anon-type) &optional env)
-  (declare (ignore env))
-  (with-contents (size) obj
-    `(make-anon-type :size ,size)))
-
-(defmethod to-specifier ((obj anon-type))
-  (size obj))
-
-;;------------------------------------------------------------
-
-(define-completable bit-type-part-definition ()
-  name
-  (ttype type-ref)
-  offset)
-
-(define-completable bit-type-definition ()
-  name
-  packed
-  parts)
-
-(defmethod to-specifier ((obj bit-type-definition))
-  (name obj))
-
-(defmethod make-load-form ((obj bit-type-definition) &optional env)
-  (declare (ignore env))
-  (with-contents (name packed parts) obj
-    `(make-bit-type-definition
-      :name ',name
-      :packed ,packed
-      :parts (list ,@parts))))
-
-(defmethod make-load-form ((obj bit-type-part-definition) &optional env)
-  (declare (ignore env))
-  (with-contents (name ttype offset) obj
-    `(make-bit-type-part-definition
-      :name ',name
-      :ttype ',ttype
-      :offset ',offset)))
 
 ;;------------------------------------------------------------

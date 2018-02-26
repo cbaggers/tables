@@ -58,60 +58,6 @@
 
 ;;------------------------------------------------------------
 
-(defvar *bit-types* (make-hash-table))
-
-(defun bit-type-name-p (name)
-  (not (null (gethash name *data-types*))))
-
-(defun get-bit-type (name &key (error t))
-  (assert (symbolp name))
-  (or (gethash name *bit-types*)
-      (when error
-        (error "Tables: Unknown type ~a" name))))
-
-;; in these data types maybe the name is really a formality, all layouts with
-;; the same offset, alignment, etc values are the same. (maybe)
-;;
-;; TODO: Should check for types in the arbiter queue as some types might not be
-;;       defined yet. The validate-definition for the type will handle if the
-;;       type really exists.
-;;
-;; TODO: Should we add jai's 'using' to this? Would be nice.
-(defmacro define-bit-type (name (&key packed) &body parts)
-  (assert (member packed '(t nil)))
-  (flet ((parse-part (part)
-           (destructuring-bind (name type/size &key offset)
-               (if (numberp part)
-                    (list nil part)
-                    part)
-             (when (and packed (null name))
-               (assert
-                (numberp type/size) ()
-                "Tables: if packed slot is anonomous the type must be a bit size"))
-             (when (and (not packed) (numberp type/size))
-               (assert
-                (null name) ()
-                "Tables: if unpacked slot is padding the name must be nil"))
-             (make-bit-type-part-definition
-              :name name
-              :ttype (parse-type-specifier type/size)
-              :offset offset))))
-    `(enqueue-definition
-      ,(make-bit-type-definition
-        :name name
-        :packed packed
-        :parts (mapcar #'parse-part parts)))))
-
-;; TODO: propegate change to all tables/queries/etc
-(defmethod update-definition ((definition bit-type-definition))
-  (let ((current (gethash (name definition) *bit-types*)))
-    (if current
-        (setf (ttype current) definition)
-        (setf (gethash (name definition) *bit-types*)
-              (make-type-ref :ttype definition)))))
-
-;;------------------------------------------------------------
-
 (defun parse-type-specifier (specifier)
   (let ((type (cond
                 ((listp specifier)
