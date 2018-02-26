@@ -43,6 +43,9 @@
 (defmethod to-specifier ((obj data-trait))
   (name obj))
 
+(defmethod make-type-ref ((ttype data-trait))
+  (make-instance 'type-ref :ttype ttype))
+
 ;;------------------------------------------------------------
 
 (defvar *data-traits* (make-hash-table))
@@ -76,6 +79,8 @@
         :name name
         :slots (mapcar #'parse-slot slots)))))
 
+;; TODO: Check all tables/queries/etc for conflicts or other potential
+;;       issues
 (defmethod validate-definition ((obj data-trait-definition))
   (loop :for slot :in (slots obj) :do
      (assert (or (get-trait (ttype slot) :error nil)
@@ -91,13 +96,15 @@
               :ttype (parse-type-specifier (ttype slot))))))
 
 ;; TODO: propegate change to all tables/queries/etc
+;;       this should have been check to be safe by validate-definition
+;;       so it's ok to assume it will succeed
 (defmethod update-definition ((definition data-trait-definition))
   (let ((new-trait (init-type definition))
         (current (gethash (name definition) *data-traits*)))
     (if current
         (setf (ttype current) new-trait)
         (setf (gethash (name new-trait) *data-traits*)
-              (make-type-ref :ttype new-trait)))))
+              (make-type-ref new-trait)))))
 
 ;;------------------------------------------------------------
 

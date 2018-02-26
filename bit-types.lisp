@@ -49,6 +49,9 @@
       :ttype ',ttype
       :offset ,offset)))
 
+(defmethod make-type-ref ((ttype bit-type))
+  (make-instance 'type-ref :ttype ttype))
+
 ;;------------------------------------------------------------
 
 (defvar *bit-types* (make-hash-table))
@@ -126,6 +129,6 @@
     (if current
         (setf (ttype current) new-type)
         (setf (gethash (name new-type) *bit-types*)
-              (make-type-ref :ttype new-type)))))
+              (make-type-ref new-type)))))
 
 ;;------------------------------------------------------------

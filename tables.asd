@@ -16,6 +16,7 @@
                (:file "utils")
                (:file "errors")
                (:file "types")
+               (:file "anon-types")
                (:file "bit-types")
                (:file "data-traits")
                (:file "primitive-types")

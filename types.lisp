@@ -31,9 +31,8 @@
                  (parse-type-specifier-form (first specifier)
                                             (rest specifier)))
                 ((numberp specifier)
-                 (make-type-ref
-                  :ttype (make-anon-type :size specifier)))
-                (t (or (get-lisp-type specifier :error nil )
+                 (make-type-ref (make-anon-type :size specifier)))
+                (t (or (get-lisp-type specifier :error nil)
                        (get-trait specifier :error nil)
                        (get-bit-type specifier :error nil))))))
     (assert type () "Tables: Unknown type specifier ~a" specifier)
@@ -47,29 +46,17 @@
 
 ;;------------------------------------------------------------
 
-(defun table-type-def-p (x)
-  (or (typep x 'data-trait)
-      (typep x 'bit-type)p
-      (typep x 'anon-type)
-      (typep x 'lisp-type)))
-
 (defclass type-ref ()
   ((ttype :initarg :ttype :accessor ttype)))
 
-(defmethod make-type-ref (&key ttype)
-  (assert (table-type-def-p ttype) ()
-          "Tables: Cannot make type-ref to ~a~%Value: ~a"
-          (type-of ttype) ttype)
-  (make-instance 'type-ref :ttype ttype))
+(defgeneric make-type-ref (ttype)
+  (:method (ttype)
+    (error "Tables: Cannot make type-ref to ~a~%Value: ~a"
+           (type-of ttype) ttype)))
 
 (defmethod print-object ((obj type-ref) stream)
   (with-slots (ttype) obj
     (format stream "#<TYPE-REF ~s>" ttype)))
-
-(defmethod make-load-form ((obj type-ref) &optional env)
-  (declare (ignore env))
-  (with-slots (ttype) obj
-    `(parse-type-specifier ',(to-specifier ttype))))
 
 ;;------------------------------------------------------------
 
@@ -79,39 +66,37 @@
 (defun make-lisp-type (specifier)
   (make-instance 'lisp-type :ttype specifier))
 
+(defmethod make-type-ref ((ttype lisp-type))
+  (make-instance 'type-ref :ttype ttype))
+
 (defvar *allowed-lisp-types*
   (alexandria:alist-hash-table
    (list (cons 'single-float
-               (make-type-ref :ttype (make-lisp-type 'single-float)))
+               (make-type-ref (make-lisp-type 'single-float)))
          (cons 'double-float
-               (make-type-ref :ttype (make-lisp-type 'double-float)))
+               (make-type-ref (make-lisp-type 'double-float)))
          (cons '(unsigned-byte 8)
-               (make-type-ref :ttype (make-lisp-type '(unsigned-byte 8))))
+               (make-type-ref (make-lisp-type '(unsigned-byte 8))))
          (cons '(unsigned-byte 16)
-               (make-type-ref :ttype (make-lisp-type '(unsigned-byte 16))))
+               (make-type-ref (make-lisp-type '(unsigned-byte 16))))
          (cons '(unsigned-byte 32)
-               (make-type-ref :ttype (make-lisp-type '(unsigned-byte 32))))
+               (make-type-ref (make-lisp-type '(unsigned-byte 32))))
          (cons '(unsigned-byte 64)
-               (make-type-ref :ttype (make-lisp-type '(unsigned-byte 64))))
+               (make-type-ref (make-lisp-type '(unsigned-byte 64))))
          (cons '(signed-byte 8)
-               (make-type-ref :ttype (make-lisp-type '(signed-byte 8))))
+               (make-type-ref (make-lisp-type '(signed-byte 8))))
          (cons '(signed-byte 16)
-               (make-type-ref :ttype (make-lisp-type '(signed-byte 16))))
+               (make-type-ref (make-lisp-type '(signed-byte 16))))
          (cons '(signed-byte 32)
-               (make-type-ref :ttype (make-lisp-type '(signed-byte 32))))
+               (make-type-ref (make-lisp-type '(signed-byte 32))))
          (cons '(signed-byte 64)
-               (make-type-ref :ttype (make-lisp-type '(signed-byte 64)))))
+               (make-type-ref (make-lisp-type '(signed-byte 64)))))
    :test #'equal))
 
 (defun get-lisp-type (name &key (error t))
   (or (gethash name *allowed-lisp-types*)
       (when error
         (error "Tables: Invalid type ~a" name))))
-
-;;------------------------------------------------------------
-
-(defmethod to-specifier ((obj anon-type))
-  (size obj))
 
 ;;------------------------------------------------------------
 ;; it's a mask, we will try to pack this with other sub-word
