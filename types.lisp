@@ -117,7 +117,7 @@
 
 (defun table-type-def-p (x)
   (or (typep x 'data-trait-definition)
-      (typep x 'data-type-definition)
+      (typep x 'bit-type-definition)
       (typep x 'anon-type)))
 
 (defclass type-ref ()
@@ -153,31 +153,31 @@
 
 ;;------------------------------------------------------------
 
-(define-completable data-type-part-definition ()
+(define-completable bit-type-part-definition ()
   name
   (ttype type-ref)
   offset)
 
-(define-completable data-type-definition ()
+(define-completable bit-type-definition ()
   name
   packed
   parts)
 
-(defmethod to-specifier ((obj data-type-definition))
+(defmethod to-specifier ((obj bit-type-definition))
   (name obj))
 
-(defmethod make-load-form ((obj data-type-definition) &optional env)
+(defmethod make-load-form ((obj bit-type-definition) &optional env)
   (declare (ignore env))
   (with-contents (name packed parts) obj
-    `(make-data-type-definition
+    `(make-bit-type-definition
       :name ',name
       :packed ,packed
       :parts (list ,@parts))))
 
-(defmethod make-load-form ((obj data-type-part-definition) &optional env)
+(defmethod make-load-form ((obj bit-type-part-definition) &optional env)
   (declare (ignore env))
   (with-contents (name ttype offset) obj
-    `(make-data-type-part-definition
+    `(make-bit-type-part-definition
       :name ',name
       :ttype ',ttype
       :offset ',offset)))

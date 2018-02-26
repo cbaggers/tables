@@ -45,11 +45,15 @@
 
 ;;------------------------------------------------------------
 
-(defvar *data-types* (make-hash-table))
+(defvar *bit-types* (make-hash-table))
 
-(defun get-data-type (name &key (error t))
+
+(defun bit-type-name-p (name)
+  (not (null (gethash name *bit-types*))))
+
+(defun get-bit-type (name &key (error t))
   (assert (symbolp name))
-  (or (gethash name *data-types*)
+  (or (gethash name *bit-types*)
       (when error
         (error "Tables: Unknown type ~a" name))))
 
@@ -72,22 +76,22 @@
                (assert
                 (null name) ()
                 "Tables: if unpacked slot is padding the name must be nil"))
-             (make-data-type-part-definition
+             (make-bit-type-part-definition
               :name name
               :ttype (parse-type-specifier type/size)
               :offset offset))))
     `(enqueue-definition
-      ,(make-data-type-definition
+      ,(make-bit-type-definition
         :name name
         :packed packed
         :parts (mapcar #'parse-part parts)))))
 
 ;; TODO: propegate change to all tables/queries/etc
-(defmethod update-definition ((definition data-type-definition))
-  (let ((current (gethash (name definition) *data-types*)))
+(defmethod update-definition ((definition bit-type-definition))
+  (let ((current (gethash (name definition) *bit-types*)))
     (if current
         (setf (ttype current) definition)
-        (setf (gethash (name definition) *data-types*)
+        (setf (gethash (name definition) *bit-types*)
               (make-type-ref :ttype definition)))))
 
 ;;------------------------------------------------------------
@@ -101,7 +105,7 @@
                  (make-type-ref
                   :ttype (make-anon-type :size specifier)))
                 (t (or (get-trait specifier :error nil)
-                       (get-data-type specifier :error nil))))))
+                       (get-bit-type specifier :error nil))))))
     (assert type () "Tables: Unknown type specifier ~a" specifier)
     (assert (typep type 'type-ref))
     type))
