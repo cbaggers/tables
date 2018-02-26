@@ -53,7 +53,13 @@
 
 (defgeneric update-definition (definition)
   (:method (definition)
-    (print definition)))
+    (error "Tables: update-definition not defined for ~a"
+           definition)))
+
+(defgeneric validate-definition (definition)
+  (:method (definition)
+    (error "Tables: validate-definition not defined for ~a"
+           definition)))
 
 (defun arbiter-run-dev-tasks ()
   (map nil #'update-definition *definition-queue*)

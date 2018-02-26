@@ -117,7 +117,7 @@
 ;;
 ;; pack and unpack is only valid for bit-types
 
-(define-trait-impl aos-vec2 vec2)
+(define-trait-impl aos-vec2 vec2
   (x x :unpack #'single-float :pack #'single-float)
   (y y :unpack #'single-float :pack #'single-float))
 

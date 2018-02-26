@@ -3,14 +3,27 @@
 
 ;;------------------------------------------------------------
 
-;; what to do about quintword?
-(defmacro declare-machine-type-size (size)
-  (declare (ignore size))
-  nil)
+(defparameter *allowed-lisp-types*
+  '(single-float
+    double-float
+    (unsigned-byte 8)
+    (unsigned-byte 16)
+    (unsigned-byte 32)
+    (unsigned-byte 64)
+    (signed-byte 8)
+    (signed-byte 16)
+    (signed-byte 32)
+    (signed-byte 64)))
+
+(defun allowed-lisp-type-p (name)
+  (not (null (gethash name *allowed-lisp-types*))))
 
 ;;------------------------------------------------------------
 
 (defvar *data-traits* (make-hash-table))
+
+(defun data-trait-type-name-p (name)
+  (not (null (gethash name *data-traits*))))
 
 ;; stride & alignment kinda seem like column/sequence parameters. an f32 is
 ;; still an f32 if packed inside an i64.. it's just not a very accessible one.
@@ -47,9 +60,8 @@
 
 (defvar *bit-types* (make-hash-table))
 
-
 (defun bit-type-name-p (name)
-  (not (null (gethash name *bit-types*))))
+  (not (null (gethash name *data-types*))))
 
 (defun get-bit-type (name &key (error t))
   (assert (symbolp name))
@@ -60,6 +72,10 @@
 ;; in these data types maybe the name is really a formality, all layouts with
 ;; the same offset, alignment, etc values are the same. (maybe)
 ;;
+;; TODO: Should check for types in the arbiter queue as some types might not be
+;;       defined yet. The validate-definition for the type will handle if the
+;;       type really exists.
+;;
 ;; TODO: Should we add jai's 'using' to this? Would be nice.
 (defmacro define-bit-type (name (&key packed) &body parts)
   (assert (member packed '(t nil)))
@@ -67,7 +83,7 @@
            (destructuring-bind (name type/size &key offset)
                (if (numberp part)
                     (list nil part)
-                   part)
+                    part)
              (when (and packed (null name))
                (assert
                 (numberp type/size) ()
