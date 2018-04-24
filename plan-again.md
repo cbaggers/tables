@@ -8,13 +8,13 @@ A `query` is a function that reads from one or more `table`s and writes into zer
 
 A `query-set` holds a bunch of `queries` to be run simultaneously
 
-An `event` is an object which can be checked for completion. Ideally it will be an atomic counter.
+An `flag` is an object which can be checked for completion. Ideally it will be an atomic counter.
 
-`event`s are analogous to GL's fence and will form the heart of the `job-system`.
+`flag`s are analogous to GL's fence and will form the heart of the `job-system`.
 
 The `job-system` is a system that registers itself with `tables` into order handle dispatching and running the `job`s produced by Tables.
 
-a `job` is a closure which when run will do some work (all/part of a query) and then `raise` an `event`
+a `job` is a closure which when run will do some work (all/part of a query) and then `raise` an `flag`
 
 ## gud-jerb
 
@@ -22,7 +22,7 @@ a `job` is a closure which when run will do some work (all/part of a query) and 
 
 ## Requests
 
-a `request` is a message to the tables system to do some work (usually run a query). When a request is made an `event` is returned.
+a `request` is a message to the tables system to do some work (usually run a query). When a request is made an `flag` is returned.
 
 `request`s go into a `request-queue`.
 
@@ -74,7 +74,7 @@ When the `redefinition-lock` is `unlocked` `request`s in `pending-modifications`
 - a `query` can only be bound to one `query-set`. If you need common behavior, factor this out into it's own
   function.
 
-- originally has though of handling `frame`s in this too, but I want to see if I can avoid that and instead be more gpu like. We do work and provide `event`s. The rest is left to the engine
+- originally has though of handling `frame`s in this too, but I want to see if I can avoid that and instead be more gpu like. We do work and provide `flag`s. The rest is left to the engine
 
 - 'Query pagesize' lib. Not neccesary though. just start with 2mb
 
