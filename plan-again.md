@@ -8,18 +8,20 @@ A `query` is a function that reads from one or more `table`s and writes into zer
 
 A `query-set` holds a bunch of `queries` to be run simultaneously
 
-A `pipeline` is a list of `query-set`s
+When an `query-set` is dispatched to run an `event` is returned.
 
-A `frame` holds references to `table`s
+An `event` is an object which can be checked for completion. Ideally it will be an atomic counter.
 
-Many `frame`s can reference the same `table`
+`event`s are analogous to GL's fence and will form the heart of the `job system`.
 
-To run a `query` on a `table` it must be `acquired`
+the `job system` is an optional system to be used alongside Tables which handles dispatching and running the `tasks` produced by Tables.
 
 ## Ideas
 
 - a `query` can only be bound to one `query-set`. If you need common behavior, factor this out into it's own
   function.
+
+- originally has though of handling `frame`s in this too, but I want to see if I can avoid that and instead be more gpu like. We do work and provide `event`s. The rest is left to the engine
 
 # NDog System
 
