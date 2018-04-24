@@ -8,13 +8,66 @@ A `query` is a function that reads from one or more `table`s and writes into zer
 
 A `query-set` holds a bunch of `queries` to be run simultaneously
 
-When an `query-set` is dispatched to run an `event` is returned.
-
 An `event` is an object which can be checked for completion. Ideally it will be an atomic counter.
 
-`event`s are analogous to GL's fence and will form the heart of the `job system`.
+`event`s are analogous to GL's fence and will form the heart of the `job-system`.
 
-the `job system` is an optional system to be used alongside Tables which handles dispatching and running the `tasks` produced by Tables.
+The `job-system` is a system that registers itself with `tables` into order handle dispatching and running the `job`s produced by Tables.
+
+a `job` is a closure which when run will do some work (all/part of a query) and then `raise` an `event`
+
+## gud-jerb
+
+`gud-jerb` is the default `job-system`
+
+## Requests
+
+a `request` is a message to the tables system to do some work (usually run a query). When a request is made an `event` is returned.
+
+`request`s go into a `request-queue`.
+
+`pump-request` will pop an entry from the `request` queue and push it to `handle-request`
+
+`handle-request` will produce `job`s for the request. 
+
+## Memory
+
+We will start with something like the basic tagged allocation detailed by NDog
+
+### Pool
+
+- 1 memory pool. Ask for chunk, giving an id. ID is associated with chunk
+
+- pool is hashtable from ID's to arrays of pointers
+
+- `take-block`
+- `release-block`
+
+### Allocator
+
+todo
+
+## Redefinition
+
+> note that we use `lock` & `unlock` as verbs and `locked` and `not-locked` to name the states
+
+The `redefinition-lock` is a boolean that says whether a `request` to modify tables can be enqueued.
+
+`with-no-tables-modified` can be used to `lock` all tables from redefinition during the scope.
+
+On any recompile a `request` is made to modify the system
+
+If the `redefinition-lock` is `not-locked` then the `request` is pushed onto the `request-queue`
+
+If the `redefinition-lock` is `locked` then the `request` is pushed to the `pending-modifications` queue.
+
+When the `redefinition-lock` is `unlocked` `request`s in `pending-modifications` queue are pushed, in the order they arrived, to the `request-queue`
+
+## Extra Libs
+
+- Query cpu-flags
+- High-Res Timer
+- set thread affinity
 
 ## Ideas
 
@@ -22,6 +75,8 @@ the `job system` is an optional system to be used alongside Tables which handles
   function.
 
 - originally has though of handling `frame`s in this too, but I want to see if I can avoid that and instead be more gpu like. We do work and provide `event`s. The rest is left to the engine
+
+- 'Query pagesize' lib. Not neccesary though. just start with 2mb
 
 # NDog System
 
