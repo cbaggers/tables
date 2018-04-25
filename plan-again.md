@@ -1,6 +1,6 @@
 # Tables
 
-Alright let's think about this again.
+
 
 ## System
 
@@ -52,13 +52,16 @@ A `flag` is not `versioned-thing`
 
 ## Job-System
 
-The `job-system` is a system that registers itself with `tables` into order handle dispatching and running the `job`s produced by Tables.
+The `job-system` is a system that registers itself with the `system` into order handle dispatching and
+running the `job`s produced by the `system`.
 
 The `job-system` is not a `versioned-thing`.
 
 ## Job
 
-a `job` is struct holding a closure which when run will do some work (all/part of a query) and then `raise` a `flag`
+a `job` is struct holding a closure which when run will do some work (all/part of a query) and then `raise`
+a `flag`
+
 A `job` is a `versioned-thing`.
 
 ## gud-jerb
@@ -67,7 +70,7 @@ A `job` is a `versioned-thing`.
 
 ## Requests
 
-a `request` is a message to the tables system to do some work (usually run a query). 
+a `request` is a message to the tables `system` to do some work (usually run a query).
 
 When a request is `submitted` a `flag` is returned.
 
@@ -135,7 +138,8 @@ The following is how this affects other `request`s
 
 Any `request` with a version lower than the current `version` of the `system` is passed to `upgrade-request`
 
-`upgrade-request` should never fail for non `redefinition` `request`s. The `validate-redefinition` process was meant to ensure this. We make heavy use of asserts and fail hard if we find an issue as this is a bug.
+`upgrade-request` should never fail for non `redefinition` `request`s. The `validate-redefinition` process was
+meant to ensure this. We make heavy use of asserts and fail hard if we find an issue as this is a bug.
 
 `upgrade-request` for `redefinition`s will calling `validate-redefinition` again and `submit`ing the result. This
 can fail and this is simply communicated to the user. The frequency of human updates is low enough that this is
@@ -151,19 +155,23 @@ Once a `request` has been processed by `upgrade-request` it is passed to `handle
 
 ## Ideas
 
+- the simplest valid `job-system` should be #'funcall
+
+- assert that a given Tables layout is identical to a cffi struct layout allowing a direct byte copy.
+
 - a `query` can only be bound to one `query-set`. If you need common behavior, factor this out into it's own
   function.
 
-- originally has though of handling `frame`s in this too, but I want to see if I can avoid that and instead be more gpu like. We do work and provide `flag`s. The rest is left to the engine
+- originally has though of handling `frame`s in this too, but I want to see if I can avoid that and instead be
+  more gpu like. We do work and provide `flag`s. The rest is left to the engine
 
 - 'Query pagesize' lib. Not neccesary though. just start with 2mb
-
-- the simplest valid `job-system` should be #'funcall
 
 # NDog System
 
 - `frame` piece of data to ultimately be shown on screen
- - 'A frame is defined by the stages the data goes through to become a displayed image' meaning that if it's in the rendering stage its currently a 'render frame' etc>
+ - 'A frame is defined by the stages the data goes through to become a displayed image' meaning that if it's in
+   the rendering stage its currently a 'render frame' etc>
 - A `frame-param` is the data for each displayed frame
  - one instance for each new frame to eventually be displayed
  - sent through all `stage`s of the engine
