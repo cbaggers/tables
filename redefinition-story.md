@@ -32,6 +32,13 @@ Ok issues with above are:
 
 -------------------------------------
 
+A `redefinition` is a `request` who's `job`s make a change to the `system`s `principle-component`s
+
+A `redefinition` must have `upgrade` methods defined for it which specialize on each of the
+`principle-component`s of the `system`.
+
+The following describes a lifecycle of the `redefinition`
+
 the system version is 105
 
 the `potential-future-version` version is 105 or greater
@@ -58,9 +65,10 @@ The following is how this affects other `request`s
 
 Any `request` with a version lower than the current `version` of the `system` is passed to `upgrade-request`
 
-`upgrade-request` should never fail as the `validate-redefinition` process was meant to ensure this. We make
-heavy use of asserts and fail hard if we find an issue as this is a bug.
+`upgrade-request` should never fail for non `redefinition` `request`s. The `validate-redefinition` process was meant to ensure this. We make heavy use of asserts and fail hard if we find an issue as this is a bug.
 
-...
+`upgrade-request` for `redefinition`s will calling `validate-redefinition` again and `submit`ing the result. This
+can fail and this is simply communicated to the user. The frequency of human updates is low enough that this is
+not considered an issue.
 
 Once a `request` has been processed by `upgrade-request` it is passed to `handle-request` as usual.

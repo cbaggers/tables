@@ -131,6 +131,8 @@ When a `redefinition` `request` is popped by `pump-request` then only
 
 - 'Query pagesize' lib. Not neccesary though. just start with 2mb
 
+- the simplest valid `job-system` should be #'funcall
+
 # NDog System
 
 - `frame` piece of data to ultimately be shown on screen
