@@ -102,19 +102,46 @@ We use `lock` & `unlock` as verbs and `locked` and `not-locked` to name the stat
 
 ## Redefinition
 
-The `redefinition-lock` is a boolean that says whether a `redefinition` to modify tables can be enqueued.
+A `redefinition` is a `request` who's `job`s make a change to the `system`s `principle-component`s
 
-`with-no-tables-modified` can be used to `lock` all tables from redefinition during the scope.
+A `redefinition` must have `upgrade` methods defined for it which specialize on each of the
+`principle-component`s of the `system`.
 
-On any recompile a `request` is made to modify the system
+The following describes a lifecycle of the `redefinition`
 
-If the `redefinition-lock` is `not-locked` then the `request` is pushed onto the `request-queue`
+the system version is 105
 
-If the `redefinition-lock` is `locked` then the `request` is pushed to the `pending-modifications` queue.
+the `potential-future-version` version is 105 or greater
 
-When the `redefinition-lock` is `unlocked` `request`s in `pending-modifications` queue are pushed, in the order they arrived, to the `request-queue`
+you edit some code and compile
 
-When a `redefinition` `request` is popped by `pump-request` then only 
+a `redefinition` is made and passed to `validate-redefinition`
+
+`validate-redefinition` compares with the current `system`
+
+if deemed valid the `redefinition` is tagged with the `version` of the `system` it was validated against.
+
+the `redefinition` `request` is `submitted`. The `flag` is attached to the `redefinition` as well as
+being returned.
+
+when `handle-request` reaches the `redefinition` it creates & dispatches the `job`s as usual but then waits on
+the `flag` in the redefinition.
+
+On completion the `redefinition`'s success `flag` is checked and, if true, the `version` of the system is set to
+the `version` stored in the `redefinition`. We assert `system` version is asserted to be lower than the new
+`version`, when this is not true we crash as this is a bug.
+
+The following is how this affects other `request`s
+
+Any `request` with a version lower than the current `version` of the `system` is passed to `upgrade-request`
+
+`upgrade-request` should never fail for non `redefinition` `request`s. The `validate-redefinition` process was meant to ensure this. We make heavy use of asserts and fail hard if we find an issue as this is a bug.
+
+`upgrade-request` for `redefinition`s will calling `validate-redefinition` again and `submit`ing the result. This
+can fail and this is simply communicated to the user. The frequency of human updates is low enough that this is
+not considered an issue.
+
+Once a `request` has been processed by `upgrade-request` it is passed to `handle-request` as usual.
 
 ## Extra Libs
 
