@@ -2,19 +2,64 @@
 
 Alright let's think about this again.
 
+## System
+
+'Tables' is the name of the `system`.
+
+The `system` has `version` which is a monotonically increasing number.
+
+The `system` has a `potential-future-version` which is a monotonically increasing number.
+
+The `potential-future-version` will always be equal to or greater than the `version` of the `system`
+
+The `version` increases when a `request` is made to modify the `system`
+
+The `version` will never decrease; even if the modification failed.
+
+Most `thing`s in the system hold the `version` number that the `system` had when the `thing` was created.
+
+A `thing` which has a stored `version` is a `versioned-thing`
+
+## Tables
+
 A `table` holds data
+
+A `table` is a `versioned-thing`
+
+## Query
 
 A `query` is a function that reads from one or more `table`s and writes into zero or more `table`s
 
+A `query` is a `versioned-thing`
+
+## Query-Set
+
 A `query-set` holds a bunch of `queries` to be run simultaneously
 
-An `flag` is an object which can be checked for completion. Ideally it will be an atomic counter.
+A `query-set` is a `versioned-thing`
+
+## Principle-Component
+
+`table`s, `query`s & `query-set`s are the `principle-component `s of the `system`
+
+## Flags
+
+A `flag` is an object which can be checked for completion. Ideally it will be an atomic counter.
 
 `flag`s are analogous to GL's fence and will form the heart of the `job-system`.
 
+A `flag` is not `versioned-thing`
+
+## Job-System
+
 The `job-system` is a system that registers itself with `tables` into order handle dispatching and running the `job`s produced by Tables.
 
-a `job` is a closure which when run will do some work (all/part of a query) and then `raise` an `flag`
+The `job-system` is not a `versioned-thing`.
+
+## Job
+
+a `job` is struct holding a closure which when run will do some work (all/part of a query) and then `raise` a `flag`
+A `job` is a `versioned-thing`.
 
 ## gud-jerb
 
@@ -22,13 +67,17 @@ a `job` is a closure which when run will do some work (all/part of a query) and 
 
 ## Requests
 
-a `request` is a message to the tables system to do some work (usually run a query). When a request is made an `flag` is returned.
+a `request` is a message to the tables system to do some work (usually run a query). 
+
+When a request is `submitted` a `flag` is returned.
 
 `request`s go into a `request-queue`.
 
 `pump-request` will pop an entry from the `request` queue and push it to `handle-request`
 
-`handle-request` will produce `job`s for the request. 
+`handle-request` will produce `job`s for the request.
+
+A `request` is a `versioned-thing`.
 
 ## Memory
 
@@ -47,11 +96,13 @@ We will start with something like the basic tagged allocation detailed by NDog
 
 todo
 
+## Misc Grammar
+
+We use `lock` & `unlock` as verbs and `locked` and `not-locked` to name the state a `lockable` thing can be in.
+
 ## Redefinition
 
-> note that we use `lock` & `unlock` as verbs and `locked` and `not-locked` to name the states
-
-The `redefinition-lock` is a boolean that says whether a `request` to modify tables can be enqueued.
+The `redefinition-lock` is a boolean that says whether a `redefinition` to modify tables can be enqueued.
 
 `with-no-tables-modified` can be used to `lock` all tables from redefinition during the scope.
 
@@ -62,6 +113,8 @@ If the `redefinition-lock` is `not-locked` then the `request` is pushed onto the
 If the `redefinition-lock` is `locked` then the `request` is pushed to the `pending-modifications` queue.
 
 When the `redefinition-lock` is `unlocked` `request`s in `pending-modifications` queue are pushed, in the order they arrived, to the `request-queue`
+
+When a `redefinition` `request` is popped by `pump-request` then only 
 
 ## Extra Libs
 
