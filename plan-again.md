@@ -1,6 +1,12 @@
 # Tables
 
+Tables is a system that lets the user define and query tables of flat data.
 
+Tables aims to 'be fast' by managing the memory for the tables itself in a more granular fashion, by processing
+the data in cache friendly ways and by compiling queries to SIMD instructions where possible.
+
+Tables must allow the user to redefine queries and tables 'live' and provide clear actionable information when
+the change put the system in an invalid state.
 
 ## System
 
