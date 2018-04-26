@@ -31,9 +31,9 @@ A `hub` is the `thing` a user's program interacts with to process data
 
 A `table`, `query` or `query-set` cannot belong to more that one hub.
 
-a `hub` has a `version` which is a monotonically increasing number.
+A `hub` has a `version` which is a monotonically increasing number.
 
-a `hub` has a `potential-future-version` which is a monotonically increasing number.
+A `hub` has a `potential-future-version` which is a monotonically increasing number.
 
 The `potential-future-version` of a `hub` will always be equal to or greater than the `version` of that `hub`
 
@@ -186,6 +186,7 @@ Once a `request` has been processed by `upgrade-request` it is passed to `handle
 ## Questions
 
 - 1 `memory-pool` for the `system` or 1 per `hub`?
+- do we allow `run` on single query and treat as it's own `query-set`
 
 ## Ideas
 
