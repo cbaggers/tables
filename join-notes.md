@@ -15,7 +15,7 @@ The only two joins we need to support to begin with are structural and indexed.
 
 The join has a primary table and secondary table
 
-Anyhoo the secondary of the join is the one that the join is defined on
+The secondary of the join is the one that the join is defined on
 
 The primary can have more rows than the secondary (as the primary may be joined to multiple tables)
 
