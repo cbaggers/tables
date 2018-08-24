@@ -243,7 +243,7 @@
   (let* ((butlast
           (loop
              :for form :in (butlast body)
-             :do (infer context form)))
+             :collect (infer context form)))
          (last1 (infer context (car (last body)))))
     `(truly-the ,(type-of-typed-expression last1)
                 (progn
@@ -256,13 +256,14 @@
          :for (decl-name decl-form) :in declarations
          :for typed-form := (infer context decl-form)
          :for type := (type-of-typed-expression typed-form)
-         :collect `(decl-name ,typed-form) :into typed-decls
-         :collect `(decl-name ,type) :into type-pairs
+         :collect `(,decl-name ,typed-form) :into typed-decls
+         :collect `(,decl-name ,type) :into type-pairs
          :finally (return (list typed-decls type-pairs)))
     (let* ((body-context (add-bindings context type-pairs))
            (typed-body (infer body-context `(progn ,@body))))
-      `(let ,inferred-decls
-         ,typed-body))))
+      `(truly-the ,(type-of-typed-expression typed-body)
+                  (let ,inferred-decls
+                    ,typed-body)))))
 
 (defun zonk (type)
   (check-type type type-ref)
