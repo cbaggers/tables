@@ -171,7 +171,7 @@
         ((typep b 'unknown)
          (with-slots (inner) b
            (setf inner type-a)))
-        (t (error "No way to unify ~a and ~a" type-a type-b)))))
+        (t (error "No way to unify ~a and ~a" zonkd-a zonkd-b)))))
   (values))
 
 
