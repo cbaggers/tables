@@ -342,11 +342,13 @@
 ;;------------------------------------------------------------
 
 (defmethod infer-literal (context (expression symbol))
+  (declare (ignore context))
   (assert (or (eq expression t)
               (eq expression nil)))
   `(truly-the ,(init-type 'tboolean) ,expression))
 
 (defmethod infer-literal (context (expression integer))
+  (declare (ignore context))
   `(truly-the ,(init-type 'tinteger) ,expression))
 
 ;;------------------------------------------------------------
