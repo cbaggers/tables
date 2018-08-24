@@ -56,14 +56,14 @@
 
 ;;------------------------------------------------------------
 
-(defclass ttype () ())
+(defclass ttype ()
+  ((refs :initform nil)))
 
 (defun ttype-p (x)
   (typep x 'ttype))
 
 (defclass unknown (ttype)
-  ((name :initform (gensym))
-   (inner :initform nil)))
+  ((name :initform (gensym))))
 
 (defclass data-type (ttype) ())
 
@@ -80,10 +80,10 @@
 ;;------------------------------------------------------------
 
 (defun make-void ()
-  (tref (make-instance 'void)))
+  (take-ref (make-instance 'void)))
 
 (defun make-unknown ()
-  (tref (make-instance 'unknown)))
+  (take-ref (make-instance 'unknown)))
 
 ;;------------------------------------------------------------
 
@@ -93,12 +93,26 @@
 (defun type-ref-p (x)
   (typep x 'type-ref))
 
-(defun tref (type)
+(defun take-ref (type)
   (assert (ttype-p type))
-  (make-instance 'type-ref :target type))
+  (let ((ref (make-instance 'type-ref :target type)))
+    (with-slots (refs) type
+      (pushnew ref refs)
+      ref)))
+
+(defun retarget-ref (type-ref new-type)
+  (let* ((old-type (deref type-ref)))
+    (with-slots (refs) old-type
+      (loop :for ref :in refs :do
+           (setf (deref ref) new-type)
+           (pushnew ref (slot-value new-type 'refs))))
+    type-ref))
 
 (defun deref (type-ref)
   (slot-value type-ref 'target))
+
+(defun (setf deref) (value type-ref)
+  (setf (slot-value type-ref 'target) value))
 
 ;;------------------------------------------------------------
 
@@ -134,15 +148,15 @@
 (defun init-type (type-designator)
   (or (if (symbolp type-designator)
           (case type-designator
-            (tboolean (tref (make-instance 'tboolean)))
-            (tinteger (tref (make-instance 'tinteger))))
+            (tboolean (take-ref (make-instance 'tboolean)))
+            (tinteger (take-ref (make-instance 'tinteger))))
           (case (first type-designator)
             (function
              (assert (= (length type-designator) 3))
-             (tref (make-instance
-                    'tfunction
-                    :arg-types (mapcar #'init-type (second type-designator))
-                    :return-type (init-type (third type-designator)))))))
+             (take-ref (make-instance
+                        'tfunction
+                        :arg-types (mapcar #'init-type (second type-designator))
+                        :return-type (init-type (third type-designator)))))))
       (error "init-type not implemented for ~a"
              type-designator)))
 
@@ -151,11 +165,9 @@
 (defun unify (type-a type-b)
   (check-type type-a type-ref)
   (check-type type-b type-ref)
-  (let* ((zonkd-a (zonk type-a))
-         (zonkd-b (zonk type-b))
-         (a (slot-value zonkd-a 'target))
-         (b (slot-value zonkd-b 'target)))
-    (unless (equal zonkd-a zonkd-b)
+  (let* ((a (deref type-a))
+         (b (deref type-b)))
+    (unless (equal type-a type-b)
       (cond
         ((and (typep a 'tinteger) (typep b 'tinteger)))
         ((and (typep a 'tboolean) (typep b 'tboolean)))
@@ -166,12 +178,12 @@
          (unify (slot-value a 'return-type)
                 (slot-value b 'return-type)))
         ((typep a 'unknown)
-         (with-slots (inner) a
-           (setf inner type-b)))
+         (retarget-ref type-a b)
+         type-b)
         ((typep b 'unknown)
-         (with-slots (inner) b
-           (setf inner type-a)))
-        (t (error "No way to unify ~a and ~a" zonkd-a zonkd-b)))))
+         (retarget-ref type-b a)
+         type-a)
+        (t (error "No way to unify ~a and ~a" type-a type-b)))))
   (values))
 
 
@@ -269,25 +281,6 @@
                   (let ,inferred-decls
                     ,typed-body)))))
 
-(defun zonk (type)
-  (check-type type type-ref)
-  (with-slots (target) type
-    (typecase target
-      (unknown
-       (with-slots (inner) target
-         (if inner
-             (let ((zt (zonk inner)))
-               (setf inner zt)
-               zt)
-             type)))
-      (tfunction
-       (with-slots (arg-types return-type) target
-         (tref (make-instance
-                'tfunction
-                :arg-types (mapcar #'zonk arg-types)
-                :return-type (zonk return-type)))))
-      (t type))))
-
 (defun infer-lambda-form (context args body)
   (let* ((arg-unknown-vars (mapcar (lambda (arg)
                                      (destructuring-bind
@@ -300,13 +293,12 @@
                                    args))
          (body-context (add-bindings context arg-unknown-vars))
          (typed-body (infer body-context `(progn ,@body))))
-    `(truly-the ,(tref (make-instance
-                        'tfunction
-                        :arg-types (mapcar (lambda (a) (zonk (second a)))
-                                           arg-unknown-vars)
-                        :return-type (type-of-typed-expression typed-body)))
-                (lambda ,args
-                  ,typed-body))))
+    `(truly-the
+      ,(take-ref (make-instance
+                  'tfunction
+                  :arg-types (mapcar #'second arg-unknown-vars)
+                  :return-type (type-of-typed-expression typed-body)))
+      (lambda ,args ,typed-body))))
 
 (defun infer (context expression)
   "The type-system equivalent of eval.
@@ -337,17 +329,17 @@
   (let* ((arg-len (length arg-forms))
          (arg-types (loop :repeat arg-len :collect (make-unknown)))
          (ret-type (make-unknown))
-         (check-type (tref (make-instance
-                            'tfunction
-                            :arg-types arg-types
-                            :return-type ret-type)))
+         (check-type (take-ref (make-instance
+                                'tfunction
+                                :arg-types arg-types
+                                :return-type ret-type)))
          (typed-func-form (check context func-form check-type))
          (typed-arg-forms
           (loop
              :for arg-form :in arg-forms
              :for arg-type :in arg-types
              :collect (check context arg-form arg-type))))
-    `(truly-the ,(zonk ret-type)
+    `(truly-the ,ret-type
                 (funcall ,typed-func-form
                          ,@typed-arg-forms))))
 
@@ -369,7 +361,7 @@
   "Returns typed-expression or errors"
   (let ((typed-expression (infer context expression)))
     (unify (type-of-typed-expression typed-expression)
-            type)
+           type)
     typed-expression))
 
 ;;------------------------------------------------------------
