@@ -111,10 +111,12 @@
   (print-type (deref obj) stream))
 
 (defmethod print-type ((obj ttype) stream)
-  (format stream "#T(~a)"
-          (if (typep obj 'unknown)
-              (slot-value obj 'name)
-              (type-of obj))))
+  (format stream "#T~a"
+          (typecase obj
+            (unknown (list (slot-value obj 'name)))
+            (tfunction (with-slots (arg-types return-type) obj
+                         `(tfunction ,arg-types ,return-type)))
+            (t (list (type-of obj))))))
 
 ;;------------------------------------------------------------
 
