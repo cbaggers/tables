@@ -157,6 +157,8 @@
          (b (slot-value zonkd-b 'target)))
     (unless (equal zonkd-a zonkd-b)
       (cond
+        ((and (typep a 'tinteger) (typep b 'tinteger)))
+        ((and (typep a 'tboolean) (typep b 'tboolean)))
         ((and (typep a 'tfunction) (typep b 'tfunction))
          (mapcar #'unify
                  (slot-value a 'arg-types)
