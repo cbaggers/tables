@@ -283,8 +283,14 @@
       (t type))))
 
 (defun infer-lambda-form (context args body)
-  (let* ((arg-unknown-vars (mapcar (lambda (name)
-                                     (list name (make-unknown)))
+  (let* ((arg-unknown-vars (mapcar (lambda (arg)
+                                     (destructuring-bind
+                                           (name &optional type)
+                                         (if (listp arg) arg (list arg))
+                                       (list name
+                                             (if type
+                                                 (init-type type)
+                                                 (make-unknown)))))
                                    args))
          (body-context (add-bindings context arg-unknown-vars))
          (typed-body (infer body-context `(progn ,@body))))
