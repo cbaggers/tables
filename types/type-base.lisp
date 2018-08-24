@@ -275,7 +275,11 @@
     (typecase target
       (unknown
        (with-slots (inner) target
-         (or inner type)))
+         (if inner
+             (let ((zt (zonk inner)))
+               (setf inner zt)
+               zt)
+             type)))
       (tfunction
        (with-slots (arg-types return-type) target
          (tref (make-instance
