@@ -79,14 +79,6 @@
 
 ;;------------------------------------------------------------
 
-(defun make-void ()
-  (take-ref (make-instance 'void)))
-
-(defun make-unknown ()
-  (take-ref (make-instance 'unknown)))
-
-;;------------------------------------------------------------
-
 (defclass type-ref ()
   ((target :initarg :target)))
 
@@ -146,9 +138,10 @@
 
 ;;------------------------------------------------------------
 
-(defun init-type (type-designator)
+(defun designator->type (type-designator)
   (or (if (symbolp type-designator)
           (case type-designator
+            (unknown (take-ref (make-instance 'unknown)))
             (tboolean (take-ref (make-instance 'tboolean)))
             (tinteger (take-ref (make-instance 'tinteger))))
           (case (first type-designator)
@@ -156,9 +149,9 @@
              (assert (= (length type-designator) 3))
              (take-ref (make-instance
                         'tfunction
-                        :arg-types (mapcar #'init-type (second type-designator))
-                        :return-type (init-type (third type-designator)))))))
-      (error "init-type not implemented for ~a"
+                        :arg-types (mapcar #'designator->type (second type-designator))
+                        :return-type (designator->type (third type-designator)))))))
+      (error "designator->type not implemented for ~a"
              type-designator)))
 
 ;;------------------------------------------------------------
@@ -234,7 +227,7 @@
 
 (defun infer-if (context test then else)
   (let* (;; {TODO} support any object in test
-         (typed-test (check context test (init-type 'tboolean)))
+         (typed-test (check context test (designator->type 'tboolean)))
          ;; {TODO} can we support 'or' types here?
          (typed-then (infer context then))
          (let-type (type-of-typed-expression typed-then))
@@ -251,7 +244,7 @@
   `(truly-the ,type ,form))
 
 (defun infer-the (context type-designator form)
-  (let* ((type (init-type type-designator))
+  (let* ((type (designator->type type-designator))
          (typed-form (check context form type)))
     (assert (eq 'truly-the (first typed-form)))
     `(truly-the ,type ,(third typed-form))))
@@ -283,15 +276,15 @@
                     ,typed-body)))))
 
 (defun infer-lambda-form (context args body)
-  (let* ((arg-unknown-vars (mapcar (lambda (arg)
-                                     (destructuring-bind
-                                           (name &optional type)
-                                         (if (listp arg) arg (list arg))
-                                       (list name
-                                             (if type
-                                                 (init-type type)
-                                                 (make-unknown)))))
-                                   args))
+  (let* ((arg-unknown-vars
+          (mapcar (lambda (arg)
+                    (destructuring-bind (name &optional type)
+                        (if (listp arg) arg (list arg))
+                      (list name
+                            (if type
+                                (designator->type type)
+                                (designator->type 'unknown)))))
+                  args))
          (body-context (add-bindings context arg-unknown-vars))
          (typed-body (infer body-context `(progn ,@body))))
     `(truly-the
@@ -328,8 +321,10 @@
 
 (defun infer-funcall (context func-form arg-forms)
   (let* ((arg-len (length arg-forms))
-         (arg-types (loop :repeat arg-len :collect (make-unknown)))
-         (ret-type (make-unknown))
+         (arg-types (loop
+                       :repeat arg-len
+                       :collect (designator->type 'unknown)))
+         (ret-type (designator->type 'unknown))
          (check-type (take-ref (make-instance
                                 'tfunction
                                 :arg-types arg-types
@@ -350,11 +345,11 @@
   (declare (ignore context))
   (assert (or (eq expression t)
               (eq expression nil)))
-  `(truly-the ,(init-type 'tboolean) ,expression))
+  `(truly-the ,(designator->type 'tboolean) ,expression))
 
 (defmethod infer-literal (context (expression integer))
   (declare (ignore context))
-  `(truly-the ,(init-type 'tinteger) ,expression))
+  `(truly-the ,(designator->type 'tinteger) ,expression))
 
 ;;------------------------------------------------------------
 
