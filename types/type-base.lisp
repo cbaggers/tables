@@ -105,7 +105,8 @@
     (with-slots (refs) old-type
       (loop :for ref :in refs :do
            (setf (deref ref) new-type)
-           (pushnew ref (slot-value new-type 'refs))))
+           (pushnew ref (slot-value new-type 'refs)))
+      (setf refs nil))
     type-ref))
 
 (defun deref (type-ref)
