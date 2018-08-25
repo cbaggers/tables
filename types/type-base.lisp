@@ -84,43 +84,94 @@
   ((arg-types :initform nil :initarg :arg-types)
    (return-type :initform nil :initarg :return-type)))
 
-(defun ttype-class-name (type-principle-name)
-  (let ((name (symbol-name type-principle-name))
-        (pkg (symbol-package type-principle-name)))
-    (intern
-     (format nil "~@[~a.~]~a"
-             (unless (eq pkg #.(find-package :cl))
-               (package-name pkg))
-             name)
-     :ttype-classes)))
+;;------------------------------------------------------------
 
-(defun parse-ttype-lambda-list ()
+(defclass user-ttype (ttype)
+  ((name :initarg :name)
+   (desig-to-type :initarg :desig-to-type)
+   (desig-from-type :initarg :desig-from-type)
+   (arg-vals :initarg :arg-vals)))
+
+(defclass user-ttype-spec ()
+  ((name :initarg :name)
+   (desig-to-type :initarg :desig-to-type)
+   (desig-from-type :initarg :desig-from-type)))
+
+(defvar *registered-user-types* (make-hash-table :test #'eq))
+
+(defun parse-ttype-lambda-list (lambda-list)
   (multiple-value-bind (required-parameters
                         optional-parameters
                         rest-parameters-name
                         keyword-parameters
                         has-allow-other-keys-p
                         aux-parameter)
-      (alexandria:parse-ordinary-lambda-list '(a (b) &key c))
+      (alexandria:parse-ordinary-lambda-list lambda-list)
     (assert (not aux-parameter))
     (assert (not rest-parameters-name))
     (assert (not optional-parameters))
     (assert (not has-allow-other-keys-p))
-    (list required-parameters keyword-parameters)))
+    (assert (not (has-duplicates-p (append required-parameters
+                                           keyword-parameters))))
+    (list required-parameters
+          (sort keyword-parameters #'string< :key #'first))))
 
-#+nil
-(defmacro define-ttype (name &rest designator-args)
-  (declare (ignore args))
-  (destructuring-bind (req-args key-args) (parse-ttype-lambda-list)
-    (let* ((class-name (ttype-class-name name)))
-      `(progn
-         (defclass ,class-name (ttype) ())
-         (defmethod %designator->type ((name (eql ',name)) &rest args)
-           (destructuring-bind ,designator-args args
-             ))))))
+(defvar *last-dropped-type* nil)
 
-#+nil
+(defgeneric register-type (type-spec)
+  (:method (spec)
+    (setf *last-dropped-type* spec)
+    (warn "register-type is not implemented")))
+
+;; Test impl. remove later
+(defmethod register-type (spec)
+  (with-slots (name) spec
+    (setf (gethash name *registered-user-types*) spec)))
+
+(defmacro define-ttype (designator)
+  (destructuring-bind (name . designator-args)
+      (uiop:ensure-list designator)
+    (destructuring-bind (req-args key-forms)
+        (parse-ttype-lambda-list designator-args)
+      (let* ((req-len (length req-args))
+             (key-len (length key-forms))
+             (args-len (+ req-len key-len))
+             (key-args (mapcar #'first key-forms)))
+        (alexandria:with-gensyms ()
+          `(labels ((to-type (,@req-args
+                              ,@(when key-args (cons '&key key-forms)))
+                      (let ((vals (make-array ,args-len
+                                              :initial-contents
+                                              (list ,@req-args
+                                                    ,@key-args))))
+                        (make-instance 'user-ttype
+                                       :name ',name
+                                       :desig-to-type #'to-type
+                                       :desig-from-type #'from-type
+                                       :arg-vals vals)))
+                    (from-type (type)
+                      (declare (ignorable type))
+                      ,(if designator-args
+                           `(with-slots (arg-vals) type
+                              (list
+                               ',name
+                               ,@(loop
+                                    :for i :below req-len
+                                    :collect `(aref arg-vals ,i))
+                               ,@(loop
+                                    :for (key) :in key-forms
+                                    :for i :from req-len
+                                    :append `(,key (aref arg-vals ,i)))))
+                           `(quote ,name))))
+             (register-type
+              (make-instance 'user-ttype-spec
+                             :name ',name
+                             :desig-to-type #'to-type
+                             :desig-from-type #'from-type))
+             ',name))))))
+
 (define-ttype boolean)
+(define-ttype (foop type dims))
 
 ;;------------------------------------------------------------
 
@@ -404,6 +455,13 @@
     (unify (type-of-typed-expression typed-expression)
            type)
     typed-expression))
+
+;;------------------------------------------------------------
+
+(defun has-duplicates-p (list)
+  (loop :for (val . rest) :on list
+     :when (find val rest)
+     :do (return t)))
 
 ;;------------------------------------------------------------
 
