@@ -72,15 +72,7 @@
 (defclass unknown (ttype)
   ((name :initform (gensym))))
 
-(defclass data-type (ttype) ())
-
-(defclass void (data-type) ())
-
-(defclass tinteger (data-type) ())
-
-(defclass tboolean (data-type) ())
-
-(defclass tfunction (data-type)
+(defclass tfunction (ttype)
   ((arg-types :initform nil :initarg :arg-types)
    (return-type :initform nil :initarg :return-type)))
 
@@ -144,11 +136,12 @@
                                               :initial-contents
                                               (list ,@req-args
                                                     ,@key-args))))
-                        (make-instance 'user-ttype
-                                       :name ',name
-                                       :desig-to-type #'to-type
-                                       :desig-from-type #'from-type
-                                       :arg-vals vals)))
+                        (take-ref
+                         (make-instance 'user-ttype
+                                        :name ',name
+                                        :desig-to-type #'to-type
+                                        :desig-from-type #'from-type
+                                        :arg-vals vals))))
                     (from-type (type)
                       (declare (ignorable type))
                       ,(if designator-args
@@ -171,6 +164,7 @@
              ',name))))))
 
 (define-ttype boolean)
+(define-ttype integer)
 (define-ttype (foop type dims))
 
 ;;------------------------------------------------------------
@@ -215,11 +209,11 @@
 
 (defmethod print-type ((obj ttype) stream)
   (format stream "#T~a"
-          (typecase obj
-            (unknown (list (slot-value obj 'name)))
+          (etypecase obj
             (tfunction (with-slots (arg-types return-type) obj
                          `(tfunction ,arg-types ,return-type)))
-            (t (list (type-of obj))))))
+            (user-ttype (with-slots (desig-from-type) obj
+                          (funcall desig-from-type obj))))))
 
 ;;------------------------------------------------------------
 
@@ -235,20 +229,24 @@
 ;;------------------------------------------------------------
 
 (defun designator->type (type-designator)
-  (or (if (symbolp type-designator)
-          (case type-designator
-            (unknown (take-ref (make-instance 'unknown)))
-            (tboolean (take-ref (make-instance 'tboolean)))
-            (tinteger (take-ref (make-instance 'tinteger))))
-          (case (first type-designator)
-            (function
-             (assert (= (length type-designator) 3))
-             (take-ref (make-instance
-                        'tfunction
-                        :arg-types (mapcar #'designator->type (second type-designator))
-                        :return-type (designator->type (third type-designator)))))))
-      (error "designator->type not implemented for ~a"
-             type-designator)))
+  (destructuring-bind (principle-name . args)
+      (uiop:ensure-list type-designator)
+    (case principle-name
+      (unknown (take-ref (make-instance 'unknown)))
+      (function
+       (assert (= (length type-designator) 3))
+       (take-ref (make-instance
+                  'tfunction
+                  :arg-types (mapcar #'designator->type
+                                     (second type-designator))
+                  :return-type (designator->type
+                                (third type-designator)))))
+      (otherwise
+       (let ((type-spec (gethash principle-name *registered-user-types*)))
+         (if type-spec
+             (apply (slot-value type-spec 'desig-to-type) args)
+             (error "Could not identify type for designator: ~a"
+                    type-designator)))))))
 
 ;;------------------------------------------------------------
 
@@ -259,8 +257,10 @@
          (b (deref type-b)))
     (unless (equal type-a type-b)
       (cond
-        ((and (typep a 'tinteger) (typep b 'tinteger)))
-        ((and (typep a 'tboolean) (typep b 'tboolean)))
+        ((and (typep a 'user-ttype)
+              (typep b 'user-ttype)
+              (eq (slot-value a 'name)
+                  (slot-value b 'name))))
         ((and (typep a 'tfunction) (typep b 'tfunction))
          (mapcar #'unify
                  (slot-value a 'arg-types)
@@ -441,11 +441,11 @@
   (declare (ignore context))
   (assert (or (eq expression t)
               (eq expression nil)))
-  `(truly-the ,(designator->type 'tboolean) ,expression))
+  `(truly-the ,(designator->type 'boolean) ,expression))
 
 (defmethod infer-literal (context (expression integer))
   (declare (ignore context))
-  `(truly-the ,(designator->type 'tinteger) ,expression))
+  `(truly-the ,(designator->type 'integer) ,expression))
 
 ;;------------------------------------------------------------
 
