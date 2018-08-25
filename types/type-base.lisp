@@ -1,5 +1,12 @@
 (uiop:define-package :ttype (:use :cl))
+(uiop:define-package :ttype-classes (:use))
 (in-package :ttype)
+
+;; designator->type
+;; type->designator
+;; unify
+;; (defmethod no-applicable-method ((method (eql #'foo)) &rest args)
+;;   (format t "no applicable method for (foo ~{~s~^ ~})~%" args))
 
 ;; This first version will have no multiple value return and
 ;; will use void as it's (values) type.
@@ -76,6 +83,44 @@
 (defclass tfunction (data-type)
   ((arg-types :initform nil :initarg :arg-types)
    (return-type :initform nil :initarg :return-type)))
+
+(defun ttype-class-name (type-principle-name)
+  (let ((name (symbol-name type-principle-name))
+        (pkg (symbol-package type-principle-name)))
+    (intern
+     (format nil "~@[~a.~]~a"
+             (unless (eq pkg #.(find-package :cl))
+               (package-name pkg))
+             name)
+     :ttype-classes)))
+
+(defun parse-ttype-lambda-list ()
+  (multiple-value-bind (required-parameters
+                        optional-parameters
+                        rest-parameters-name
+                        keyword-parameters
+                        has-allow-other-keys-p
+                        aux-parameter)
+      (alexandria:parse-ordinary-lambda-list '(a (b) &key c))
+    (assert (not aux-parameter))
+    (assert (not rest-parameters-name))
+    (assert (not optional-parameters))
+    (assert (not has-allow-other-keys-p))
+    (list required-parameters keyword-parameters)))
+
+#+nil
+(defmacro define-ttype (name &rest designator-args)
+  (declare (ignore args))
+  (destructuring-bind (req-args key-args) (parse-ttype-lambda-list)
+    (let* ((class-name (ttype-class-name name)))
+      `(progn
+         (defclass ,class-name (ttype) ())
+         (defmethod %designator->type ((name (eql ',name)) &rest args)
+           (destructuring-bind ,designator-args args
+             ))))))
+
+#+nil
+(define-ttype boolean)
 
 ;;------------------------------------------------------------
 
