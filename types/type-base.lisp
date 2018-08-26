@@ -182,7 +182,6 @@
                ',name)))))))
 
 (define-ttype boolean)
-
 (define-ttype integer)
 
 ;; if arg is syntactically (lambda ..etc) then check the args
@@ -191,11 +190,19 @@
 (define-ttype (foop type dims)
   :init
   (lambda (type dims)
-    (assert (type type 'fuck))
-    `(foop ,type ,dims))
+    (declare (ignore type dims)))
   :unify
   (lambda (type-a type-b)
-    ))
+    (declare (ignore type-a type-b))
+    t)
+  :state
+  (make-type-state))
+
+(defun on-type-redefined (old-state)
+  (let ((new-state old-state))
+    new-state))
+
+;; hmm, we really need a way to define a type-system.
 
 ;;------------------------------------------------------------
 
