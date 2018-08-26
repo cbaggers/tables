@@ -63,6 +63,9 @@
 
 ;;------------------------------------------------------------
 
+;; {TODO} ttype needs to have a load-form, which implies all
+;;        elements in the designator need to have that too
+
 (defclass ttype ()
   ((refs :initform nil)))
 
@@ -76,16 +79,22 @@
   ((arg-types :initform nil :initarg :arg-types)
    (return-type :initform nil :initarg :return-type)))
 
+(defmacro ttype (designator)
+  (designator->type designator))
+
 ;;------------------------------------------------------------
 
 (defclass user-ttype (ttype)
   ((name :initarg :name)
+   (unify :initarg :unify)
    (desig-to-type :initarg :desig-to-type)
    (desig-from-type :initarg :desig-from-type)
    (arg-vals :initarg :arg-vals)))
 
 (defclass user-ttype-spec ()
   ((name :initarg :name)
+   (init :initarg :init)
+   (unify :initarg :unify)
    (desig-to-type :initarg :desig-to-type)
    (desig-from-type :initarg :desig-from-type)))
 
@@ -120,7 +129,11 @@
   (with-slots (name) spec
     (setf (gethash name *registered-user-types*) spec)))
 
-(defmacro define-ttype (designator)
+;; {TODO} I'd like the user to have to specify the type of the designator
+;;        argument. I think to start we will restrict it to types, symbols
+;;        and numbers.
+(defmacro define-ttype (designator &body rest &key init unify)
+  (declare (ignore rest))
   (destructuring-bind (name . designator-args)
       (uiop:ensure-list designator)
     (destructuring-bind (req-args key-forms)
@@ -130,42 +143,59 @@
              (args-len (+ req-len key-len))
              (key-args (mapcar #'first key-forms)))
         (alexandria:with-gensyms ()
-          `(labels ((to-type (,@req-args
-                              ,@(when key-args (cons '&key key-forms)))
-                      (let ((vals (make-array ,args-len
-                                              :initial-contents
-                                              (list ,@req-args
-                                                    ,@key-args))))
-                        (take-ref
-                         (make-instance 'user-ttype
-                                        :name ',name
-                                        :desig-to-type #'to-type
-                                        :desig-from-type #'from-type
-                                        :arg-vals vals))))
-                    (from-type (type)
-                      (declare (ignorable type))
-                      ,(if designator-args
-                           `(with-slots (arg-vals) type
-                              (list
-                               ',name
-                               ,@(loop
-                                    :for i :below req-len
-                                    :collect `(aref arg-vals ,i))
-                               ,@(loop
-                                    :for (key) :in key-forms
-                                    :for i :from req-len
-                                    :append `(,key (aref arg-vals ,i)))))
-                           `(quote ,name))))
-             (register-type
-              (make-instance 'user-ttype-spec
-                             :name ',name
-                             :desig-to-type #'to-type
-                             :desig-from-type #'from-type))
-             ',name))))))
+          `(let ((init (or ,init #'identity))
+                 (unify (or ,unify #'unify-user-type)))
+             (labels ((to-type (,@req-args
+                                ,@(when key-args (cons '&key key-forms)))
+                        (let ((vals (make-array ,args-len
+                                                :initial-contents
+                                                (list ,@req-args
+                                                      ,@key-args))))
+                          (take-ref
+                           (make-instance 'user-ttype
+                                          :name ',name
+                                          :unify unify
+                                          :desig-to-type #'to-type
+                                          :desig-from-type #'from-type
+                                          :arg-vals vals))))
+                      (from-type (type)
+                        (declare (ignorable type))
+                        ,(if designator-args
+                             `(with-slots (arg-vals) type
+                                (list
+                                 ',name
+                                 ,@(loop
+                                      :for i :below req-len
+                                      :collect `(aref arg-vals ,i))
+                                 ,@(loop
+                                      :for (key) :in key-forms
+                                      :for i :from req-len
+                                      :append `(,key (aref arg-vals ,i)))))
+                             `(quote ,name))))
+               (register-type
+                (make-instance 'user-ttype-spec
+                               :name ',name
+                               :init init
+                               :unify unify
+                               :desig-to-type #'to-type
+                               :desig-from-type #'from-type))
+               ',name)))))))
 
 (define-ttype boolean)
+
 (define-ttype integer)
-(define-ttype (foop type dims))
+
+;; if arg is syntactically (lambda ..etc) then check the args
+;; otherwise trust they are correct
+#+nil
+(define-ttype (foop type dims)
+  :init
+  (lambda (type dims)
+    (assert (type type 'fuck))
+    `(foop ,type ,dims))
+  :unify
+  (lambda (type-a type-b)
+    ))
 
 ;;------------------------------------------------------------
 
@@ -260,7 +290,8 @@
         ((and (typep a 'user-ttype)
               (typep b 'user-ttype)
               (eq (slot-value a 'name)
-                  (slot-value b 'name))))
+                  (slot-value b 'name))
+              (funcall (slot-value a 'unify) type-a type-b)))
         ((and (typep a 'tfunction) (typep b 'tfunction))
          (mapcar #'unify
                  (slot-value a 'arg-types)
@@ -276,6 +307,9 @@
         (t (error "No way to unify ~a and ~a" type-a type-b)))))
   (values))
 
+(defun unify-user-type (type-a type-b)
+  (declare (ignore type-a type-b))
+  t)
 
 ;;------------------------------------------------------------
 
