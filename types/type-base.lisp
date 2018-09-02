@@ -73,7 +73,8 @@
   (typep x 'ttype))
 
 (defclass unknown (ttype)
-  ((name :initform (gensym))))
+  ((name :initform (gensym))
+   (constraints :initform nil :initarg :constraints)))
 
 (defclass tfunction (ttype)
   ((arg-types :initform nil :initarg :arg-types)
@@ -304,12 +305,15 @@
 
 ;;------------------------------------------------------------
 
+(defun make-unknown (&optional constraints)
+  (take-ref (make-instance 'unknown :constraints constraints )))
+
 (defun designator->type (type-designator)
   (destructuring-bind (principle-name . args)
       (uiop:ensure-list type-designator)
     (case principle-name
       (unknown
-       (take-ref (make-instance 'unknown)))
+       (error "BUG: Attempt to make unknown type via designator"))
       (function
        (assert (= (length type-designator) 3))
        (take-ref (make-instance
@@ -458,36 +462,63 @@
        (char= (char (symbol-name name) 0) #\?)))
 
 
-(defun process-function-arg-spec (arg-specs)
+(defun process-function-arg-spec (arg-specs declarations)
   (let ((named-unknowns nil))
     (loop
        :for spec :in arg-specs
        :for (name type) := (alexandria:ensure-list spec)
        :collect
-         (let ((type
-                (if type
-                    (if (unknown-type-name-p type)
-                        (or (and (> (length (symbol-name type)) 1)
-                                 (cdr (assoc type named-unknowns)))
-                            (let ((u (designator->type 'unknown)))
-                              (setf named-unknowns
-                                    (acons type u named-unknowns))
-                              u))
-                        (designator->type type))
-                    (designator->type 'unknown))))
+         (let* ((constraints (gethash name declarations))
+                (type
+                 (if type
+                     (if (unknown-type-name-p type)
+                         (or (and (> (length (symbol-name type)) 1)
+                                  (cdr (assoc type named-unknowns)))
+                             (let ((u (make-unknown constraints)))
+                               (setf named-unknowns
+                                     (acons type u named-unknowns))
+                               u))
+                         (progn
+                           (assert (not constraints) ()
+                                   "Cannot constrain known type ~a"
+                                   type)
+                           (designator->type type)))
+                     (make-unknown constraints))))
            (list name type)))))
 
+;; {TODO} handle AND types
+;; {TODO} this assumes only regular args (no &key &optional etc)
+(defun parse-declarations (declaration-forms args)
+  (let ((merged (mapcar #'second declaration-forms))
+        (results (make-hash-table)))
+    (loop
+       :for decl :in merged
+       :do (ecase (first decl)
+             (satisfies
+              (let* ((spec (second decl))
+                     (targets (cddr decl))
+                     (constraints (list (designator->type spec))))
+                (loop
+                   :for target :in targets
+                   :do (assert (find target args :key #'first))
+                   :do (setf (gethash target results) constraints))))))
+    results))
+
 (defun infer-lambda-form (context args body)
-  (let* ((processed-args
-          (process-function-arg-spec args))
-         (body-context (add-bindings context processed-args))
-         (typed-body (infer body-context `(progn ,@body))))
-    `(truly-the
-      ,(take-ref (make-instance
-                  'tfunction
-                  :arg-types (mapcar #'second processed-args)
-                  :return-type (type-of-typed-expression typed-body)))
-      (lambda ,args ,typed-body))))
+  (multiple-value-bind (body declarations doc-string)
+      (alexandria:parse-body body :documentation t)
+    (declare (ignore doc-string))
+    (let* ((declarations (parse-declarations declarations args))
+           (processed-args
+            (process-function-arg-spec args declarations))
+           (body-context (add-bindings context processed-args))
+           (typed-body (infer body-context `(progn ,@body))))
+      `(truly-the
+        ,(take-ref (make-instance
+                    'tfunction
+                    :arg-types (mapcar #'second processed-args)
+                    :return-type (type-of-typed-expression typed-body)))
+        (lambda ,args ,typed-body)))))
 
 (defun infer (context expression)
   "The type-system equivalent of eval.
@@ -518,8 +549,8 @@
   (let* ((arg-len (length arg-forms))
          (arg-types (loop
                        :repeat arg-len
-                       :collect (designator->type 'unknown)))
-         (ret-type (designator->type 'unknown))
+                       :collect (make-unknown)))
+         (ret-type (make-unknown))
          (check-type (take-ref (make-instance
                                 'tfunction
                                 :arg-types arg-types
