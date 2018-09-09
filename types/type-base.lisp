@@ -231,11 +231,15 @@
                     :spec spec
                     :value type-ref))))
 
+(defun hack-unify-ttype (x y)
+  (print (list :sup x y))
+  (unify x y t)
+  t)
+
 (register-parameter-type
  (make-instance 'ttype-parameter-spec
                 :name 'ttype
-                :equal (lambda (x y)
-                         (unify x y t))
+                :equal 'hack-unify-ttype
                 :to-param 'ttype-designator-to-param))
 
 ;;------------------------------------------------------------
@@ -621,10 +625,12 @@
   (let* ((a (deref param-a))
          (b (deref param-b))
          (a-unknown (typep a 'unknown-param))
-         (b-unknown (typep b 'unknown-param)))
+         (b-unknown (typep b 'unknown-param))
+         (primary-name-matches (eq (slot-value a 'name)
+                                   (slot-value b 'name))))
+    (print (list :pnm> primary-name-matches a b))
     (cond
-      ((and (eq (slot-value a 'name)
-                (slot-value b 'name))
+      ((and primary-name-matches
             (funcall (slot-value (slot-value a 'spec) 'equal)
                      (slot-value a 'value)
                      (slot-value b 'value)))
@@ -635,7 +641,7 @@
       (b-unknown
        (when mutate-p
          (retarget-ref param-b a)))
-      (t (error "bah"))))
+      (t (error "bah ~a ~a" a b))))
   (values))
 
 (defun unify-user-type (type-a type-b)
@@ -647,7 +653,7 @@
        :for aparam :across (slot-value a 'arg-vals)
        :for bparam :across (slot-value b 'arg-vals)
        :do (unify-params aparam bparam t))
-    (values)))
+    t))
 
 ;;------------------------------------------------------------
 
