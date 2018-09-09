@@ -688,7 +688,7 @@
   (let ((named-unknowns nil))
     (loop
        :for spec :in arg-specs
-       :for (name type) := (alexandria:ensure-list spec)
+       :for (name type) := spec
        :collect
          (let* ((constraints (gethash name declarations))
                 (type
@@ -732,7 +732,8 @@
   (multiple-value-bind (body declarations doc-string)
       (alexandria:parse-body body :documentation t)
     (declare (ignore doc-string))
-    (let* ((declarations (parse-declarations declarations args))
+    (let* ((args (mapcar #'alexandria:ensure-list args))
+           (declarations (parse-declarations declarations args))
            (processed-args
             (process-function-arg-spec args declarations))
            (body-context (add-bindings context processed-args))
