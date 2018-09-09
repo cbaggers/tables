@@ -87,14 +87,17 @@
 
 (defclass ttype-parameter ()
   ((name :initarg :name)
-   (equal :initarg :equal)
+   (spec :initarg :spec)
    (value :initarg :value)))
 
 (defclass ttype-parameter-spec ()
   ((name :initarg :name)
-   (to-param :initarg :to-param)
-   (from-param :initarg :from-param])))
+   (equal :initarg :equal)
+   (to-param :initarg :to-param)))
 
+(defun tparam-val (param)
+  (check-type param ttype-parameter)
+  (slot-value param 'value))
 
 ;;------------------------------------------------------------
 
@@ -112,6 +115,7 @@
    (unify :initarg :unify)
    (satisfies :initarg :satisfies)
    (purpose :initarg :purpose :initform :concrete-and-constraint)
+   (arg-param-specs :initarg :arg-param-specs)
    (desig-to-type :initarg :desig-to-type)
    (desig-from-type :initarg :desig-from-type)))
 
@@ -140,7 +144,17 @@
          (or (eq purpose :concrete-and-constraint)
              (eq purpose :concrete-only)))))))
 
-(defvar *registered-user-types* (make-hash-table :test #'eq))
+(defvar *registered-user-types*
+  (make-hash-table :test #'eq))
+
+(defvar *registered-parameter-types*
+  (make-hash-table :test #'eq))
+
+(defun get-parameter-type-spec (name)
+  (or (gethash name *registered-parameter-types*)
+      (error
+       "define-ttype: ~a is not valid designator arg type.~%valid:~a"
+       name (alexandria:hash-table-keys *registered-parameter-types*))))
 
 (defun parse-ttype-lambda-list (lambda-list)
   (multiple-value-bind (required-parameters
@@ -160,35 +174,95 @@
           (sort keyword-parameters #'string< :key #'first))))
 
 (defvar *last-dropped-type* nil)
+(defvar *last-dropped-parameter-type* nil)
 
 (defgeneric register-type (type-spec)
   (:method (spec)
+    ;; this ↓ is just for debugging
     (setf *last-dropped-type* spec)
     (warn "register-type is not implemented")))
 
-;; Test impl. remove later
+(defgeneric register-parameter-type (parameter-type-spec)
+  (:method (spec)
+    ;; this ↓ is just for debugging
+    (setf *last-dropped-parameter-type* spec)
+    (warn "register-type is not implemented")))
+
+(defun ttype-designator-to-param (spec val)
+  (let ((type-ref (designator->type val)))
+    (make-instance 'ttype-parameter
+                   :name 'ttype
+                   :spec spec
+                   :value type-ref)))
+
+(register-parameter-type
+ (make-instance 'ttype-parameter-spec
+                :name 'ttype
+                :equal #'unify
+                :to-param #'ttype-designator-to-param))
+
+;;------------------------------------------------------------
+
+;; Test impls. remove later
+;; Later we want users to control when types are register. hmm maybe
+;; we allow them to say when but not how.
 (defmethod register-type (spec)
   (with-slots (name) spec
     (setf (gethash name *registered-user-types*) spec)))
 
-(defun compile-where-spec (where-spec arg-names)
+(defmethod register-parameter-type (spec)
+  (with-slots (name) spec
+    (setf (gethash name *registered-parameter-types*) spec)))
+
+;;------------------------------------------------------------
+
+(defmacro define-parameter-type (name
+                                 &body rest
+                                 &key valid-p equal)
+  (declare (ignore rest))
+  (assert (not (eq name 'ttype)))
+  (assert (and (symbolp name) (not (keywordp name))))
+  `(let ((valid-p (or ,valid-p #'identity))
+         (param-equal-p ,equal))
+     (labels ((to-param (spec val)
+                (assert (eq (slot-value spec 'name) ',name))
+                (assert (funcall valid-p val) ()
+                        "~a is not a valid value to make a ~a type parameter"
+                        val ',name)
+                (make-instance 'ttype-parameter
+                               :name ',name
+                               :spec spec
+                               :value val)))
+       (register-parameter-type
+        (make-instance 'ttype-parameter-spec
+                       :name ',name
+                       :equal param-equal-p
+                       :to-param #'to-param))
+       ',name)))
+
+;;------------------------------------------------------------
+
+(defun compile-where-spec (where-spec arg-names
+                           type-spec-symb
+                           index)
   (destructuring-bind (desig-var-name desig-var-type)
       where-spec
+    (declare (ignore desig-var-type))
     (assert (find desig-var-name arg-names) ()
             "define-ttype: ~a in :where doesnt name a designator var~%~a"
             arg-names)
-    (case desig-var-type
-      (ttype
-       `((,desig-var-name (designator->type ,desig-var-name))
-         (assert (type-ref-p ,desig-var-name))))
-      (integer
-       `(nil
-         (assert (integerp ,desig-var-name))))
-      (t
-       (error
-        "define-ttype: ~a is not valid designator arg type.~%valid:~a"
-        desig-var-type
-        '(ttype integer))))))
+    (alexandria:with-gensyms (param-spec)
+      `(,desig-var-name
+        (let ((,param-spec (aref ,type-spec-symb ,index)))
+          (funcall (slot-value ,param-spec 'to-param)
+                   ,param-spec
+                   ,desig-var-name))))))
+
+(defun ttype-of (type-ref)
+  (with-slots (target) type-ref
+    (with-slots (spec) target
+      (with-slots (desig-from-type) spec
+        (funcall desig-from-type target)))))
 
 ;; {TODO} I'd like the user to have to specify the type of the designator
 ;;        argument. I think to start we will restrict it to types, symbols
@@ -214,27 +288,30 @@
                             (loop :for arg :in args
                                :unless (find arg where :key #'first)
                                :collect (list arg 'ttype))))
-             (purpose (or purpose :concrete-only)))
-        (alexandria:with-gensyms (gtype-spec)
+             (purpose (or purpose :concrete-only))
+             (arg-param-types (mapcar #'second where)))
+        (alexandria:with-gensyms (gtype-spec param-specs)
           `(let ((init (or ,init #'identity))
                  (unify ,unify)
                  (satisfies ,satifies-this-p))
              (labels ((where (,gtype-spec ,@req-args ,@key-args)
-                        (declare (ignorable ,gtype-spec ,@req-args ,@key-args))
-                        ,(loop :for where-spec :in where
-                            :for (let check) := (compile-where-spec
-                                                 where-spec
-                                                 args)
-                            :when let :collect let :into lets
-                            :collect check :into checks
-                            :finally (return
-                                       `(let ,lets
-                                          ,@checks
-                                          (list ,@req-args
-                                                ,@key-args)))))
+                        (declare (ignorable ,@req-args ,@key-args))
+                        (with-slots ((,param-specs arg-param-specs))
+                            ,gtype-spec
+                          (let ,(loop
+                                   :for where-spec :in where
+                                   :for i :from 0
+                                   :collect (compile-where-spec
+                                             where-spec
+                                             args
+                                             param-specs
+                                             i))
+                            (list ,@req-args ,@key-args))))
                       (to-type (,gtype-spec
                                 ,@req-args
                                 ,@(when key-args (cons '&key key-forms)))
+                        (assert (eq (slot-value ,gtype-spec 'name)
+                                    ',name))
                         (destructuring-bind (,@req-args ,@key-args)
                             (where ,gtype-spec ,@req-args ,@key-args)
                           (let ((vals (make-array ,args-len
@@ -250,25 +327,39 @@
                         (declare (ignorable type))
                         ,(if designator-args
                              `(with-slots (arg-vals) type
-                                (list
-                                 ',name
-                                 ,@(loop
-                                      :for i :below req-len
-                                      :collect `(aref arg-vals ,i))
-                                 ,@(loop
-                                      :for (key) :in key-forms
-                                      :for i :from req-len
-                                      :append `(,key (aref arg-vals ,i)))))
+                                (flet ((desig (p)
+                                         (let ((v (tparam-val p)))
+                                           (etypecase v
+                                             (type-ref (ttype-of v))
+                                             (t v)))))
+                                  (list
+                                   ',name
+                                   ,@(loop
+                                        :for i :below req-len
+                                        :collect
+                                          `(desig (aref arg-vals ,i)))
+                                   ,@(loop
+                                        :for (key) :in key-forms
+                                        :for i :from req-len
+                                        :append
+                                          `(,key
+                                            (desig (aref arg-vals ,i)))))))
                              `(quote ,name))))
                (register-type
-                (make-instance 'user-ttype-spec
-                               :name ',name
-                               :init init
-                               :unify unify
-                               :satisfies satisfies
-                               :purpose ,purpose
-                               :desig-to-type #'to-type
-                               :desig-from-type #'from-type))
+                (let ((arg-param-specs
+                       (make-array ,(length arg-param-types)
+                                   :initial-contents
+                                   (mapcar #'get-parameter-type-spec
+                                           ',arg-param-types))))
+                  (make-instance 'user-ttype-spec
+                                 :name ',name
+                                 :init init
+                                 :unify unify
+                                 :satisfies satisfies
+                                 :purpose ,purpose
+                                 :arg-param-specs arg-param-specs
+                                 :desig-to-type #'to-type
+                                 :desig-from-type #'from-type)))
                ',name)))))))
 
 ;; if arg is syntactically (lambda ..etc) then check the args

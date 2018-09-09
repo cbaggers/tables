@@ -1,5 +1,9 @@
 (in-package :ttype)
 
+(define-parameter-type integer
+  :valid-p #'integerp
+  :equal #'=)
+
 (define-ttype boolean)
 (define-ttype integer)
 (define-ttype (unordered-set type))
