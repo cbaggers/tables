@@ -288,6 +288,17 @@
     (with-slots (spec) target
       (slot-value spec 'custom-data))))
 
+;; this guy fucks shit up, as ?a is a param, so the type
+;; of b becomes that param and it's meant to be a type
+;; guess we do need to unify params and types...haha. ugh
+;;
+;; ah well, it's alright, just a heck of a dave
+#+nil
+(infer (make-check-context)
+       `(lambda ((a (unordered-foo ?a 10))
+                 (b ?a))
+          a))
+
 (defun where (type-spec named-unknowns constraints params)
   (with-slots (arg-param-specs) type-spec
     (loop
@@ -297,16 +308,23 @@
          (let ((constraints-for-this
                 (when constraints
                   (gethash param constraints))))
-           (if constraints-for-this
-               (or (gethash param named-unknowns)
-                   (setf (gethash param named-unknowns)
-                         (make-unknown-param
-                          ;; Hmm, no constraints..what about params
-                          ;; that are types?
-                          )))
-               (funcall (slot-value param-spec 'to-param)
-                        param-spec
-                        param))))))
+           (cond
+             (constraints-for-this
+              (or (gethash param named-unknowns)
+                  (setf (gethash param named-unknowns)
+                        (make-unknown-param
+                         ;; Hmm, no constraints..what about params
+                         ;; that are types?
+                         ))))
+             ((unknown-designator-name-p param)
+              (print (list :boo "good" param))
+              (or (print (gethash param named-unknowns))
+                  (setf (gethash param named-unknowns)
+                        (make-unknown-param))))
+             (t
+              (funcall (slot-value param-spec 'to-param)
+                       param-spec
+                       param)))))))
 
 (defun designator-from-type (type)
   (check-type type ttype)
@@ -526,20 +544,26 @@
        (let ((constraints-for-this
               (when constraints
                 (gethash designator constraints))))
-         (if constraints-for-this
-             (or (gethash designator named-unknowns)
-                 (setf (gethash designator named-unknowns)
-                       (make-unknown constraints-for-this)))
-             (let ((type-spec (gethash principle-name
-                                       *registered-user-types*)))
-               (if type-spec
-                   (funcall (slot-value type-spec 'desig-to-type)
-                            type-spec
-                            named-unknowns
-                            constraints
-                            args)
-                   (error "Could not identify type for designator: ~a"
-                          designator)))))))))
+         (cond
+           (constraints-for-this
+            (or (gethash designator named-unknowns)
+                (setf (gethash designator named-unknowns)
+                      (make-unknown constraints-for-this))))
+           ((unknown-designator-name-p designator)
+            (or (gethash designator named-unknowns)
+                (setf (gethash designator named-unknowns)
+                      (make-unknown))))
+           (t
+            (let ((type-spec (gethash principle-name
+                                      *registered-user-types*)))
+              (if type-spec
+                  (funcall (slot-value type-spec 'desig-to-type)
+                           type-spec
+                           named-unknowns
+                           constraints
+                           args)
+                  (error "Could not identify type for designator: ~a"
+                         designator))))))))))
 
 ;;------------------------------------------------------------
 
@@ -762,9 +786,7 @@
                                                        type)
                           (let ((constraints-for-this
                                  (gethash type constraints)))
-                            (make-unknown constraints-for-this)))
-                      (process-function-arg-spec
-                       named-unknowns type constraints)))))
+                            (make-unknown constraints-for-this)))))))
 
 ;; {TODO} handle AND types
 ;; {TODO} this assumes only regular args (no &key &optional etc)
