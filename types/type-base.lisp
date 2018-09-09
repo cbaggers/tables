@@ -201,21 +201,7 @@
   (:method (spec)
     ;; this ↓ is just for debugging
     (setf *last-dropped-parameter-type* spec)
-    (warn "register-type is not implemented")))
-
-(defun ttype-designator-to-param (spec val)
-  (let ((type-ref (designator->type val)))
-    (take-ref
-     (make-instance 'ttype-parameter
-                     :name 'ttype
-                     :spec spec
-                     :value type-ref))))
-
-(register-parameter-type
- (make-instance 'ttype-parameter-spec
-                :name 'ttype
-                :equal #'unify
-                :to-param #'ttype-designator-to-param))
+    (warn "register-parameter-type is not implemented")))
 
 ;;------------------------------------------------------------
 
@@ -224,11 +210,33 @@
 ;; we allow them to say when but not how.
 (defmethod register-type (spec)
   (with-slots (name) spec
+    (format t "~%;; Registered type ~a" name)
     (setf (gethash name *registered-user-types*) spec)))
 
 (defmethod register-parameter-type (spec)
   (with-slots (name) spec
+    (format t "~%;; Registered param type ~a" name)
     (setf (gethash name *registered-parameter-types*) spec)))
+
+;;------------------------------------------------------------
+
+(defun ttype-designator-to-param (spec val)
+  (let ((type-ref
+         (if (unknown-designator-name-p val)
+             (make-unknown nil) ;; {TODO} constraints
+             (designator->type val))))
+    (take-ref
+     (make-instance 'ttype-parameter
+                    :name 'ttype
+                    :spec spec
+                    :value type-ref))))
+
+(register-parameter-type
+ (make-instance 'ttype-parameter-spec
+                :name 'ttype
+                :equal (lambda (x y)
+                         (unify x y t))
+                :to-param 'ttype-designator-to-param))
 
 ;;------------------------------------------------------------
 
@@ -297,18 +305,26 @@
                         param))))))
 
 (defun designator-from-type (type)
+  (check-type type ttype)
   (flet ((desig (p)
            (let ((naked-param (deref p)))
-             (if (typep naked-param 'unknown-param)
-                 (slot-value naked-param 'name)
-                 (let ((v (tparam-val p)))
-                   (etypecase v
-                     (type-ref (ttype-of v))
-                     (t v)))))))
-    (with-slots (name arg-vals) type
-      (if (> (length arg-vals) 0)
-          (cons name (map 'list #'desig arg-vals))
-          name))))
+             (cond
+               ((typep naked-param 'unknown-param)
+                (slot-value naked-param 'name))
+               ((typep (slot-value naked-param 'value) 'unknown)
+                (slot-value (slot-value naked-param 'value)
+                            'name))
+               (t
+                (let ((v (tparam-val p)))
+                  (etypecase v
+                    (type-ref (ttype-of v))
+                    (t v))))))))
+    (if (typep type 'unknown)
+        (slot-value type 'name)
+        (with-slots (name arg-vals) type
+          (if (> (length arg-vals) 0)
+              (cons name (map 'list #'desig arg-vals))
+              name)))))
 
 ;; {TODO} I'd like the user to have to specify the type of the designator
 ;;        argument. I think to start we will restrict it to types, symbols
@@ -439,6 +455,9 @@
 
 (defmethod print-object ((obj ttype) stream)
   (format stream "#<NAKED-TYPE ~a>" (type-of obj)))
+
+(defmethod print-object ((obj ttype-parameter) stream)
+  (format stream "#<NAKED-PARAMETER ~a>" (slot-value obj 'name)))
 
 (defmethod print-object ((obj type-ref) stream)
   (print-type (deref obj) stream))
@@ -615,7 +634,8 @@
          (retarget-ref param-a b)))
       (b-unknown
        (when mutate-p
-         (retarget-ref param-b a)))))
+         (retarget-ref param-b a)))
+      (t (error "bah"))))
   (values))
 
 (defun unify-user-type (type-a type-b)

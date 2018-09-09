@@ -23,3 +23,7 @@
                             (cdr (assoc 'implements
                                          (ttype-custom-data type-ref)))))
                        (find 'disposable implements))))
+
+(defun hack (designator)
+  `(truly-the ,(designator->type designator) :NOUT)
+  )
