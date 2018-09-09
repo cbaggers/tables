@@ -6,10 +6,14 @@
 
 (define-ttype boolean
   :custom-spec-data ((implements . (disposable))))
+
 (define-ttype integer)
+
 (define-ttype (unordered-set type))
+
 (define-ttype (unordered-foo type size)
-  :where ((size integer)))
+  :where ((size integer))
+  :custom-spec-data ((implements . (disposable))))
 
 (define-ttype disposable
   :purpose :constraint-only

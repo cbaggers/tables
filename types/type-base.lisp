@@ -96,10 +96,10 @@
   ((name :initarg :name)
    (spec :initarg :spec)
    (value :initarg :value)
-   (refs :initarg :value)))
+   (refs :initform nil)))
 
-(defclass unknown-param ()
-  ((name :initform (gensym))))
+(defclass unknown-param (ttype-parameter)
+  ((name :initform (gensym "?U"))))
 
 (defclass ttype-parameter-spec ()
   ((name :initarg :name)
@@ -132,7 +132,6 @@
    (purpose :initarg :purpose :initform :concrete-and-constraint)
    (arg-param-specs :initarg :arg-param-specs)
    (desig-to-type :initarg :desig-to-type)
-   (desig-from-type :initarg :desig-from-type)
    (custom-data :initarg :custom-data :initform nil)))
 
 (defun tspec (type)
@@ -246,10 +245,11 @@
                 (assert (funcall valid-p val) ()
                         "~a is not a valid value to make a ~a type parameter"
                         val ',name)
-                (make-instance 'ttype-parameter
-                               :name ',name
-                               :spec spec
-                               :value val)))
+                (take-ref
+                 (make-instance 'ttype-parameter
+                                :name ',name
+                                :spec spec
+                                :value val))))
        (register-parameter-type
         (make-instance 'ttype-parameter-spec
                        :name ',name
@@ -258,22 +258,6 @@
        ',name)))
 
 ;;------------------------------------------------------------
-
-(defun compile-where-spec (where-spec arg-names
-                           type-spec-symb
-                           index)
-  (destructuring-bind (desig-var-name desig-var-type)
-      where-spec
-    (declare (ignore desig-var-type))
-    (assert (find desig-var-name arg-names) ()
-            "define-ttype: ~a in :where doesnt name a designator var~%~a"
-            arg-names)
-    (alexandria:with-gensyms (param-spec)
-      `(,desig-var-name
-        (let ((,param-spec (aref ,type-spec-symb ,index)))
-          (funcall (slot-value ,param-spec 'to-param)
-                   ,param-spec
-                   ,desig-var-name))))))
 
 (defun ttype-p (ttype designator)
   (handler-case
@@ -285,13 +269,46 @@
 (defun ttype-of (type-ref)
   (with-slots (target) type-ref
     (with-slots (spec) target
-      (with-slots (desig-from-type) spec
-        (funcall desig-from-type target)))))
+      (designator-from-type target))))
 
 (defun ttype-custom-data (type-ref)
   (with-slots (target) type-ref
     (with-slots (spec) target
       (slot-value spec 'custom-data))))
+
+(defun where (type-spec named-unknowns constraints params)
+  (with-slots (arg-param-specs) type-spec
+    (loop
+       :for param :in params
+       :for param-spec :across arg-param-specs
+       :collect
+         (let ((constraints-for-this
+                (when constraints
+                  (gethash param constraints))))
+           (if constraints-for-this
+               (or (gethash param named-unknowns)
+                   (setf (gethash param named-unknowns)
+                         (make-unknown-param
+                          ;; Hmm, no constraints..what about params
+                          ;; that are types?
+                          )))
+               (funcall (slot-value param-spec 'to-param)
+                        param-spec
+                        param))))))
+
+(defun designator-from-type (type)
+  (flet ((desig (p)
+           (let ((naked-param (deref p)))
+             (if (typep naked-param 'unknown-param)
+                 (slot-value naked-param 'name)
+                 (let ((v (tparam-val p)))
+                   (etypecase v
+                     (type-ref (ttype-of v))
+                     (t v)))))))
+    (with-slots (name arg-vals) type
+      (if (> (length arg-vals) 0)
+          (cons name (map 'list #'desig arg-vals))
+          name))))
 
 ;; {TODO} I'd like the user to have to specify the type of the designator
 ;;        argument. I think to start we will restrict it to types, symbols
@@ -314,68 +331,38 @@
              (args-len (+ req-len key-len))
              (key-args (mapcar #'first key-forms))
              (args (append req-args key-args))
-             (where (append where
-                            (loop :for arg :in args
-                               :unless (find arg where :key #'first)
-                               :collect (list arg 'ttype))))
+             (where (loop :for arg :in args
+                       :collect (or (find arg where :key #'first)
+                                    (list arg 'ttype))))
              (purpose (or purpose :concrete-only))
              (arg-param-types (mapcar #'second where)))
-        (alexandria:with-gensyms (gtype-spec param-specs)
+        (alexandria:with-gensyms (gtype-spec)
           `(let ((init (or ,init #'identity))
                  (unify ,unify)
                  (satisfies ,satifies-this-p))
-             (labels ((where (,gtype-spec ,@req-args ,@key-args)
-                        (declare (ignorable ,@req-args ,@key-args))
-                        (with-slots ((,param-specs arg-param-specs))
-                            ,gtype-spec
-                          (let ,(loop
-                                   :for where-spec :in where
-                                   :for i :from 0
-                                   :collect (compile-where-spec
-                                             where-spec
-                                             args
-                                             param-specs
-                                             i))
-                            (list ,@req-args ,@key-args))))
+             (labels ((destructure-args (args)
+                        (destructuring-bind (,@req-args &key ,@key-forms)
+                            args
+                          (list ,@req-args ,@key-args)))
                       (to-type (,gtype-spec
-                                ,@req-args
-                                ,@(when key-args (cons '&key key-forms)))
+                                named-unknowns
+                                constraints
+                                args)
                         (assert (eq (slot-value ,gtype-spec 'name)
                                     ',name))
-                        (destructuring-bind (,@req-args ,@key-args)
-                            (where ,gtype-spec ,@req-args ,@key-args)
-                          (let ((vals (make-array ,args-len
-                                                  :initial-contents
-                                                  (list ,@req-args
-                                                        ,@key-args))))
+                        (let ((args (destructure-args args)))
+                          (let ((vals (make-array
+                                       ,args-len
+                                       :initial-contents
+                                       (where ,gtype-spec
+                                              named-unknowns
+                                              constraints
+                                              args))))
                             (take-ref
                              (make-instance 'user-ttype
                                             :spec ,gtype-spec
                                             :name ',name
-                                            :arg-vals vals)))))
-                      (from-type (type)
-                        (declare (ignorable type))
-                        ,(if designator-args
-                             `(with-slots (arg-vals) type
-                                (flet ((desig (p)
-                                         (let ((v (tparam-val
-                                                   (deref p))))
-                                           (etypecase v
-                                             (type-ref (ttype-of v))
-                                             (t v)))))
-                                  (list
-                                   ',name
-                                   ,@(loop
-                                        :for i :below req-len
-                                        :collect
-                                          `(desig (aref arg-vals ,i)))
-                                   ,@(loop
-                                        :for (key) :in key-forms
-                                        :for i :from req-len
-                                        :append
-                                          `(,key
-                                            (desig (aref arg-vals ,i)))))))
-                             `(quote ,name))))
+                                            :arg-vals vals))))))
                (register-type
                 (let ((arg-param-specs
                        (make-array ,(length arg-param-types)
@@ -390,23 +377,11 @@
                                  :purpose ,purpose
                                  :arg-param-specs arg-param-specs
                                  :desig-to-type #'to-type
-                                 :desig-from-type #'from-type
                                  :custom-data ',custom-spec-data)))
                ',name)))))))
 
 ;; if arg is syntactically (lambda ..etc) then check the args
 ;; otherwise trust they are correct
-#+nil
-(define-ttype (foop type dims)
-  :init
-  (lambda (type dims)
-    (declare (ignore type dims)))
-  :unify
-  (lambda (type-a type-b)
-    (declare (ignore type-a type-b))
-    t)
-  :state
-  (make-type-state))
 
 (defun on-type-redefined (old-state)
   (let ((new-state old-state))
@@ -471,11 +446,21 @@
 (defmethod print-type ((obj ttype) stream)
   (format stream "#T~a"
           (etypecase obj
-            (unknown (slot-value obj 'name))
-            (tfunction (with-slots (arg-types return-type) obj
-                         `(tfunction ,arg-types ,return-type)))
-            (user-ttype (with-slots (desig-from-type) (tspec obj)
-                          (funcall desig-from-type obj))))))
+            (unknown
+             (slot-value obj 'name))
+            (tfunction
+             (with-slots (arg-types return-type) obj
+               `(tfunction ,arg-types ,return-type)))
+            (user-ttype
+             (designator-from-type obj)))))
+
+(defmethod print-type ((obj ttype-parameter) stream)
+  (if (eq (slot-value obj 'name) 'ttype)
+      (print-type (deref (slot-value obj 'value)))
+      (format stream "#P~a"
+              (if (typep obj 'unknown-param)
+                  (slot-value obj 'name)
+                  (slot-value obj 'value)))))
 
 ;;------------------------------------------------------------
 
@@ -515,11 +500,23 @@
                                 (third designator)))))
       (otherwise
        ;; desig-to-type returns a ref
-       (let ((type-spec (gethash principle-name *registered-user-types*)))
-         (if type-spec
-             (apply (slot-value type-spec 'desig-to-type) type-spec args)
-             (error "Could not identify type for designator: ~a"
-                    designator)))))))
+       (let ((constraints-for-this
+              (when constraints
+                (gethash designator constraints))))
+         (if constraints-for-this
+             (or (gethash designator named-unknowns)
+                 (setf (gethash designator named-unknowns)
+                       (make-unknown constraints-for-this)))
+             (let ((type-spec (gethash principle-name
+                                       *registered-user-types*)))
+               (if type-spec
+                   (funcall (slot-value type-spec 'desig-to-type)
+                            type-spec
+                            named-unknowns
+                            constraints
+                            args)
+                   (error "Could not identify type for designator: ~a"
+                          designator)))))))))
 
 ;;------------------------------------------------------------
 
@@ -608,10 +605,10 @@
          (b-unknown (typep b 'unknown-param)))
     (cond
       ((and (eq (slot-value a 'name)
-                 (slot-value b 'name))
-             (funcall (slot-value (slot-value a 'spec) 'equal)
-                      (slot-value a 'value)
-                      (slot-value b 'value)))
+                (slot-value b 'name))
+            (funcall (slot-value (slot-value a 'spec) 'equal)
+                     (slot-value a 'value)
+                     (slot-value b 'value)))
        t)
       (a-unknown
        (when mutate-p
@@ -727,38 +724,30 @@
                     ,typed-body)))))
 
 
-#+nil
-(if (unknown-designator-name-p type)
-    (or (gethash type named-unknowns)
-        (setf (gethash type named-unknowns)
-              &the-problem&>(make-unknown constraints)))
-    (progn
-      (assert (not constraints) ()
-              "Cannot constrain known type ~a"
-              type)
-      (designator->type type)))
-
-(defun process-function-arg-spec (named-unknowns name type declarations)
-  ;; why no contraints on named unknowns?
-  (let* ((constraints (gethash type declarations)))
-    (list name
-          (if type
-              ???(internal-designator-to-type named-unknowns constraints type)
-              (make-unknown constraints)))))
-
-(defun process-function-arg-specs (arg-specs declarations)
+(defun process-function-arg-specs (arg-specs constraints)
   (let ((named-unknowns (make-hash-table :test #'eq)))
     (loop
        :for spec :in arg-specs
        :for (name type) := spec
-       :collect (process-function-arg-spec
-                 named-unknowns name type declarations))))
+       :collect (list name
+                      (if type
+                          (internal-designator-to-type named-unknowns
+                                                       constraints
+                                                       type)
+                          (let ((constraints-for-this
+                                 (gethash type constraints)))
+                            (make-unknown constraints-for-this)))
+                      (process-function-arg-spec
+                       named-unknowns type constraints)))))
 
 ;; {TODO} handle AND types
 ;; {TODO} this assumes only regular args (no &key &optional etc)
 (defun parse-declarations (declaration-forms args)
-  (let ((merged (mapcar #'second declaration-forms))
-        (results (make-hash-table)))
+  (let* ((flat (alexandria:flatten (mapcar #'second args)))
+         (arg-unknowns (remove-duplicates
+                        (remove-if-not #'unknown-designator-name-p flat)))
+         (merged (mapcar #'second declaration-forms))
+         (constraints (make-hash-table)))
     (loop
        :for decl :in merged
        :do (ecase (first decl)
@@ -771,21 +760,21 @@
                    :for target :in targets
                    :do (assert (unknown-designator-name-p target)
                                () "Cannot constrain known type ~a"
-                               (second type))
-                   :do (assert (find target args :key #'second))
-                   :do (setf (gethash target results)
+                               (second target))
+                   :do (assert (find target arg-unknowns))
+                   :do (setf (gethash target constraints)
                              (cons constraint
-                                   (gethash target results))))))))
-    results))
+                                   (gethash target constraints))))))))
+    constraints))
 
 (defun infer-lambda-form (context args body)
   (multiple-value-bind (body declarations doc-string)
       (alexandria:parse-body body :documentation t)
     (declare (ignore doc-string))
     (let* ((args (mapcar #'alexandria:ensure-list args))
-           (declarations (parse-declarations declarations args))
+           (constraints (parse-declarations declarations args))
            (processed-args
-            (process-function-arg-specs args declarations))
+            (process-function-arg-specs args constraints))
            (body-context (add-bindings context processed-args))
            (typed-body (infer body-context `(progn ,@body)))
            (arg-types (mapcar #'second processed-args))
