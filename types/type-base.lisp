@@ -69,7 +69,7 @@
 (defclass ttype ()
   ((refs :initform nil)))
 
-(defun ttype-p (x)
+(defun naked-type-p (x)
   (typep x 'ttype))
 
 (defclass unknown (ttype)
@@ -98,6 +98,13 @@
 (defun tparam-val (param)
   (check-type param ttype-parameter)
   (slot-value param 'value))
+
+(defun param-equal-p (param-a param-b)
+  (with-slots (spec) param-a
+    (with-slots (equal) spec
+      (funcall equal
+               (slot-value param-a 'value)
+               (slot-value param-b 'value)))))
 
 ;;------------------------------------------------------------
 
@@ -258,6 +265,13 @@
                    ,param-spec
                    ,desig-var-name))))))
 
+(defun ttype-p (ttype designator)
+  (handler-case
+      (progn
+        (unify ttype (designator->type designator) nil)
+        t)
+    (error () nil)))
+
 (defun ttype-of (type-ref)
   (with-slots (target) type-ref
     (with-slots (spec) target
@@ -391,7 +405,7 @@
   (typep x 'type-ref))
 
 (defun take-ref (type)
-  (assert (ttype-p type))
+  (assert (naked-type-p type))
   (let ((ref (make-instance 'type-ref :target type)))
     (with-slots (refs) type
       (pushnew ref refs)
@@ -553,9 +567,14 @@
   t)
 
 (defun unify-user-type (type-a type-b)
-  (declare (ignore type-a type-b))
-  (error "narp")
-  t)
+  (let* ((a (deref type-a))
+         (b (deref type-b)))
+    (assert (eq (slot-value a 'name)
+                (slot-value b 'name)))
+    (loop
+       :for aparams :across (slot-value a 'arg-vals)
+       :for bparams :across (slot-value b 'arg-vals)
+       :always (param-equal-p aparams bparams))))
 
 ;;------------------------------------------------------------
 

@@ -13,6 +13,8 @@
 (define-ttype disposable
   :purpose :constraint-only
   :satifies-this-p (lambda (this type-ref)
-                     (format t "ooo! ~a ~a"
-                             this type-ref)
-                     t))
+                     (declare (ignore this))
+                     ;; ↓ this is just to test the logic, would
+                     ;; ↓ usually look at the type to see it implements
+                     ;; ↓ disposable somehow
+                     (ttype-p type-ref 'boolean)))
