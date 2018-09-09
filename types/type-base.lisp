@@ -85,16 +85,25 @@
 
 ;;------------------------------------------------------------
 
+(defclass ttype-parameter ()
+  ((name :initarg :name)
+   (equal :initarg :equal)
+   (value :initarg :value)))
+
+(defclass ttype-parameter-spec ()
+  ((name :initarg :name)
+   (to-param :initarg :to-param)
+   (from-param :initarg :from-param])))
+
+
+;;------------------------------------------------------------
+
 (defparameter *valid-type-purposes*
   '(:concrete-and-constraint :concrete-only :constraint-only))
 
 (defclass user-ttype (ttype)
-  ((purpose :initarg :purpose)
+  ((spec :initarg :spec)
    (name :initarg :name)
-   (unify :initarg :unify)
-   (satisfies :initarg :satisfies)
-   (desig-to-type :initarg :desig-to-type)
-   (desig-from-type :initarg :desig-from-type)
    (arg-vals :initarg :arg-vals)))
 
 (defclass user-ttype-spec ()
@@ -106,6 +115,9 @@
    (desig-to-type :initarg :desig-to-type)
    (desig-from-type :initarg :desig-from-type)))
 
+(defun tspec (type)
+  (slot-value type 'spec))
+
 (defun valid-as-constraint-p (type)
   (check-type type type-ref)
   (let ((naked-type (deref type)))
@@ -113,7 +125,7 @@
       (unknown t)
       (tfunction t)
       (user-ttype
-       (with-slots (purpose) naked-type
+       (with-slots (purpose) (tspec naked-type)
          (or (eq purpose :concrete-and-constraint)
              (eq purpose :constraint-only)))))))
 
@@ -124,7 +136,7 @@
       (unknown t)
       (tfunction t)
       (user-ttype
-       (with-slots (purpose) naked-type
+       (with-slots (purpose) (tspec naked-type)
          (or (eq purpose :concrete-and-constraint)
              (eq purpose :concrete-only)))))))
 
@@ -203,12 +215,12 @@
                                :unless (find arg where :key #'first)
                                :collect (list arg 'ttype))))
              (purpose (or purpose :concrete-only)))
-        (alexandria:with-gensyms ()
+        (alexandria:with-gensyms (gtype-spec)
           `(let ((init (or ,init #'identity))
                  (unify ,unify)
                  (satisfies ,satifies-this-p))
-             (labels ((where (,@req-args ,@key-args)
-                        (declare (ignorable ,@req-args ,@key-args))
+             (labels ((where (,gtype-spec ,@req-args ,@key-args)
+                        (declare (ignorable ,gtype-spec ,@req-args ,@key-args))
                         ,(loop :for where-spec :in where
                             :for (let check) := (compile-where-spec
                                                  where-spec
@@ -220,22 +232,19 @@
                                           ,@checks
                                           (list ,@req-args
                                                 ,@key-args)))))
-                      (to-type (,@req-args
+                      (to-type (,gtype-spec
+                                ,@req-args
                                 ,@(when key-args (cons '&key key-forms)))
                         (destructuring-bind (,@req-args ,@key-args)
-                            (where ,@req-args ,@key-args)
+                            (where ,gtype-spec ,@req-args ,@key-args)
                           (let ((vals (make-array ,args-len
                                                   :initial-contents
                                                   (list ,@req-args
                                                         ,@key-args))))
                             (take-ref
                              (make-instance 'user-ttype
+                                            :spec ,gtype-spec
                                             :name ',name
-                                            :unify unify
-                                            :satisfies satisfies
-                                            :purpose ,purpose
-                                            :desig-to-type #'to-type
-                                            :desig-from-type #'from-type
                                             :arg-vals vals)))))
                       (from-type (type)
                         (declare (ignorable type))
@@ -328,7 +337,7 @@
             (unknown (slot-value obj 'name))
             (tfunction (with-slots (arg-types return-type) obj
                          `(tfunction ,arg-types ,return-type)))
-            (user-ttype (with-slots (desig-from-type) obj
+            (user-ttype (with-slots (desig-from-type) (tspec obj)
                           (funcall desig-from-type obj))))))
 
 ;;------------------------------------------------------------
@@ -367,7 +376,7 @@
       (otherwise
        (let ((type-spec (gethash principle-name *registered-user-types*)))
          (if type-spec
-             (apply (slot-value type-spec 'desig-to-type) args)
+             (apply (slot-value type-spec 'desig-to-type) type-spec args)
              (error "Could not identify type for designator: ~a"
                     type-designator)))))))
 
@@ -389,7 +398,7 @@
               b-is-user-type-p
               (eq (slot-value a 'name)
                   (slot-value b 'name))
-              (funcall (or (slot-value a 'unify)
+              (funcall (or (slot-value (tspec a) 'unify)
                            #'unify-user-type)
                        type-a
                        type-b))
@@ -432,15 +441,15 @@
   (values))
 
 (defun check-constraints (type-ref constraints)
-  ;; We can safely use unify here as we tell it not to mutate the types
-  ;; this means we check everything can work but we dont allow any
+  ;; We can safely use unify here as we tell it not to mutate the types.
+  ;; This means we check everything can work but we dont allow any
   ;; modification to a type's references.
   (check-type type-ref type-ref)
   (when constraints
     (let ((type (deref type-ref)))
       (assert (not (typep type 'unknown)))
       (labels ((unifies-with-constraint (constraint)
-                 (with-slots (satisfies) (deref constraint)
+                 (with-slots (satisfies) (tspec (deref constraint))
                    (handler-case
                        (if satisfies
                            (funcall satisfies constraint type-ref)
