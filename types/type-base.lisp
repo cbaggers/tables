@@ -306,7 +306,10 @@
 ;;------------------------------------------------------------
 
 (defun make-unknown (&optional constraints)
-  (take-ref (make-instance 'unknown :constraints constraints )))
+  (take-ref (make-naked-unknown constraints)))
+
+(defun make-naked-unknown (constraints)
+  (make-instance 'unknown :constraints constraints))
 
 (defun designator->type (type-designator)
   (destructuring-bind (principle-name . args)
@@ -349,17 +352,44 @@
                  (slot-value b 'arg-types))
          (unify (slot-value a 'return-type)
                 (slot-value b 'return-type)))
-        ((typep a 'unknown)
-         (retarget-ref type-a b)
-         type-b)
-        ((typep b 'unknown)
-         (retarget-ref type-b a)
-         type-a)
-        (t (error "No way to unify ~a and ~a" type-a type-b)))))
+        (t
+         (let* ((a-unknown (typep a 'unknown))
+                (b-unknown (typep b 'unknown))
+                (a-constraints
+                 (when a-unknown
+                   (slot-value a 'constraints)))
+                (b-constraints
+                 (when b-unknown
+                   (slot-value b 'constraints))))
+           (cond
+             ((and a-unknown b-unknown)
+              (let ((new (make-naked-unknown
+                          (append a-constraints
+                                  b-constraints))))
+                (retarget-ref type-a new)
+                (retarget-ref type-b new)
+                new))
+             ((and a-unknown (satisfies-constraints type-b a-constraints))
+              (retarget-ref type-a b)
+              type-b)
+             ((and b-unknown (satisfies-constraints type-a b-constraints))
+              (retarget-ref type-b a)
+              type-a)
+             (t (error "No way to unify ~a and ~a" type-a type-b))))))))
   (values))
+
+(defun satisfies-constraints (type-ref constraints)
+  (check-type type-ref type-ref)
+  (if constraints
+      (let ((type (deref type-ref)))
+        (assert (not (typep type 'unknown)))
+        (break "hey ~a ~a" type-ref constraints)
+        t)
+      t))
 
 (defun unify-user-type (type-a type-b)
   (declare (ignore type-a type-b))
+  (error "narp")
   t)
 
 ;;------------------------------------------------------------
