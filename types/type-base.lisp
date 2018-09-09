@@ -83,28 +83,36 @@
 (defmacro ttype (designator)
   (designator->type designator))
 
+(defun unknown-designator-name-p (name)
+  (and (symbolp name)
+       (not (keywordp name))
+       (let ((sname (symbol-name name)))
+         (and (> (length sname ) 1)
+              (char= (char sname 0) #\?)))))
+
 ;;------------------------------------------------------------
 
 (defclass ttype-parameter ()
   ((name :initarg :name)
    (spec :initarg :spec)
-   (value :initarg :value)))
+   (value :initarg :value)
+   (refs :initarg :value)))
+
+(defclass unknown-param ()
+  ((name :initform (gensym))))
 
 (defclass ttype-parameter-spec ()
   ((name :initarg :name)
    (equal :initarg :equal)
    (to-param :initarg :to-param)))
 
-(defun tparam-val (param)
-  (check-type param ttype-parameter)
-  (slot-value param 'value))
+(defun tparam-val (param-ref)
+  (check-type param-ref param-ref)
+  (slot-value (deref param-ref)
+              'value))
 
-(defun param-equal-p (param-a param-b)
-  (with-slots (spec) param-a
-    (with-slots (equal) spec
-      (funcall equal
-               (slot-value param-a 'value)
-               (slot-value param-b 'value)))))
+(defun naked-param-p (x)
+  (typep x 'ttype-parameter))
 
 ;;------------------------------------------------------------
 
@@ -198,10 +206,11 @@
 
 (defun ttype-designator-to-param (spec val)
   (let ((type-ref (designator->type val)))
-    (make-instance 'ttype-parameter
-                   :name 'ttype
-                   :spec spec
-                   :value type-ref)))
+    (take-ref
+     (make-instance 'ttype-parameter
+                     :name 'ttype
+                     :spec spec
+                     :value type-ref))))
 
 (register-parameter-type
  (make-instance 'ttype-parameter-spec
@@ -349,7 +358,8 @@
                         ,(if designator-args
                              `(with-slots (arg-vals) type
                                 (flet ((desig (p)
-                                         (let ((v (tparam-val p)))
+                                         (let ((v (tparam-val
+                                                   (deref p))))
                                            (etypecase v
                                              (type-ref (ttype-of v))
                                              (t v)))))
@@ -409,24 +419,38 @@
 (defclass type-ref ()
   ((target :initarg :target)))
 
+(defclass param-ref ()
+  ((target :initarg :target)))
+
 (defun type-ref-p (x)
   (typep x 'type-ref))
 
-(defun take-ref (type)
-  (assert (naked-type-p type))
-  (let ((ref (make-instance 'type-ref :target type)))
-    (with-slots (refs) type
+(defun param-ref-p (x)
+  (typep x 'param-ref))
+
+(defun make-unknown-param ()
+  (take-ref (make-instance 'unknown-param)))
+
+(defun take-ref (type/param)
+  (let ((ref
+         (cond
+           ((naked-type-p type/param)
+            (make-instance 'type-ref :target type/param))
+           ((naked-param-p type/param)
+            (make-instance 'param-ref :target type/param))
+           (t (error "BUG: cant take ref to ~a" type/param)))))
+    (with-slots (refs) type/param
       (pushnew ref refs)
       ref)))
 
-(defun retarget-ref (type-ref new-type)
-  (let* ((old-type (deref type-ref)))
-    (with-slots (refs) old-type
+(defun retarget-ref (x-ref new)
+  (let* ((old (deref x-ref)))
+    (with-slots (refs) old
       (loop :for ref :in refs :do
-           (setf (deref ref) new-type)
-           (pushnew ref (slot-value new-type 'refs)))
+           (setf (deref ref) new)
+           (pushnew ref (slot-value new 'refs)))
       (setf refs nil))
-    type-ref))
+    x-ref))
 
 (defun deref (type-ref)
   (slot-value type-ref 'target))
@@ -473,25 +497,29 @@
   (make-instance 'unknown :constraints constraints))
 
 (defun designator->type (type-designator)
+  (internal-designator-to-type nil nil type-designator))
+
+(defun internal-designator-to-type (named-unknowns constraints designator)
   (destructuring-bind (principle-name . args)
-      (uiop:ensure-list type-designator)
+      (uiop:ensure-list designator)
     (case principle-name
       (unknown
        (error "BUG: Attempt to make unknown type via designator"))
       (function
-       (assert (= (length type-designator) 3))
+       (assert (= (length designator) 3))
        (take-ref (make-instance
                   'tfunction
                   :arg-types (mapcar #'designator->type
-                                     (second type-designator))
+                                     (second designator))
                   :return-type (designator->type
-                                (third type-designator)))))
+                                (third designator)))))
       (otherwise
+       ;; desig-to-type returns a ref
        (let ((type-spec (gethash principle-name *registered-user-types*)))
          (if type-spec
              (apply (slot-value type-spec 'desig-to-type) type-spec args)
              (error "Could not identify type for designator: ~a"
-                    type-designator)))))))
+                    designator)))))))
 
 ;;------------------------------------------------------------
 
@@ -538,18 +566,15 @@
                           (append a-constraints
                                   b-constraints))))
                 (retarget-ref type-a new)
-                (retarget-ref type-b new)
-                new))
+                (retarget-ref type-b new)))
              (a-unknown
               (check-constraints type-b a-constraints)
               (when mutate-p
-                (retarget-ref type-a b))
-              type-b)
-             ((and b-unknown)
+                (retarget-ref type-a b)))
+             (b-unknown
               (check-constraints type-a b-constraints)
               (when mutate-p
-                (retarget-ref type-b a))
-              type-a)
+                (retarget-ref type-b a)))
              (t (error "No way to unify ~a and ~a" type-a type-b))))))))
   (values))
 
@@ -574,15 +599,38 @@
         (assert (every #'unifies-with-constraint constraints)))))
   t)
 
+(defun unify-params (param-a param-b mutate-p)
+  (check-type param-a param-ref)
+  (check-type param-b param-ref)
+  (let* ((a (deref param-a))
+         (b (deref param-b))
+         (a-unknown (typep a 'unknown-param))
+         (b-unknown (typep b 'unknown-param)))
+    (cond
+      ((and (eq (slot-value a 'name)
+                 (slot-value b 'name))
+             (funcall (slot-value (slot-value a 'spec) 'equal)
+                      (slot-value a 'value)
+                      (slot-value b 'value)))
+       t)
+      (a-unknown
+       (when mutate-p
+         (retarget-ref param-a b)))
+      (b-unknown
+       (when mutate-p
+         (retarget-ref param-b a)))))
+  (values))
+
 (defun unify-user-type (type-a type-b)
   (let* ((a (deref type-a))
          (b (deref type-b)))
     (assert (eq (slot-value a 'name)
                 (slot-value b 'name)))
     (loop
-       :for aparams :across (slot-value a 'arg-vals)
-       :for bparams :across (slot-value b 'arg-vals)
-       :always (param-equal-p aparams bparams))))
+       :for aparam :across (slot-value a 'arg-vals)
+       :for bparam :across (slot-value b 'arg-vals)
+       :do (unify-params aparam bparam t))
+    (values)))
 
 ;;------------------------------------------------------------
 
@@ -678,35 +726,33 @@
                   (let ,inferred-decls
                     ,typed-body)))))
 
-(defun unknown-type-name-p (name)
-  (and (symbolp name)
-       (not (keywordp name))
-       (char= (char (symbol-name name) 0) #\?)))
 
+#+nil
+(if (unknown-designator-name-p type)
+    (or (gethash type named-unknowns)
+        (setf (gethash type named-unknowns)
+              &the-problem&>(make-unknown constraints)))
+    (progn
+      (assert (not constraints) ()
+              "Cannot constrain known type ~a"
+              type)
+      (designator->type type)))
 
-(defun process-function-arg-spec (arg-specs declarations)
-  (let ((named-unknowns nil))
+(defun process-function-arg-spec (named-unknowns name type declarations)
+  ;; why no contraints on named unknowns?
+  (let* ((constraints (gethash type declarations)))
+    (list name
+          (if type
+              ???(internal-designator-to-type named-unknowns constraints type)
+              (make-unknown constraints)))))
+
+(defun process-function-arg-specs (arg-specs declarations)
+  (let ((named-unknowns (make-hash-table :test #'eq)))
     (loop
        :for spec :in arg-specs
        :for (name type) := spec
-       :collect
-         (let* ((constraints (gethash name declarations))
-                (type
-                 (if type
-                     (if (unknown-type-name-p type)
-                         (or (and (> (length (symbol-name type)) 1)
-                                  (cdr (assoc type named-unknowns)))
-                             (let ((u (make-unknown constraints)))
-                               (setf named-unknowns
-                                     (acons type u named-unknowns))
-                               u))
-                         (progn
-                           (assert (not constraints) ()
-                                   "Cannot constrain known type ~a"
-                                   type)
-                           (designator->type type)))
-                     (make-unknown constraints))))
-           (list name type)))))
+       :collect (process-function-arg-spec
+                 named-unknowns name type declarations))))
 
 ;; {TODO} handle AND types
 ;; {TODO} this assumes only regular args (no &key &optional etc)
@@ -719,13 +765,17 @@
              (satisfies
               (let* ((spec (second decl))
                      (targets (cddr decl))
-                     (constraint (designator->type spec))
-                     (constraints (list constraint)))
+                     (constraint (designator->type spec)))
                 (assert (valid-as-constraint-p constraint))
                 (loop
                    :for target :in targets
-                   :do (assert (find target args :key #'first))
-                   :do (setf (gethash target results) constraints))))))
+                   :do (assert (unknown-designator-name-p target)
+                               () "Cannot constrain known type ~a"
+                               (second type))
+                   :do (assert (find target args :key #'second))
+                   :do (setf (gethash target results)
+                             (cons constraint
+                                   (gethash target results))))))))
     results))
 
 (defun infer-lambda-form (context args body)
@@ -735,7 +785,7 @@
     (let* ((args (mapcar #'alexandria:ensure-list args))
            (declarations (parse-declarations declarations args))
            (processed-args
-            (process-function-arg-spec args declarations))
+            (process-function-arg-specs args declarations))
            (body-context (add-bindings context processed-args))
            (typed-body (infer body-context `(progn ,@body)))
            (arg-types (mapcar #'second processed-args))

@@ -5,7 +5,7 @@
   :equal #'=)
 
 (define-ttype boolean
-  :custom-spec-data ((implements (disposable))))
+  :custom-spec-data ((implements . (disposable))))
 (define-ttype integer)
 (define-ttype (unordered-set type))
 (define-ttype (unordered-foo type size)
@@ -16,6 +16,6 @@
   :satifies-this-p (lambda (this type-ref)
                      (declare (ignore this))
                      (let ((implements
-                            (cadr (assoc 'implements
+                            (cdr (assoc 'implements
                                          (ttype-custom-data type-ref)))))
                        (find 'disposable implements))))
