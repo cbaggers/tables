@@ -124,7 +124,8 @@
    (purpose :initarg :purpose :initform :concrete-and-constraint)
    (arg-param-specs :initarg :arg-param-specs)
    (desig-to-type :initarg :desig-to-type)
-   (desig-from-type :initarg :desig-from-type)))
+   (desig-from-type :initarg :desig-from-type)
+   (custom-data :initarg :custom-data :initform nil)))
 
 (defun tspec (type)
   (slot-value type 'spec))
@@ -278,6 +279,11 @@
       (with-slots (desig-from-type) spec
         (funcall desig-from-type target)))))
 
+(defun ttype-custom-data (type-ref)
+  (with-slots (target) type-ref
+    (with-slots (spec) target
+      (slot-value spec 'custom-data))))
+
 ;; {TODO} I'd like the user to have to specify the type of the designator
 ;;        argument. I think to start we will restrict it to types, symbols
 ;;        and numbers.
@@ -285,7 +291,8 @@
 ;;        this macro
 (defmacro define-ttype (designator
                         &body rest
-                        &key where init unify purpose satifies-this-p)
+                        &key where init unify purpose satifies-this-p
+                          custom-spec-data)
   (declare (ignore rest))
   (when purpose
     (assert (find purpose *valid-type-purposes*)))
@@ -373,7 +380,8 @@
                                  :purpose ,purpose
                                  :arg-param-specs arg-param-specs
                                  :desig-to-type #'to-type
-                                 :desig-from-type #'from-type)))
+                                 :desig-from-type #'from-type
+                                 :custom-data ',custom-spec-data)))
                ',name)))))))
 
 ;; if arg is syntactically (lambda ..etc) then check the args
