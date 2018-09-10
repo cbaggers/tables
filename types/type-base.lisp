@@ -69,6 +69,9 @@
 (defclass ttype ()
   ((refs :initform nil)))
 
+(defclass type-ref ()
+  ((target :initarg :target)))
+
 (defun naked-type-p (x)
   (typep x 'ttype))
 
@@ -103,8 +106,11 @@
 
 (defclass ttype-parameter-spec ()
   ((name :initarg :name)
-   (equal :initarg :equal)
+   (unify :initarg :unify)
    (to-param :initarg :to-param)))
+
+(defclass param-ref ()
+  ((target :initarg :target)))
 
 (defun tparam-val (param-ref)
   (check-type param-ref param-ref)
@@ -127,7 +133,6 @@
 (defclass user-ttype-spec ()
   ((name :initarg :name)
    (init :initarg :init)
-   (unify :initarg :unify)
    (satisfies :initarg :satisfies)
    (purpose :initarg :purpose :initform :concrete-and-constraint)
    (arg-param-specs :initarg :arg-param-specs)
@@ -220,30 +225,6 @@
 
 ;;------------------------------------------------------------
 
-(defun ttype-designator-to-param (spec val)
-  (let ((type-ref
-         (if (unknown-designator-name-p val)
-             (make-unknown nil) ;; {TODO} constraints
-             (designator->type val))))
-    (take-ref
-     (make-instance 'ttype-parameter
-                    :name 'ttype
-                    :spec spec
-                    :value type-ref))))
-
-(defun hack-unify-ttype (x y)
-  (print (list :sup x y))
-  (unify x y t)
-  t)
-
-(register-parameter-type
- (make-instance 'ttype-parameter-spec
-                :name 'ttype
-                :equal 'hack-unify-ttype
-                :to-param 'ttype-designator-to-param))
-
-;;------------------------------------------------------------
-
 (defmacro define-parameter-type (name
                                  &body rest
                                  &key valid-p equal)
@@ -265,7 +246,9 @@
        (register-parameter-type
         (make-instance 'ttype-parameter-spec
                        :name ',name
-                       :equal param-equal-p
+                       :unify (lambda (a b mut-p)
+                                (declare (ignore mut-p))
+                                (funcall param-equal-p a b))
                        :to-param #'to-param))
        ',name)))
 
@@ -299,54 +282,26 @@
                  (b ?a))
           a))
 
-(defun where (type-spec named-unknowns constraints params)
-  (with-slots (arg-param-specs) type-spec
-    (loop
-       :for param :in params
-       :for param-spec :across arg-param-specs
-       :collect
-         (let ((constraints-for-this
-                (when constraints
-                  (gethash param constraints))))
-           (cond
-             (constraints-for-this
-              (or (gethash param named-unknowns)
-                  (setf (gethash param named-unknowns)
-                        (make-unknown-param
-                         ;; Hmm, no constraints..what about params
-                         ;; that are types?
-                         ))))
-             ((unknown-designator-name-p param)
-              (print (list :boo "good" param))
-              (or (print (gethash param named-unknowns))
-                  (setf (gethash param named-unknowns)
-                        (make-unknown-param))))
-             (t
-              (funcall (slot-value param-spec 'to-param)
-                       param-spec
-                       param)))))))
-
 (defun designator-from-type (type)
   (check-type type ttype)
   (flet ((desig (p)
-           (let ((naked-param (deref p)))
-             (cond
-               ((typep naked-param 'unknown-param)
-                (slot-value naked-param 'name))
-               ((typep (slot-value naked-param 'value) 'unknown)
-                (slot-value (slot-value naked-param 'value)
-                            'name))
-               (t
-                (let ((v (tparam-val p)))
-                  (etypecase v
-                    (type-ref (ttype-of v))
-                    (t v))))))))
-    (if (typep type 'unknown)
-        (slot-value type 'name)
-        (with-slots (name arg-vals) type
-          (if (> (length arg-vals) 0)
-              (cons name (map 'list #'desig arg-vals))
-              name)))))
+           (if (typep p 'type-ref)
+               (designator-from-type (deref p))
+               (let ((naked-param (deref p))
+                     (value (tparam-val p)))
+                 (if (typep naked-param 'unknown-param)
+                     (slot-value naked-param 'name)
+                     value)))))
+    (etypecase type
+      (unknown
+       (slot-value type 'name))
+      (tfunction
+       (error "{TODO} implement me!"))
+      (user-ttype
+       (with-slots (name arg-vals) type
+         (if (> (length arg-vals) 0)
+             (cons name (map 'list #'desig arg-vals))
+             name))))))
 
 ;; {TODO} I'd like the user to have to specify the type of the designator
 ;;        argument. I think to start we will restrict it to types, symbols
@@ -355,7 +310,7 @@
 ;;        this macro
 (defmacro define-ttype (designator
                         &body rest
-                        &key where init unify purpose satifies-this-p
+                        &key where init purpose satifies-this-p
                           custom-spec-data)
   (declare (ignore rest))
   (when purpose
@@ -376,7 +331,6 @@
              (arg-param-types (mapcar #'second where)))
         (alexandria:with-gensyms (gtype-spec)
           `(let ((init (or ,init #'identity))
-                 (unify ,unify)
                  (satisfies ,satifies-this-p))
              (labels ((destructure-args (args)
                         (destructuring-bind (,@req-args &key ,@key-forms)
@@ -392,10 +346,10 @@
                           (let ((vals (make-array
                                        ,args-len
                                        :initial-contents
-                                       (where ,gtype-spec
-                                              named-unknowns
-                                              constraints
-                                              args))))
+                                       (construct-designator-args ,gtype-spec
+                                                                 named-unknowns
+                                                                 constraints
+                                                                 args))))
                             (take-ref
                              (make-instance 'user-ttype
                                             :spec ,gtype-spec
@@ -410,7 +364,6 @@
                   (make-instance 'user-ttype-spec
                                  :name ',name
                                  :init init
-                                 :unify unify
                                  :satisfies satisfies
                                  :purpose ,purpose
                                  :arg-param-specs arg-param-specs
@@ -428,12 +381,6 @@
 ;; hmm, we really need a way to define a type-system.
 
 ;;------------------------------------------------------------
-
-(defclass type-ref ()
-  ((target :initarg :target)))
-
-(defclass param-ref ()
-  ((target :initarg :target)))
 
 (defun type-ref-p (x)
   (typep x 'type-ref))
@@ -529,8 +476,12 @@
   (destructuring-bind (principle-name . args)
       (uiop:ensure-list designator)
     (case principle-name
+      ;;
+      ;; always use make-unknown
       (unknown
        (error "BUG: Attempt to make unknown type via designator"))
+      ;;
+      ;; non user type
       (function
        (assert (= (length designator) 3))
        (take-ref (make-instance
@@ -539,31 +490,77 @@
                                      (second designator))
                   :return-type (designator->type
                                 (third designator)))))
+      ;;
+      ;; is a user type or unknown
       (otherwise
-       ;; desig-to-type returns a ref
-       (let ((constraints-for-this
-              (when constraints
-                (gethash designator constraints))))
-         (cond
-           (constraints-for-this
-            (or (gethash designator named-unknowns)
-                (setf (gethash designator named-unknowns)
-                      (make-unknown constraints-for-this))))
-           ((unknown-designator-name-p designator)
-            (or (gethash designator named-unknowns)
-                (setf (gethash designator named-unknowns)
-                      (make-unknown))))
-           (t
-            (let ((type-spec (gethash principle-name
-                                      *registered-user-types*)))
-              (if type-spec
-                  (funcall (slot-value type-spec 'desig-to-type)
-                           type-spec
-                           named-unknowns
-                           constraints
-                           args)
-                  (error "Could not identify type for designator: ~a"
-                         designator))))))))))
+       ;;
+       ;; dont allow possibility of creating unknown if named-unknowns is nil
+       ;; as this means you got here from a public facing method
+       (if (and named-unknowns
+                (unknown-designator-name-p designator))
+           ;;
+           ;; unknown
+           (or (gethash designator named-unknowns)
+               (setf (gethash designator named-unknowns)
+                     (make-unknown (gethash designator constraints))))
+           ;;
+           ;; user type
+           (let ((type-spec (gethash principle-name
+                                     *registered-user-types*)))
+             (if type-spec
+                 ;;
+                 ;; note: desig-to-type returns a ref
+                 (funcall (slot-value type-spec 'desig-to-type)
+                          type-spec
+                          named-unknowns
+                          constraints
+                          args)
+                 (error "Could not identify type for designator: ~a"
+                        designator))))))))
+
+(defun construct-designator-args (type-spec named-unknowns constraints vals)
+  (with-slots (arg-param-specs) type-spec
+    (loop
+       :for val :in vals
+       :for param-spec :across arg-param-specs
+       :collect
+       ;; dont need to handle function etc as that is covered by the to-param
+       ;; of ttype parameters
+       ;;
+       ;; dont allow possibility of creating unknown if named-unknowns is nil
+       ;; as this means you got here from a public facing method
+         (if (and named-unknowns
+                  (unknown-designator-name-p val))
+             ;;
+             ;; unknown
+             ;;
+             ;; may seem odd to use val here but ?x is also used for unknown
+             ;; param designators
+             (let ((already-seen (gethash val named-unknowns)))
+               ;;
+               ;; {TODO} clean up when combine unknowns
+               (if (eq (slot-value param-spec 'name) 'ttype)
+                   ;;
+                   ;; type param
+                   (progn
+                     (when already-seen
+                       (assert (typep already-seen 'ttype)))
+                     (or already-seen
+                         (setf (gethash val named-unknowns)
+                               (make-unknown (gethash val constraints)))))
+                   ;;
+                   ;; value param
+                   (progn
+                     (when already-seen
+                       (assert (not (typep already-seen 'ttype))))
+                     (or already-seen
+                         (setf (gethash val named-unknowns)
+                               (make-unknown-param))))))
+             ;;
+             ;; param type
+             (funcall (slot-value param-spec 'to-param)
+                       param-spec
+                       val)))))
 
 ;;------------------------------------------------------------
 
@@ -577,16 +574,13 @@
          (b (deref type-b))
          (a-is-user-type-p (typep a 'user-ttype))
          (b-is-user-type-p (typep b 'user-ttype)))
-    (unless (equal type-a type-b)
+    (unless (eq type-a type-b)
       (cond
         ((and a-is-user-type-p
               b-is-user-type-p
               (eq (slot-value a 'name)
                   (slot-value b 'name))
-              (funcall (or (slot-value (tspec a) 'unify)
-                           #'unify-user-type)
-                       type-a
-                       type-b))
+              (unify-user-type type-a type-b mutate-p))
          t)
         ((and (typep a 'tfunction) (typep b 'tfunction))
          (mapcar (lambda (x y) (unify x y mutate-p))
@@ -622,6 +616,7 @@
              (t (error "No way to unify ~a and ~a" type-a type-b))))))))
   (values))
 
+
 (defun check-constraints (type-ref constraints)
   ;; We can safely use unify here as we tell it not to mutate the types.
   ;; This means we check everything can work but we dont allow any
@@ -636,12 +631,31 @@
                        (if satisfies
                            (funcall satisfies constraint type-ref)
                            (unify constraint type-ref nil))
-                     (error (e)
-                       (error
-                        "Type ~a does not satisfy constraint ~s~%err: ~a"
-                        type-ref constraint e))))))
-        (assert (every #'unifies-with-constraint constraints)))))
+                     (error () nil)))))
+        (let ((failed
+               (loop
+                  :for constraint :in constraints
+                  :unless (unifies-with-constraint constraint)
+                  :collect (slot-value (deref constraint) 'name))))
+          (when failed
+            (error "Type ~a failed to satisfy the following constraints:~%~{~a~}"
+                   type-ref failed))))))
   t)
+
+(defun unify-user-type (type-a type-b mutate-p)
+  (let* ((a (deref type-a))
+         (b (deref type-b)))
+    (assert (eq (slot-value a 'name)
+                (slot-value b 'name)))
+    (loop
+       :for aparam :across (slot-value a 'arg-vals)
+       :for bparam :across (slot-value b 'arg-vals)
+       :do (if (typep aparam 'type-ref)
+               (progn
+                 (assert (typep bparam 'type-ref))
+                 (unify aparam bparam mutate-p))
+               (unify-params aparam bparam t)))
+    t))
 
 (defun unify-params (param-a param-b mutate-p)
   (check-type param-a param-ref)
@@ -652,12 +666,12 @@
          (b-unknown (typep b 'unknown-param))
          (primary-name-matches (eq (slot-value a 'name)
                                    (slot-value b 'name))))
-    (print (list :pnm> primary-name-matches a b))
     (cond
       ((and primary-name-matches
-            (funcall (slot-value (slot-value a 'spec) 'equal)
+            (funcall (slot-value (slot-value a 'spec) 'unify)
                      (slot-value a 'value)
-                     (slot-value b 'value)))
+                     (slot-value b 'value)
+                     mutate-p))
        t)
       (a-unknown
        (when mutate-p
@@ -665,19 +679,12 @@
       (b-unknown
        (when mutate-p
          (retarget-ref param-b a)))
-      (t (error "bah ~a ~a" a b))))
+      (t (error "No way to unify params:~%~a: ~a~%~a: ~a"
+                (slot-value a 'name)
+                (slot-value a 'value)
+                (slot-value b 'name)
+                (slot-value b 'value)))))
   (values))
-
-(defun unify-user-type (type-a type-b)
-  (let* ((a (deref type-a))
-         (b (deref type-b)))
-    (assert (eq (slot-value a 'name)
-                (slot-value b 'name)))
-    (loop
-       :for aparam :across (slot-value a 'arg-vals)
-       :for bparam :across (slot-value b 'arg-vals)
-       :do (unify-params aparam bparam t))
-    t))
 
 ;;------------------------------------------------------------
 
@@ -688,6 +695,9 @@
 (defgeneric infer-form (context name args)
   (:method (context name args)
     (case name
+      (fake-instance-of
+       (assert (= (length args) 1))
+       (infer-fake-instance-of (first args)))
       (if
        (assert (= (length args) 3))
        (infer-if context (first args) (second args) (third args)))
@@ -711,6 +721,9 @@
       (otherwise (error "Could not infer a type for: ~a~%given context:~a"
                         `(,name ,@args)
                         context)))))
+
+(defun infer-fake-instance-of (designator)
+  `(truly-the ,(designator->type designator) :FAKE))
 
 (defun infer-quote-form (context quoted-expression)
   (error "Quoted expressions not implemented yet~%expression:~s~%context:~s"

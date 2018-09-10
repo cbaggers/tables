@@ -1,12 +1,8 @@
 (in-package :ttype)
 
-(defun hack-int-eq (x y)
-  (print (list :oh x y))
-  (print (= x y)))
-
 (define-parameter-type integer
   :valid-p #'integerp
-  :equal 'hack-int-eq)
+  :equal '=)
 
 (define-ttype boolean
   :custom-spec-data ((implements . (disposable))))
@@ -27,7 +23,3 @@
                             (cdr (assoc 'implements
                                          (ttype-custom-data type-ref)))))
                        (find 'disposable implements))))
-
-(defun hack (designator)
-  `(truly-the ,(designator->type designator) :NOUT)
-  )
