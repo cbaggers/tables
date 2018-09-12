@@ -889,6 +889,12 @@
              :for arg-form :in arg-forms
              :for arg-type :in arg-types
              :collect (check context arg-form arg-type))))
+    (assert (= (length arg-forms)
+               (length (slot-value
+                        (deref (type-of-typed-expression typed-func-form))
+                        'arg-types)))
+            () "Incorrect number of args in funcall~%~s"
+            `(funcall ,func-form ,@arg-forms))
     `(truly-the ,ret-type
                 (funcall ,typed-func-form
                          ,@typed-arg-forms))))
