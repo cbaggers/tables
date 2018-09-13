@@ -15,11 +15,16 @@
   :where ((size integer))
   :custom-spec-data ((implements . (disposable))))
 
-(define-ttype disposable
-  :purpose :constraint-only
+(define-constraint disposable
   :satifies-this-p (lambda (this type-ref)
                      (declare (ignore this))
                      (let ((implements
                             (cdr (assoc 'implements
                                          (ttype-custom-data type-ref)))))
                        (find 'disposable implements))))
+
+(define-constraint (breen foo)
+  :satifies-this-p (lambda (this type-ref)
+                     (declare (ignore this))
+                     (print type-ref)
+                     t))

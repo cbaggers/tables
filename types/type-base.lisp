@@ -68,6 +68,10 @@
 
 (defclass ttype ()
   ((refs :initform nil)))
+(defclass constraint ()
+  ((spec :initarg :spec)
+   (name :initarg :name)
+   (arg-vals :initarg :arg-vals)))
 
 (defclass type-ref ()
   ((target :initarg :target)))
@@ -122,8 +126,13 @@
 
 ;;------------------------------------------------------------
 
-(defparameter *valid-type-purposes*
-  '(:concrete-and-constraint :concrete-only :constraint-only))
+(defclass constraint-spec ()
+  ((name :initarg :name)
+   (init :initarg :init)
+   (satisfies :initarg :satisfies)
+   (desig-to-constraint :initarg :desig-to-constraint)
+   (arg-param-specs :initarg :arg-param-specs)
+   (custom-data :initarg :custom-data :initform nil)))
 
 (defclass user-ttype (ttype)
   ((spec :initarg :spec)
@@ -133,8 +142,6 @@
 (defclass user-ttype-spec ()
   ((name :initarg :name)
    (init :initarg :init)
-   (satisfies :initarg :satisfies)
-   (purpose :initarg :purpose :initform :concrete-and-constraint)
    (arg-param-specs :initarg :arg-param-specs)
    (desig-to-type :initarg :desig-to-type)
    (custom-data :initarg :custom-data :initform nil)))
@@ -142,32 +149,13 @@
 (defun tspec (type)
   (slot-value type 'spec))
 
-(defun valid-as-constraint-p (type)
-  (check-type type type-ref)
-  (let ((naked-type (deref type)))
-    (etypecase naked-type
-      (unknown t)
-      (tfunction t)
-      (user-ttype
-       (with-slots (purpose) (tspec naked-type)
-         (or (eq purpose :concrete-and-constraint)
-             (eq purpose :constraint-only)))))))
-
-(defun valid-as-concrete-type-p (type)
-  (check-type type type-ref)
-  (let ((naked-type (deref type)))
-    (etypecase naked-type
-      (unknown t)
-      (tfunction t)
-      (user-ttype
-       (with-slots (purpose) (tspec naked-type)
-         (or (eq purpose :concrete-and-constraint)
-             (eq purpose :concrete-only)))))))
-
 (defvar *registered-user-types*
   (make-hash-table :test #'eq))
 
 (defvar *registered-parameter-types*
+  (make-hash-table :test #'eq))
+
+(defvar *registered-constraints*
   (make-hash-table :test #'eq))
 
 (defun get-parameter-type-spec (name)
@@ -194,12 +182,19 @@
           (sort keyword-parameters #'string< :key #'first))))
 
 (defvar *last-dropped-type* nil)
+(defvar *last-dropped-constraint* nil)
 (defvar *last-dropped-parameter-type* nil)
 
 (defgeneric register-type (type-spec)
   (:method (spec)
     ;; this ↓ is just for debugging
     (setf *last-dropped-type* spec)
+    (warn "register-type is not implemented")))
+
+(defgeneric register-constraint (type-spec)
+  (:method (spec)
+    ;; this ↓ is just for debugging
+    (setf *last-dropped-constraint* spec)
     (warn "register-type is not implemented")))
 
 (defgeneric register-parameter-type (parameter-type-spec)
@@ -217,6 +212,11 @@
   (with-slots (name) spec
     (format t "~%;; Registered type ~a" name)
     (setf (gethash name *registered-user-types*) spec)))
+
+(defmethod register-constraint (spec)
+  (with-slots (name) spec
+    (format t "~%;; Registered constraint ~a" name)
+    (setf (gethash name *registered-constraints*) spec)))
 
 (defmethod register-parameter-type (spec)
   (with-slots (name) spec
@@ -271,17 +271,6 @@
     (with-slots (spec) target
       (slot-value spec 'custom-data))))
 
-;; this guy fucks shit up, as ?a is a param, so the type
-;; of b becomes that param and it's meant to be a type
-;; guess we do need to unify params and types...haha. ugh
-;;
-;; ah well, it's alright, just a heck of a dave
-#+nil
-(infer (make-check-context)
-       `(lambda ((a (unordered-foo ?a 10))
-                 (b ?a))
-          a))
-
 (defun designator-from-type (type)
   (check-type type ttype)
   (flet ((desig (p)
@@ -310,11 +299,8 @@
 ;;        this macro
 (defmacro define-ttype (designator
                         &body rest
-                        &key where init purpose satifies-this-p
-                          custom-spec-data)
+                        &key where init custom-spec-data)
   (declare (ignore rest))
-  (when purpose
-    (assert (find purpose *valid-type-purposes*)))
   (destructuring-bind (name . designator-args)
       (uiop:ensure-list designator)
     (destructuring-bind (req-args key-forms)
@@ -327,11 +313,9 @@
              (where (loop :for arg :in args
                        :collect (or (find arg where :key #'first)
                                     (list arg 'ttype))))
-             (purpose (or purpose :concrete-only))
              (arg-param-types (mapcar #'second where)))
         (alexandria:with-gensyms (gtype-spec)
-          `(let ((init (or ,init #'identity))
-                 (satisfies ,satifies-this-p))
+          `(let ((init (or ,init #'identity)))
              (labels ((destructure-args (args)
                         (destructuring-bind (,@req-args &key ,@key-forms)
                             args
@@ -364,21 +348,66 @@
                   (make-instance 'user-ttype-spec
                                  :name ',name
                                  :init init
-                                 :satisfies satisfies
-                                 :purpose ,purpose
                                  :arg-param-specs arg-param-specs
                                  :desig-to-type #'to-type
                                  :custom-data ',custom-spec-data)))
                ',name)))))))
-
-;; if arg is syntactically (lambda ..etc) then check the args
-;; otherwise trust they are correct
-
-(defun on-type-redefined (old-state)
-  (let ((new-state old-state))
-    new-state))
-
 ;; hmm, we really need a way to define a type-system.
+
+(defmacro define-constraint (designator
+                             &body rest
+                             &key where satifies-this-p
+                               custom-spec-data)
+  (declare (ignore rest))
+  (destructuring-bind (name . designator-args)
+      (uiop:ensure-list designator)
+    (destructuring-bind (req-args key-forms)
+        (parse-ttype-lambda-list designator-args)
+      (let* ((req-len (length req-args))
+             (key-len (length key-forms))
+             (args-len (+ req-len key-len))
+             (key-args (mapcar #'first key-forms))
+             (args (append req-args key-args))
+             (where (loop :for arg :in args
+                       :collect (or (find arg where :key #'first)
+                                    (list arg 'ttype))))
+             (arg-param-types (mapcar #'second where)))
+        (alexandria:with-gensyms (gconstraint-spec)
+          `(let ((satisfies ,satifies-this-p))
+             (labels ((destructure-args (args)
+                        (destructuring-bind (,@req-args &key ,@key-forms)
+                            args
+                          (list ,@req-args ,@key-args)))
+                      (to-constraint (,gconstraint-spec
+                                      named-unknowns
+                                      args)
+                        (assert (eq (slot-value ,gconstraint-spec 'name)
+                                    ',name))
+                        (let ((args (destructure-args args)))
+                          (let ((vals (make-array
+                                       ,args-len
+                                       :initial-contents
+                                       (construct-designator-args ,gconstraint-spec
+                                                                 named-unknowns
+                                                                 nil
+                                                                 args))))
+                            (make-instance 'constraint
+                                           :spec ,gconstraint-spec
+                                           :name ',name
+                                           :arg-vals vals)))))
+               (register-constraint
+                (let ((arg-param-specs
+                       (make-array ,(length arg-param-types)
+                                   :initial-contents
+                                   (mapcar #'get-parameter-type-spec
+                                           ',arg-param-types))))
+                  (make-instance 'constraint-spec
+                                 :name ',name
+                                 :satisfies satisfies
+                                 :arg-param-specs arg-param-specs
+                                 :desig-to-constraint #'to-constraint
+                                 :custom-data ',custom-spec-data)))
+               ',name)))))))
 
 ;;------------------------------------------------------------
 
@@ -562,6 +591,21 @@
                        param-spec
                        val)))))
 
+(defun designator->constraint (designator named-unknowns)
+  (destructuring-bind (principle-name . args)
+      (uiop:ensure-list designator)
+    (assert (not (unknown-designator-name-p designator)) ()
+            "Constraint cannot be unknown")
+    (let ((spec (gethash principle-name
+                         *registered-constraints*)))
+      (if spec
+          (funcall (slot-value spec 'desig-to-constraint)
+                   spec
+                   named-unknowns
+                   args)
+          (error "Could not identify constraint for designator: ~a"
+                 designator)))))
+
 ;;------------------------------------------------------------
 
 (defun unify (type-a type-b mutate-p)
@@ -626,17 +670,15 @@
     (let ((type (deref type-ref)))
       (assert (not (typep type 'unknown)))
       (labels ((unifies-with-constraint (constraint)
-                 (with-slots (satisfies) (tspec (deref constraint))
+                 (with-slots (satisfies) (slot-value constraint 'spec)
                    (handler-case
-                       (if satisfies
-                           (funcall satisfies constraint type-ref)
-                           (unify constraint type-ref nil))
+                       (funcall satisfies constraint type-ref)
                      (error () nil)))))
         (let ((failed
                (loop
                   :for constraint :in constraints
                   :unless (unifies-with-constraint constraint)
-                  :collect (slot-value (deref constraint) 'name))))
+                  :collect (slot-value constraint 'name))))
           (when failed
             (error "Type ~a failed to satisfy the following constraints:~%~{~a~}"
                    type-ref failed))))))
@@ -815,8 +857,7 @@
              (satisfies
               (let* ((spec (second decl))
                      (targets (cddr decl))
-                     (constraint (designator->type spec)))
-                (assert (valid-as-constraint-p constraint))
+                     (constraint (designator->constraint spec nil)))
                 (loop
                    :for target :in targets
                    :do (assert (unknown-designator-name-p target)
@@ -833,6 +874,10 @@
       (alexandria:parse-body body :documentation t)
     (declare (ignore doc-string))
     (let* ((args (mapcar #'alexandria:ensure-list args))
+           ;; {TODO} want to move the args before the constraints so we
+           ;;        can use unknowns in the constraints, however args
+           ;;        need to be checked against constraints.. should
+           ;;        seperate that out.
            (constraints (parse-declarations declarations args))
            (processed-args
             (process-function-arg-specs args constraints))
@@ -840,8 +885,6 @@
            (typed-body (infer body-context `(progn ,@body)))
            (arg-types (mapcar #'second processed-args))
            (return-type (type-of-typed-expression typed-body)))
-      (assert (every #'valid-as-concrete-type-p arg-types))
-      (assert (valid-as-concrete-type-p return-type))
       `(truly-the
         ,(take-ref (make-instance 'tfunction
                                   :arg-types arg-types
