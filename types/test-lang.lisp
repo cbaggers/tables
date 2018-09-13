@@ -9,9 +9,7 @@
 
 (define-ttype integer)
 
-(define-ttype (unordered-set type))
-
-(define-ttype (unordered-foo type size)
+(define-ttype (unordered-set type size)
   :where ((size integer))
   :custom-spec-data ((implements . (disposable))))
 
@@ -26,5 +24,5 @@
 (define-constraint (breen foo)
   :satifies-this-p (lambda (this type-ref)
                      (declare (ignore this))
-                     (print type-ref)
+                     (print (list :breen> type-ref))
                      t))
