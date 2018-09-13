@@ -20,11 +20,15 @@
                      (declare (ignore this))
                      (let ((implements
                             (cdr (assoc 'implements
-                                         (ttype-custom-data type-ref)))))
+                                        (ttype-custom-data type-ref)))))
                        (find 'disposable implements))))
 
 (define-constraint (breen foo)
-  :satifies-this-p (lambda (this type-ref)
+  :satifies-this-p (lambda (this ref)
                      (declare (ignore this))
-                     (print type-ref)
+                     (print (list :breen>
+                                  :unknown
+                                  (typep (deref ref) 'unknown-param)
+                                  :val
+                                  (tparam-val ref)))
                      t))

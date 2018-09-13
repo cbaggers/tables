@@ -82,8 +82,7 @@
   (typep x 'ttype))
 
 (defclass unknown (ttype)
-  ((name :initform (gensym))
-   (constraints :initform nil :initarg :constraints)))
+  ((name :initform (gensym))))
 
 (defclass tfunction (ttype)
   ((arg-types :initform nil :initarg :arg-types)
@@ -327,7 +326,8 @@
       (unknown
        (slot-value type 'name))
       (tfunction
-       (error "{TODO} implement me!"))
+       (with-slots (arg-types return-type) type
+         `(function ,(mapcar #'ttype-of arg-types) ,(ttype-of return-type))))
       (user-ttype
        (with-slots (name arg-vals) type
          (if (> (length arg-vals) 0)
@@ -364,7 +364,6 @@
                           (list ,@req-args ,@key-args)))
                       (to-type (,gtype-spec
                                 named-unknowns
-                                constraints
                                 args)
                         (assert (eq (slot-value ,gtype-spec 'name)
                                     ',name))
@@ -375,7 +374,6 @@
                                    :initial-contents
                                    (construct-designator-args ,gtype-spec
                                                               named-unknowns
-                                                              constraints
                                                               args)))
                                  (is-complete
                                   (or (= (length vals) 0)
@@ -438,7 +436,6 @@
                                        :initial-contents
                                        (construct-designator-args ,gconstraint-spec
                                                                  named-unknowns
-                                                                 nil
                                                                  args))))
                             (make-instance 'constraint
                                            :spec ,gconstraint-spec
@@ -541,16 +538,16 @@
 
 ;;------------------------------------------------------------
 
-(defun make-unknown (&optional constraints)
-  (take-ref (make-naked-unknown constraints)))
+(defun make-unknown ()
+  (take-ref (make-naked-unknown)))
 
-(defun make-naked-unknown (constraints)
-  (make-instance 'unknown :constraints constraints))
+(defun make-naked-unknown ()
+  (make-instance 'unknown))
 
 (defun designator->type (type-designator)
-  (internal-designator-to-type nil nil type-designator))
+  (internal-designator-to-type nil type-designator))
 
-(defun internal-designator-to-type (named-unknowns constraints designator)
+(defun internal-designator-to-type (named-unknowns designator)
   (destructuring-bind (principle-name . args)
       (uiop:ensure-list designator)
     (case principle-name
@@ -580,7 +577,7 @@
            ;; unknown
            (or (gethash designator named-unknowns)
                (setf (gethash designator named-unknowns)
-                     (make-unknown (gethash designator constraints))))
+                     (make-unknown)))
            ;;
            ;; user type
            (let ((type-spec (gethash principle-name
@@ -591,16 +588,16 @@
                  (funcall (slot-value type-spec 'desig-to-type)
                           type-spec
                           named-unknowns
-                          constraints
                           args)
                  (error "Could not identify type for designator: ~a"
                         designator))))))))
 
-(defun construct-designator-args (type-spec named-unknowns constraints vals)
-  (with-slots (arg-param-specs) type-spec
+(defun construct-designator-args (type-spec named-unknowns vals)
+  (with-slots (arg-param-specs name) type-spec
     (loop
        :for val :in vals
        :for param-spec :across arg-param-specs
+       :for i :from 0
        :collect
        ;; dont need to handle function etc as that is covered by the to-param
        ;; of ttype parameters
@@ -622,15 +619,19 @@
                    ;; type param
                    (progn
                      (when already-seen
-                       (assert (typep already-seen 'ttype)))
+                       (assert (typep already-seen 'type-ref) ()
+                               "Argument ~a to ~a must be a type"
+                               i name))
                      (or already-seen
                          (setf (gethash val named-unknowns)
-                               (make-unknown (gethash val constraints)))))
+                               (make-unknown))))
                    ;;
                    ;; value param
                    (progn
                      (when already-seen
-                       (assert (not (typep already-seen 'ttype))))
+                       (assert (not (typep already-seen 'param-ref)) ()
+                               "Argument ~a to ~a must be a type"
+                               i name))
                      (or already-seen
                          (setf (gethash val named-unknowns)
                                (make-unknown-param))))))
@@ -661,6 +662,8 @@
   ;; The only case when mutate-p is nil is when you are trying
   ;; to check constraints as there you dont want the type to aquire
   ;; information from the type
+  ;;
+  ;; {TODO} constraint checking moved, what now?
   (check-type type-a type-ref)
   (check-type type-b type-ref)
   (let* ((a (deref type-a))
@@ -684,54 +687,44 @@
                 mutate-p))
         (t
          (let* ((a-unknown (typep a 'unknown))
-                (b-unknown (typep b 'unknown))
-                (a-constraints
-                 (when a-unknown
-                   (slot-value a 'constraints)))
-                (b-constraints
-                 (when b-unknown
-                   (slot-value b 'constraints))))
+                (b-unknown (typep b 'unknown)))
            (cond
-             ((and a-unknown b-unknown)
-              (let ((new (make-naked-unknown
-                          (append a-constraints
-                                  b-constraints))))
-                (retarget-ref type-a new)
-                (retarget-ref type-b new)))
              (a-unknown
-              (check-constraints type-b a-constraints)
               (when mutate-p
                 (retarget-ref type-a b)))
              (b-unknown
-              (check-constraints type-a b-constraints)
               (when mutate-p
                 (retarget-ref type-b a)))
              (t (error "No way to unify ~a and ~a" type-a type-b))))))))
   (values))
 
 
-(defun check-constraints (type-ref constraints)
+(defun check-constraints (named-unknowns constraints)
   ;; We can safely use unify here as we tell it not to mutate the types.
   ;; This means we check everything can work but we dont allow any
   ;; modification to a type's references.
-  (check-type type-ref type-ref)
-  (when constraints
-    (let ((type (deref type-ref)))
-      (assert (not (typep type 'unknown)))
-      (labels ((unifies-with-constraint (constraint)
-                 (with-slots (satisfies) (slot-value constraint 'spec)
-                   (handler-case
-                       (funcall satisfies constraint type-ref)
-                     (error () nil)))))
-        (let ((failed
-               (loop
-                  :for constraint :in constraints
-                  :unless (unifies-with-constraint constraint)
-                  :collect (slot-value constraint 'name))))
-          (when failed
-            (error "Type ~a failed to satisfy the following constraints:~%~{~a~}"
-                   type-ref failed))))))
-  t)
+  (let (all-unresolved)
+    (labels ((satisfies-p (ref constraint)
+               (let ((thing (deref ref)))
+                 (if (or (typep thing 'unknown)
+                         (typep thing 'unknown-param))
+                     (push (list ref constraint) all-unresolved)
+                     (with-slots (satisfies) (slot-value constraint 'spec)
+                       (handler-case
+                           (funcall satisfies constraint ref)
+                         (error () nil)))))))
+      (when (> (hash-table-count constraints) 0)
+        (maphash (lambda (name ref)
+                   (let ((failed
+                          (loop
+                             :for c :in (gethash name constraints)
+                             :unless (satisfies-p ref c)
+                             :collect (slot-value c 'name))))
+                     (when failed
+                       (error "Type var ~a is ~a which fails to satisfy the following constraints:~%~{~a~}"
+                              name ref failed))))
+                 named-unknowns))
+      (remove-duplicates all-unresolved))))
 
 (defun unify-user-type (type-a type-b mutate-p)
   (let* ((a (deref type-a))
@@ -795,6 +788,9 @@
       (truly-the
        (assert (= (length args) 2))
        (infer-truly-the context (first args) (second args)))
+      (construct
+       (assert (= (length args) 2))
+       (infer-construct context (first args) (second args)))
       (the
        (assert (= (length args) 2))
        (infer-the context (first args) (second args)))
@@ -845,6 +841,12 @@
   (assert (type-ref-p type))
   `(truly-the ,type ,form))
 
+(defun infer-construct (context designator form)
+  ;; Acts as no-op. The form is correctly types so return as is
+  (declare (ignore context))
+  (let ((type (designator->type designator)))
+    `(truly-the ,type ,form)))
+
 (defun infer-the (context type-designator form)
   (let* ((type (designator->type type-designator))
          (typed-form (check context form type)))
@@ -878,27 +880,23 @@
                     ,typed-body)))))
 
 
-(defun process-function-arg-specs (arg-specs constraints)
-  (let ((named-unknowns (make-hash-table :test #'eq)))
-    (loop
-       :for spec :in arg-specs
-       :for (name type) := spec
-       :collect (list name
-                      (if type
-                          (internal-designator-to-type named-unknowns
-                                                       constraints
-                                                       type)
-                          (let ((constraints-for-this
-                                 (gethash type constraints)))
-                            (make-unknown constraints-for-this)))))))
+(defun process-function-arg-specs (arg-specs named-unknowns)
+  (loop
+     :for spec :in arg-specs
+     :for (name type) := spec
+     :collect (list name
+                    (if type
+                        (internal-designator-to-type named-unknowns
+                                                     type)
+                        (make-unknown)))))
 
 ;; {TODO} handle AND types
-;; {TODO} this assumes only regular args (no &key &optional etc)
-(defun parse-declarations (declaration-forms args)
+(defun parse-declarations (declaration-forms args named-unknowns)
   (let* ((flat (alexandria:flatten (mapcar #'second args)))
-         (arg-unknowns (remove-duplicates
-                        (remove-if-not #'unknown-designator-name-p flat)))
-         (merged (mapcar #'second declaration-forms))
+         (arg-unknown-vars (remove-duplicates
+                            (remove-if-not #'unknown-designator-name-p
+                                           flat)))
+         (merged (reduce #'append (mapcar #'rest declaration-forms)))
          (constraints (make-hash-table)))
     (loop
        :for decl :in merged
@@ -906,55 +904,69 @@
              (satisfies
               (let* ((spec (second decl))
                      (targets (cddr decl))
-                     (constraint (designator->constraint spec nil)))
+                     (constraint
+                      (designator->constraint spec named-unknowns)))
                 (loop
                    :for target :in targets
                    :do (assert (unknown-designator-name-p target)
                                () "Cannot constrain known type ~a"
                                (second target))
-                   :do (assert (find target arg-unknowns))
+                   :do (assert (find target arg-unknown-vars))
                    :do (setf (gethash target constraints)
                              (cons constraint
                                    (gethash target constraints))))))))
     constraints))
 
+;;{TODO} current can only use unknowns from lambda, what about outer lambdas?
 (defun infer-lambda-form (context args body)
   (multiple-value-bind (body declarations doc-string)
       (alexandria:parse-body body :documentation t)
     (declare (ignore doc-string))
-    (let* ((args (mapcar #'alexandria:ensure-list args))
-           ;; {TODO} want to move the args before the constraints so we
-           ;;        can use unknowns in the constraints, however args
-           ;;        need to be checked against constraints.. should
-           ;;        seperate that out.
-           (constraints (parse-declarations declarations args))
-           (processed-args
-            (process-function-arg-specs args constraints))
-           (body-context (add-bindings context processed-args))
-           (typed-body (infer body-context `(progn ,@body)))
-           (arg-types (mapcar #'second processed-args))
-           (return-type (type-of-typed-expression typed-body)))
-      `(truly-the
-        ,(take-ref (make-instance 'tfunction
-                                  :arg-types arg-types
-                                  :return-type return-type))
-        (lambda ,args ,typed-body)))))
+    (let ((args (mapcar #'alexandria:ensure-list args))
+          (named-unknowns (make-hash-table)))
+      (let* ((processed-args
+              (process-function-arg-specs args named-unknowns))
+             (constraints
+              (parse-declarations declarations args named-unknowns))
+             (body-context (add-bindings context processed-args))
+             (typed-body (infer body-context `(progn ,@body)))
+             (arg-types (mapcar #'second processed-args))
+             (return-type (type-of-typed-expression typed-body))
+             (unsolved-constraints (check-constraints named-unknowns
+                                                      constraints))
+             (func-type
+              (take-ref (make-instance 'tfunction
+                                       :arg-types arg-types
+                                       :return-type return-type)))
+             (expr `(truly-the
+                     ,func-type
+                     (lambda ,args ,typed-body))))
+        (if unsolved-constraints
+            (values
+             expr
+             (list func-type unsolved-constraints))
+            expr)))))
 
 (defun infer (context expression)
   "The type-system equivalent of eval.
    Assumes the expression is macroexpanded"
-  (cond
-    ((or (eq expression t)
-         (eq expression nil))
-     (infer-literal context expression))
-    ((symbolp expression)
-     (infer-variable context expression))
-    ((listp expression)
-     (infer-form context
-                 (first expression)
-                 (rest expression)))
-    (t
-     (infer-literal context expression))))
+  (multiple-value-bind (typed-expr unresolved-constraints)
+      (cond
+        ((or (eq expression t)
+             (eq expression nil))
+         (infer-literal context expression))
+        ((symbolp expression)
+         (infer-variable context expression))
+        ((listp expression)
+         (infer-form context
+                     (first expression)
+                     (rest expression)))
+        (t
+         (infer-literal context expression)))
+    (when unresolved-constraints
+      (setf tmp0 unresolved-constraints)
+      (print unresolved-constraints))
+    typed-expr))
 
 (defun infer-variable (context expression)
   (let ((type (or (get-binding context expression)
