@@ -67,7 +67,9 @@
 ;;        elements in the designator need to have that too
 
 (defclass ttype ()
-  ((refs :initform nil)))
+  ((refs :initform nil)
+   (known-complete :initform nil)))
+
 (defclass constraint ()
   ((spec :initarg :spec)
    (name :initarg :name)
@@ -106,7 +108,8 @@
    (refs :initform nil)))
 
 (defclass unknown-param (ttype-parameter)
-  ((name :initform (gensym "?U"))))
+  ((name :initform (gensym "?U"))
+   (value :initform nil)))
 
 (defclass ttype-parameter-spec ()
   ((name :initarg :name)
@@ -137,7 +140,8 @@
 (defclass user-ttype (ttype)
   ((spec :initarg :spec)
    (name :initarg :name)
-   (arg-vals :initarg :arg-vals)))
+   (arg-vals :initarg :arg-vals)
+   (known-complete :initarg :known-complete :initform nil)))
 
 (defclass user-ttype-spec ()
   ((name :initarg :name)
@@ -145,6 +149,44 @@
    (arg-param-specs :initarg :arg-param-specs)
    (desig-to-type :initarg :desig-to-type)
    (custom-data :initarg :custom-data :initform nil)))
+
+(defgeneric complete-p (type)
+  (:method ((type unknown))
+    (declare (ignore type))
+    nil)
+  (:method ((type tfunction))
+    (calc-complete-p type))
+  (:method ((type user-ttype))
+    (calc-complete-p type))
+  (:method ((param ttype-parameter))
+    (declare (ignore param))
+    t))
+
+(defun calc-complete-p (type)
+  (with-slots (known-complete) type
+    (or known-complete
+        (let ((complete (check-user-type-complete type)))
+          (when complete
+            (setf known-complete t))
+          complete))))
+
+(defun check-user-type-complete (type)
+  (etypecase type
+    (unknown nil)
+    (unknown-param nil)
+    (tfunction
+     (with-slots (arg-types return-type) type
+       (and (every (lambda (x) (complete-p (deref x))) arg-types)
+            (complete-p (deref return-type)))))
+    (user-ttype
+     (let ((arg-vals (slot-value type 'arg-vals)))
+       (assert (> (length arg-vals) 0) ()
+               "BUG: this type should have been known-complete ~a"
+               type)
+       (every (lambda (x) (complete-p (deref x)))
+              arg-vals)))
+    (ttype-parameter t) ;; type params become type-refs not param-refs
+    (ttype t)))
 
 (defun tspec (type)
   (slot-value type 'spec))
@@ -327,18 +369,25 @@
                         (assert (eq (slot-value ,gtype-spec 'name)
                                     ',name))
                         (let ((args (destructure-args args)))
-                          (let ((vals (make-array
-                                       ,args-len
-                                       :initial-contents
-                                       (construct-designator-args ,gtype-spec
-                                                                 named-unknowns
-                                                                 constraints
-                                                                 args))))
+                          (let* ((vals
+                                  (make-array
+                                   ,args-len
+                                   :initial-contents
+                                   (construct-designator-args ,gtype-spec
+                                                              named-unknowns
+                                                              constraints
+                                                              args)))
+                                 (is-complete
+                                  (or (= (length vals) 0)
+                                      (every (lambda (x)
+                                               (complete-p (deref x)))
+                                             vals))))
                             (take-ref
                              (make-instance 'user-ttype
                                             :spec ,gtype-spec
                                             :name ',name
-                                            :arg-vals vals))))))
+                                            :arg-vals vals
+                                            :known-complete is-complete))))))
                (register-type
                 (let ((arg-param-specs
                        (make-array ,(length arg-param-types)
