@@ -60,6 +60,9 @@
   (buffer (:pointer (:struct system-logical-processor-information)))
   (return-length (:pointer dword)))
 
+;; see example at link below for how to interpret data
+;; https://msdn.microsoft.com/en-us/library/windows/desktop/ms683194(v=vs.85).aspx
+
 (defun cpu-info ()
   (labels ((parse-info (ptr)
              (cffi:with-foreign-slots
@@ -77,10 +80,13 @@
                    (cffi:mem-aref dummy-union '(:struct cache-descriptor)))
                   (:relation-processor-package)
                   (:relation-group)
-                  (otherwise :invalid))))))
-    (cffi:with-foreign-objects
-        ((buffer :uint8 (* 2 2048))
-         (len :uint8 2048))
+                  (otherwise :invalid)))))
+           (query-buf-len ()
+             (cffi:with-foreign-object (len 'dword)
+               (get-logical-processor-information (cffi:null-pointer) len)
+               (cffi:mem-aref len 'dword))))
+    (cffi:with-foreign-objects ((buffer :uint8 (query-buf-len))
+                                (len 'dword))
       (when (get-logical-processor-information buffer len)
         (loop
            :for i :below (floor (cffi:mem-aref len 'dword) 32)
