@@ -9,5 +9,7 @@
   :components ((:module #:autowrap-specs
                         :pathname "gdenuf/specs")
                (:file "gdenuf/package")
+               (:file "gdenuf/core-types-win" :if-feature (:or :windows :win32))
+               (:file "gdenuf/core-types-posix" :if-feature (:or :linux :unix))
                (:file "gdenuf/size-t")
                (:file "gdenuf/gdenuf")))
