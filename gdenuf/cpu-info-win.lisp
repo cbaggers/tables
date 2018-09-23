@@ -55,14 +55,14 @@
 ;; see example at link below for how to interpret data
 ;; https://msdn.microsoft.com/en-us/library/windows/desktop/ms683194(v=vs.85).aspx
 
-(defun cpu-info ()
+(defun logical-cpu-info ()
   (labels ((parse-info (ptr)
              (with-foreign-slots
                  ((processor-mask relationship (:pointer dummy-union))
                   ptr (:struct system-logical-processor-information))
                (list
                 relationship
-                processor-mask
+                (pointer-address processor-mask)
                 (case relationship
                   (:relation-processor-core
                    (mem-aref dummy-union '(:struct processor-core)))
@@ -86,3 +86,52 @@
                                  buffer
                                  '(:struct system-logical-processor-information)
                                  i)))))))
+
+(defun cpu-info ()
+  (let* ((info (logical-cpu-info))
+         (sockets (remove :relation-processor-package info :key #'first
+                          :test-not #'eq))
+         (caches (remove :relation-cache info :key #'first
+                         :test-not #'eq))
+         (cores (remove :relation-processor-core info :key #'first
+                        :test-not #'eq)))
+    (labels ((caches-for (mask)
+               (let* ((set (remove-if-not
+                            (lambda (x) (> (logand mask (second x)) 0))
+                            caches))
+                      (l1i nil)
+                      (l1d nil)
+                      (objs (loop
+                               :for c :in set
+                               :for (nil
+                                     type
+                                     nil size nil line-size
+                                     nil associativity nil level) := (third c)
+                               :if (eq (print type) :cache-data) :do
+                               (setf l1d (make-instance 'cache
+                                                        :size size
+                                                        :line-size line-size))
+                               :else :if (eq type :cache-instruction) :do
+                               (setf l1i (make-instance 'cache
+                                                        :size size
+                                                        :line-size line-size))
+                               :else :collect
+                               (list level
+                                     (make-instance 'cache
+                                                    :size size
+                                                    :line-size line-size))))
+                      (objs (mapcar #'second (sort objs #'< :key #'first))))
+                 (cons (list l1i l1d)
+                       objs))))
+      (loop
+         :for core :in cores
+         :for (mask flags) := (rest core)
+         :collect (make-instance
+                   'cpu
+                   :id (floor (log mask 2))
+                   :core :unknown
+                   :socket (position-if
+                            (lambda (x) (> (logand mask (second x)) 0))
+                            sockets)
+                   :caches (caches-for mask)
+                   )))))
