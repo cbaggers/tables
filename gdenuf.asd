@@ -4,7 +4,7 @@
   :description "An array in foreign memory"
   :author "Chris Bagley <techsnuffle@gmail.com>"
   :license "BSD 2 Clause"
-  :depends-on (:cffi :cl-autowrap)
+  :depends-on (:cffi :cl-autowrap :split-sequence)
   :serial t
   :components ((:module #:autowrap-specs
                         :pathname "gdenuf/specs")
