@@ -81,6 +81,7 @@
          (l2-size (sysctl-int64 "hw.l2cachesize"))
          (l3-size (sysctl-int64 "hw.l3cachesize"))
          (cpu-count (sysctl-int64 "hw.logicalcpu_max"))
+         (phys-count (sysctl-int64 "hw.physicalcpu_max"))
 
          (l1 (list
               (make-instance
@@ -99,12 +100,17 @@
                (make-instance
                 'cache
                 :size l3-size
-                :line-size cache-line-size))))
-    (loop
-       :for i :below cpu-count
-       :collect (make-instance
-                 'cpu
-                 :id i
-                 :core :unknown
-                 :socket :unknown
-                 :caches (cons l1 (if l3 (list l2 l3) l2))))))
+                :line-size cache-line-size)))
+         (cpus (loop
+                  :for i :below cpu-count
+                  :collect (make-instance
+                            'cpu
+                            :id i
+                            :core :unknown
+                            :socket :unknown
+                            :caches (cons l1 (if l3 (list l2 l3) l2))))))
+    (make-instance
+     'cpu-info
+     :logical-cpu-count cpu-count
+     :physical-cpu-count phys-count
+     :cpus cpu-objs)))

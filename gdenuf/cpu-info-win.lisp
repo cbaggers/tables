@@ -107,7 +107,7 @@
                                      type
                                      nil size nil line-size
                                      nil associativity nil level) := (third c)
-                               :if (eq (print type) :cache-data) :do
+                               :if (eq type :cache-data) :do
                                (setf l1d (make-instance 'cache
                                                         :size size
                                                         :line-size line-size))
@@ -123,15 +123,23 @@
                       (objs (mapcar #'second (sort objs #'< :key #'first))))
                  (cons (list l1i l1d)
                        objs))))
-      (loop
-         :for core :in cores
-         :for (mask flags) := (rest core)
-         :collect (make-instance
-                   'cpu
-                   :id (floor (log mask 2))
-                   :core :unknown
-                   :socket (position-if
-                            (lambda (x) (> (logand mask (second x)) 0))
-                            sockets)
-                   :caches (caches-for mask)
-                   )))))
+      (let ((cpus (loop
+                     :for core :in cores
+                     :for id :from 0
+                     :for (mask flags) := (rest core)
+                     :collect (make-instance
+                               'cpu
+                               :id id ;; ← ↓ not sure about these
+                               :core (floor (log mask 2))
+                               :socket (position-if
+                                        (lambda (x)
+                                          (> (logand mask (second x)) 0))
+                                        sockets)
+                               :caches (caches-for mask)))))
+        (make-instance
+         'cpu-info
+         :logical-cpu-count (length cpus)
+         :physical-cpu-count (length
+                              (remove-duplicates
+                               (mapcar (lambda (x) (slot-value x 'core)) cpus)))
+         :cpus cpus)))))
