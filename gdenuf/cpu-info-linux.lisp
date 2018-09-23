@@ -59,18 +59,6 @@
 
 ;;------------------------------------------------------------
 
-(defclass cpu ()
-  ((id :initarg :id :initform :unknown)
-   (core :initarg :core :initform :unknown)
-   (socket :initarg :socket :initform :unknown)
-   (caches :initarg :caches :initarg :unknown)))
-
-(defclass cache ()
-  ((size :initarg :size)
-   (line-size :initarg :line-size)
-   (share-id :initarg :share-id :initform :unknown)
-   (shared-with :initarg :share-id :initform :unknown)))
-
 (defun cpu-info ()
   (let ((caches (cache-sizes))
         (cpus (lscpu)))
@@ -102,24 +90,24 @@
                               :size l2-size
                               :line-size l2-llen
                               :share-id l2share-id))
-                         (l3 (make-instance
-                              'cache
-                              :size l3-size
-                              :line-size l3-llen
-                              :share-id l3share-id))
-                         (l4 (if (> l4-size 0)
-                                 (make-instance
-                                  'cache
-                                  :size l4-size
-                                  :line-size l4-llen
-                                  :share-id :unknown)
-                                 :unknown)))
+                         (l3 (when (> l3-size 0)
+                               (make-instance
+                                'cache
+                                :size l3-size
+                                :line-size l3-llen
+                                :share-id l3share-id)))
+                         (l4 (when (> l4-size 0)
+                               (make-instance
+                                'cache
+                                :size l4-size
+                                :line-size l4-llen
+                                :share-id :unknown))))
                     (make-instance
                      'cpu
                      :id id
                      :core core
                      :socket socket
-                     :caches (list l1 l2 l3 l4))))))
+                     :caches (remove nil (list l1 l2 l3 l4)))))))
             cpus)))
 
 ;;------------------------------------------------------------
