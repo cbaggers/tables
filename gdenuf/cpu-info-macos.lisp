@@ -106,5 +106,5 @@
                  'cpu
                  :id i
                  :core :unknown
-                 :sockets :unknown
+                 :socket :unknown
                  :caches (cons l1 (if l3 (list l2 l3) l2))))))
