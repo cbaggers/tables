@@ -56,14 +56,6 @@
 ;; :cores   hw.physicalcpu_max  :int
 ;; :sockets hw.packages         :int
 ;; :threads hw.logicalcpu_max   :int
-;;
-;; hw.pagesize :int64
-;;
-;; hw.l1dcachesize :int64
-;; hw.l1icachesize :int64
-;; hw.l2cachesize :int64
-;; hw.l3cachesize :int64
-;; hw.cachelinesize :int64
 
 
 ;; cant get info on which cpus are logical and which are physical
