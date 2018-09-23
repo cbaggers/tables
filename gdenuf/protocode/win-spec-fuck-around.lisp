@@ -39,5 +39,5 @@
               :do
                 (when (equal (gethash "tag" entry) "typedef")
                   (print
-                   `(cffi:defctype ,(blort (gethash "name" entry))
+                   `(defctype ,(blort (gethash "name" entry))
                         ,(jam (gethash "type" entry))))))))))

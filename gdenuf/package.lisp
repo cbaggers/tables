@@ -1,5 +1,5 @@
 ;;;; package.lisp
 
 (uiop:define-package #:gdenuf
-    (:use #:cl)
+    (:use #:cl #:cffi)
   (:export :size-t))
