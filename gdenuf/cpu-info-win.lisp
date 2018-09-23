@@ -1,13 +1,5 @@
 (in-package :gdenuf)
 
-#+linux
-(defun cpu-info ()
-  (with-output-to-string (s)
-    (uiop:run-program "lscpu -pcpu,core,socket,cache" :output s)
-    s))
-
-#+windows
-
 (cffi:define-foreign-library kernel32
   (:windows "C:/WINDOWS/system32/kernel32.dll"))
 
