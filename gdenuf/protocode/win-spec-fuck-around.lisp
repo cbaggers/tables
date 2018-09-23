@@ -6,14 +6,9 @@
 ;; Btw, should probably define WIN32_LEAN_AND_MEAN before doing this
 
 
-(defun moo ()
+(defun moo (x)
   (jonathan:parse
-   (alexandria:read-file-into-string
-    ;;"c:/home/quicklisp/local-projects/tables/gdenuf/basetsd.i686-pc-windows-msvc.spec"
-    ;;"c:/home/quicklisp/local-projects/tables/gdenuf/basetsd.x86_64-pc-windows-msvc.spec"
-    ;; "c:/home/quicklisp/local-projects/tables/gdenuf/winnt.i686-pc-windows-msvc.spec"
-    ;; "c:/home/quicklisp/local-projects/tables/gdenuf/winnt.x86_64-pc-windows-msvc.spec"
-    )
+   (alexandria:read-file-into-string x)
    :as :hash-table))
 
 (defun foo ()
@@ -27,9 +22,22 @@
                (if (gethash "type" type-ht)
                    (list tag (jam (gethash "type" type-ht)))
                    tag))))
-    (let ((entries (moo)))
-      (loop :for entry :in entries :do
-         (when (equal (gethash "tag" entry) "typedef")
-           (print
-            `(cffi:defctype ,(blort (gethash "name" entry))
-                 ,(jam (gethash "type" entry)))))))))
+    (let ((flap '("types.i386-unknown-freebsd.spec"
+                  "types.i386-unknown-openbsd.spec"
+                  "types.i686-apple-darwin9.spec"
+                  "types.i686-pc-linux-gnu.spec"
+                  "types.x86_64-apple-darwin9.spec"
+                  "types.x86_64-pc-linux-gnu.spec"
+                  "types.x86_64-unknown-freebsd.spec"
+                  "types.x86_64-unknown-openbsd.spec")))
+      (loop
+         :for f :in flap
+         :do
+           (print f)
+           (loop
+              :for entry :in (moo (format nil "~~/Code/lisp/tables/gdenuf/specs/~a" f))
+              :do
+                (when (equal (gethash "tag" entry) "typedef")
+                  (print
+                   `(cffi:defctype ,(blort (gethash "name" entry))
+                        ,(jam (gethash "type" entry))))))))))
