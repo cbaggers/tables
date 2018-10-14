@@ -31,7 +31,7 @@
 
 ;;------------------------------------------------------------
 
-(define-type-system tables boolean)
+(define-type-system tables)
 
 (defmethod get-type-spec ((type-system tables) designator)
   (let ((principle-name (first (alexandria:ensure-list designator))))
@@ -116,6 +116,9 @@
   :where ((size integer)))
 
 (define-ttype integer)
+
+(defmethod infer-literal ((type-system tables) (expression integer))
+  `(truly-the ,(ttype tables integer) ,expression))
 
 ;;------------------------------------------------------------
 
@@ -260,3 +263,29 @@
     (values
      (cons (first expr-ast) ssad-names)
      prior-lets)))
+
+
+;; (labels ((foo ((#:g1076 #tboolean))
+;;            (truly-the #tboolean #:g1076))
+;;          (bar ((#:g1077 #tboolean))
+;;            (truly-the #tboolean #:g1077))
+;;          (lam ((#:a_1072 ?a))
+;;            (let* ((#:g1074 (truly-the #tboolean #:a_1072))
+;;                   (#:b_1073 #:g1074)
+;;                   (#:g1078 (truly-the
+;;                             #tboolean
+;;                             (if (#:g1075 (truly-the #tboolean #:b_1073))
+;;                                 (foo #:b_1073)
+;;                                 (bar #:b_1073))))
+;;                   (#:g1079 (truly-the #tboolean #:g1078))
+;;                   (#:g1080 (truly-the #tboolean #:g1079))
+;;                   (#:g1081 (truly-the #tboolean #:g1074)))
+;;              (truly-the #tboolean #:g1081)))
+;;          (baz ()
+;;            (let* ((#:g1082 (truly-the #t(function (boolean) boolean)
+;;                                       #'lam))
+;;                   (#:g1083 (truly-the #tboolean t))
+;;                   (#:g1084 (truly-the #tboolean
+;;                                       (funcall #:g1082 #:g1083))))
+;;              (truly-the #tboolean #:g1084))))
+;;   (baz))
