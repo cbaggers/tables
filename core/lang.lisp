@@ -119,55 +119,122 @@
 
 ;;------------------------------------------------------------
 
+(defclass blockify-context ()
+  ((parent :initarg :parent)
+   (bindings :initform nil :initarg :bindings)))
+
+(defun make-blockify-context (parent new-bindings)
+  (let ((res (make-instance 'blockify-context
+                            :parent parent
+                            :bindings (when parent
+                                        (slot-value parent 'bindings)))))
+    (with-slots (bindings) res
+      (loop
+         :for binding :in new-bindings
+         :do (setf bindings (cons binding bindings))))
+    res))
+
 (defun test ()
   (let ((res (infer (make-check-context 'tables)
                     `(funcall (lambda ((a ?a))
-                                a)
+                                (let ((b a))
+                                  b))
                               t))))
     (print res)
-    (let* ((lets (blockify res))
+    (let* ((context (make-blockify-context nil nil))
+           (lets (blockify context res))
            (last (first (last lets))))
-      `(let ,lets
+      `(let* ,lets
          (truly-the ,(second (second last)) ,(first last))))))
 
-(defun blockify (ast)
+(defun blockify (context ast)
   (assert (eq (first ast) 'truly-the))
   (multiple-value-bind (ssad-expr prior-lets)
-      (blockify-form (third ast))
+      (blockify-form context (third ast))
     (let ((expr-name (gensym)))
       (append
        prior-lets
        `((,expr-name (truly-the ,(second ast) ,ssad-expr)))))))
 
-(defun blockify-form (form)
-  (if (listp form)
-      (case (first form)
-        (lambda (blockify-lambda-form form))
-        (progn (blockify-progn-form form))
-        (funcall (blockify-funcall-form form))
-        (otherwise (error "not sure what to do with ~s" (first form))))
-      form))
+(defun blockify-form (context form)
+  (typecase form
+    (list
+     (case (first form)
+       (lambda (blockify-lambda-form context form))
+       (let (blockify-let-form context form))
+       (progn (blockify-progn-form context form))
+       (funcall (blockify-funcall-form context form))
+       (otherwise (error "not sure what to do with ~s" (first form)))))
+    (symbol
+     (if (or (eq form t) (null form))
+         form
+         (blockify-var-access context form)))
+    (otherwise
+     form)))
 
-(defun blockify-progn-form (form)
-  (let* ((lets (apply #'append (mapcar #'blockify (rest form))))
+(defun blockify-var-access (context symbol)
+  (or (cdr (assoc symbol (slot-value context 'bindings)))
+      (error "bug: ~s" symbol)))
+
+(defun gensym-named (name)
+  (gensym (format nil "~a_" name)))
+
+(defun blockify-let-form (context form)
+  ;; note this is let, not let*
+  (let* ((renamed-args (loop
+                          :for (name val) :in (second form)
+                          :collect (list (gensym-named (symbol-name name))
+                                         val)))
+         (decls (loop
+                   :for (name val) :in renamed-args
+
+                   :for blocked := (blockify context val)
+                   :for ssad-name := (first (first (last blocked)))
+                   :append blocked
+                   :collect (list name ssad-name)))
+         (context (make-blockify-context
+                   context
+                   (loop
+                      :for (old-name) :in (second form)
+                      :for (new-name) :in renamed-args
+                      :collect (cons old-name new-name))))
+         (body (third form))
+         (lets (blockify context body))
+         (ssad-name (first (first (last lets)))))
+    (values ssad-name
+            (append decls lets))))
+
+(defun blockify-progn-form (context form)
+  (let* ((lets (loop :for x :in (rest form)
+                  :append (blockify context x)))
          (last (first lets)))
     (values (first last)
             lets)))
 
-(defun blockify-lambda-form (form)
-  (let* ((body (third form))
-         (lets (blockify body))
+(defun blockify-lambda-form (context form)
+  (let* ((renamed-args (loop
+                          :for (name type) :in (second form)
+                          :collect (list (gensym-named (symbol-name name))
+                                         type)))
+         (context (make-blockify-context
+                   context
+                   (loop
+                      :for (old-name) :in (second form)
+                      :for (new-name) :in renamed-args
+                      :collect (cons old-name new-name))))
+         (body (third form))
+         (lets (blockify context body))
          (ssad-name (first (first (last lets)))))
-    (values `(lambda ,(second form)
-               (let ,lets
+    (values `(lambda ,renamed-args
+               (let* ,lets
                  (truly-the ,(second body) ,ssad-name)))
             nil)))
 
-(defun blockify-funcall-form (expr-ast)
+(defun blockify-funcall-form (context expr-ast)
   (destructuring-bind (ssad-names prior-lets)
       (loop
          :for arg :in (rest expr-ast)
-         :for blocked-arg := (blockify arg)
+         :for blocked-arg := (blockify context arg)
          :for ssad-name := (first (first (last blocked-arg)))
          :collect ssad-name :into names
          :append blocked-arg :into lets
