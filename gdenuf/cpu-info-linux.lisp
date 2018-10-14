@@ -60,62 +60,63 @@
 ;;------------------------------------------------------------
 
 (defun cpu-info ()
-  (let ((caches (cache-sizes))
-        (cpus (lscpu))
-        (cpu-objs
-         (mapcar (lambda (cpu)
-                   (destructuring-bind (id core socket
-                                           (&optional (l1ishare-id :unknown)
-                                                      (l1dshare-id :unknown)
-                                                      (l2share-id :unknown)
-                                                      (l3share-id :unknown)))
-                       cpu
-                     (destructuring-bind (((l1i-size l1i-llen) (l1d-size l1d-llen))
-                                          (l2-size l2-llen)
-                                          (l3-size l3-llen)
-                                          (l4-size l4-llen))
-                         caches
-                       (let* ((l1 (list
-                                   (make-instance
-                                    'cache
-                                    :size l1i-size
-                                    :line-size l1i-llen
-                                    :share-id l1ishare-id)
-                                   (make-instance
-                                    'cache
-                                    :size l1d-size
-                                    :line-size l1d-llen
-                                    :share-id l1dshare-id)))
-                              (l2 (make-instance
-                                   'cache
-                                   :size l2-size
-                                   :line-size l2-llen
-                                   :share-id l2share-id))
-                              (l3 (when (> l3-size 0)
+  (let* ((caches (cache-sizes))
+         (cpus (lscpu))
+         (cpu-objs
+          (mapcar (lambda (cpu)
+                    (destructuring-bind (id core socket
+                                            (&optional (l1ishare-id :unknown)
+                                                       (l1dshare-id :unknown)
+                                                       (l2share-id :unknown)
+                                                       (l3share-id :unknown)))
+                        cpu
+                      (destructuring-bind (((l1i-size l1i-llen) (l1d-size l1d-llen))
+                                           (l2-size l2-llen)
+                                           (l3-size l3-llen)
+                                           (l4-size l4-llen))
+                          caches
+                        (let* ((l1 (list
                                     (make-instance
                                      'cache
-                                     :size l3-size
-                                     :line-size l3-llen
-                                     :share-id l3share-id)))
-                              (l4 (when (> l4-size 0)
+                                     :size l1i-size
+                                     :line-size l1i-llen
+                                     :share-id l1ishare-id)
                                     (make-instance
                                      'cache
-                                     :size l4-size
-                                     :line-size l4-llen
-                                     :share-id :unknown))))
-                         (make-instance
-                          'cpu
-                          :id id
-                          :core core
-                          :socket socket
-                          :caches (remove nil (list l1 l2 l3 l4)))))))
-                 cpus)))
+                                     :size l1d-size
+                                     :line-size l1d-llen
+                                     :share-id l1dshare-id)))
+                               (l2 (make-instance
+                                    'cache
+                                    :size l2-size
+                                    :line-size l2-llen
+                                    :share-id l2share-id))
+                               (l3 (when (> l3-size 0)
+                                     (make-instance
+                                      'cache
+                                      :size l3-size
+                                      :line-size l3-llen
+                                      :share-id l3share-id)))
+                               (l4 (when (> l4-size 0)
+                                     (make-instance
+                                      'cache
+                                      :size l4-size
+                                      :line-size l4-llen
+                                      :share-id :unknown))))
+                          (make-instance
+                           'cpu
+                           :id id
+                           :core core
+                           :socket socket
+                           :caches (remove nil (list l1 l2 l3 l4)))))))
+                  cpus)))
     (make-instance
          'cpu-info
-         :logical-cpu-count (length cpus)
+         :logical-cpu-count (length cpu-objs)
          :physical-cpu-count (length
                               (remove-duplicates
-                               (mapcar (lambda (x) (slot-value x 'core)) cpus)))
+                               (mapcar (lambda (x) (slot-value x 'core))
+                                       cpu-objs)))
          :cpus cpu-objs)))
 
 ;;------------------------------------------------------------

@@ -33,3 +33,9 @@
   (defctype u_int32_t :unsigned-int)
   (defctype u_int64_t :unsigned-long)
   (defctype register_t :long))
+
+#+(or x86 x86-64)
+(progn
+  (defctype pid_t :int32)
+  (defctype uid_t :uint32)
+  (defctype gid_t :uint32))

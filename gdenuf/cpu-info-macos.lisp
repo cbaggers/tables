@@ -14,23 +14,23 @@
 (defcfun ("sysctlbyname" Sysctlbyname) :int
   (name :string)
   (oldp :pointer)
-  (oldlenp (:pointer size-t))
+  (oldlenp (:pointer size_t))
   (newp :pointer)
-  (newlen size-t))
+  (newlen size_t))
 
 (defun get-len (name)
   "nil means not supported"
   (with-foreign-string (cname name)
-    (with-foreign-object (old-len 'size-t)
+    (with-foreign-object (old-len 'size_t)
       (let ((err (sysctlbyname cname (null-pointer) old-len (null-pointer) 0)))
         (when (= err 0)
-          (mem-aref old-len 'size-t))))))
+          (mem-aref old-len 'size_t))))))
 
 (defun sysctl-int64 (name)
   (let ((len (get-len name)))
     (when len
       (with-foreign-string (cname name)
-        (with-foreign-objects ((old-len 'size-t)
+        (with-foreign-objects ((old-len 'size_t)
                                (val :int64))
           (let ((err (sysctlbyname name val old-len (null-pointer) 0)))
             (if (= err 0)
@@ -41,16 +41,16 @@
   (let* ((len (get-len name)))
     (when len
       (with-foreign-string (cname name)
-        (with-foreign-objects ((old-len 'size-t)
+        (with-foreign-objects ((old-len 'size_t)
                                (oldp :uint8 len))
           (let ((err (sysctlbyname name oldp old-len (null-pointer) 0)))
             (if (= err 0)
                 (values (loop
-                           :for i :below (/ (mem-aref old-len 'size-t)
+                           :for i :below (/ (mem-aref old-len 'size_t)
                                             (foreign-type-size type))
                            :collect (mem-aref oldp type i))
                         len
-                        (mem-aref old-len 'size-t))
+                        (mem-aref old-len 'size_t))
                 (error "damn ~a" err))))))))
 
 ;; :cores   hw.physicalcpu_max  :int
