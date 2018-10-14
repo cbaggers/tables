@@ -31,7 +31,7 @@
 
 ;;------------------------------------------------------------
 
-(define-type-system tables)
+(define-type-system tables boolean)
 
 (defmethod get-type-spec ((type-system tables) designator)
   (let ((principle-name (first (alexandria:ensure-list designator))))
@@ -138,7 +138,9 @@
   (let ((res (infer (make-check-context 'tables)
                     `(funcall (lambda ((a ?a))
                                 (let ((b a))
-                                  b))
+                                  (if b
+                                      b
+                                      b)))
                               t))))
     (print res)
     (let* ((context (make-blockify-context nil nil))
@@ -161,6 +163,7 @@
     (list
      (case (first form)
        (lambda (blockify-lambda-form context form))
+       (if (blockify-if-form context form))
        (let (blockify-let-form context form))
        (progn (blockify-progn-form context form))
        (funcall (blockify-funcall-form context form))
@@ -178,6 +181,21 @@
 
 (defun gensym-named (name)
   (gensym (format nil "~a_" name)))
+
+(defun blockify-if-form (context form)
+  (let* ((test (blockify context (second form)))
+         (then (blockify context (third form)))
+         (then-last (first (last then)))
+         (else (blockify context (fourth form)))
+         (else-last (first (last else))))
+    (values `(if ,(first (last test))
+                 (let* ,then
+                   (truly-the ,(second (second then-last))
+                              ,(first then-last)))
+                 (let* ,else
+                   (truly-the ,(second (second else-last))
+                              ,(first else-last))))
+            (butlast test))))
 
 (defun blockify-let-form (context form)
   ;; note this is let, not let*
