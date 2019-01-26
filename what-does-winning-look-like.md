@@ -38,7 +38,7 @@ The user calls the trace function again but with a number to indicate how far to
 The user see the change that needs to be made to untangle the connections.
 
 After fixing the respective queries, the user removes the initial column they were interested in and recompiles.
-The system accepts makes the change.
+The system accepts and makes the change.
 
 # S1
 
@@ -68,7 +68,7 @@ They then call a function to run the query on the table a certain number of time
 The system runs it once without recording which allocates enough memory for the output and then runs the
 query *n* times, calling the user's instrument function as required.
 
-The api contains functions that perform the same task as changing the code, in this case they make as script
+The api contains functions that perform the same task as changing the code, in this case they make a script
 to redefine a table and testing to see how it affects performance.
 
 The data allows the user to improve the performance of the query.

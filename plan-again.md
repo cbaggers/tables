@@ -7,7 +7,7 @@ restrictions to allow processing the data in more cache friendly ways and compil
 where possible.
 
 Tables must allow the user to redefine queries and tables 'live' and provide clear actionable information when
-the change put the system in an invalid state.
+the change would put the system in an invalid state.
 
 ## A note on style & terminology
 
@@ -53,7 +53,7 @@ A `table` is a `versioned-thing`
 
 ## Query
 
-A `query` is a `thing` (internally a function) that reads from one or more `table`s and writes into zero or
+A `query` is a `thing` (internally a function [always?]) that reads from one or more `table`s and writes into zero or
 more `table`s
 
 A `query` is a `versioned-thing`
@@ -66,7 +66,7 @@ A `query-set` is a `versioned-thing`
 
 ## Principle-Component
 
-`table`s, `query`s & `query-set`s are the `principle-component `s of the `system`
+`table`s, `query`s & `query-set`s are the `principle-component`s of the `system`
 
 ## Flags
 
@@ -137,6 +137,7 @@ We will start with something like the basic tagged allocation detailed by NDog
 
 todo
 
+
 ## Redefinition
 
 A `redefinition` is a `request` who's `job`s make a change to a `hub`s `principle-component`s
@@ -195,9 +196,9 @@ Once a `request` has been processed by `upgrade-request` it is passed to `handle
 - assert that a given Tables layout is identical to a cffi struct layout allowing a direct byte copy.
 
 - a `query` can only be bound to one `query-set`. If you need common behavior, factor this out into it's own
-  function.
+  function. Hmm, why?
 
-- originally has though of handling 'frames' in this too, but I want to see if I can avoid that and instead be
+- originally had thought of handling 'frames' in this too, but I want to see if I can avoid that and instead be
   more gpu like. We do work and provide `flag`s. The rest is left to the engine
 
 - 'Query pagesize' lib. Not necessary though. just start with 2mb
