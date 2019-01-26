@@ -7,4 +7,6 @@
   :serial t
   :depends-on (:checkmate)
   :components ((:file "package")
-               (:file "core/lang")))
+               (:file "core/impl")
+               (:file "core/lang")
+               (:file "core/pass-1")))
