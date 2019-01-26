@@ -1,115 +1,7 @@
 (in-package :tables-lang)
 
 ;;------------------------------------------------------------
-;; Acronyms
-;;
-;; ssad - single static assingment'ed -> ssa'd -> ssad
-;;
-;;------------------------------------------------------------
-
-(defvar *registered-user-types* (make-hash-table :test #'eq))
-(defvar *registered-parameter-types* (make-hash-table :test #'eq))
-(defvar *registered-constraints* (make-hash-table :test #'eq))
-(defvar *registered-top-level-functions* (make-hash-table :test #'eq))
-
-;;------------------------------------------------------------
-
-(defun register-type (spec)
-  (let ((name (spec-name spec)))
-    (format t "~%;; Registered type ~a" name)
-    (setf (gethash name *registered-user-types*) spec)))
-
-(defun register-constraint (spec)
-  (let ((name (spec-name spec)))
-    (format t "~%;; Registered constraint ~a" name)
-    (setf (gethash name *registered-constraints*) spec)))
-
-(defun register-parameter-type (spec)
-  (let ((name (spec-name spec)))
-    (format t "~%;; Registered param type ~a" name)
-    (setf (gethash name *registered-parameter-types*) spec)))
-
-(defun register-top-level-function (func-name type)
-  (format t "~%;; Registered function ~a" func-name)
-  (setf (gethash func-name *registered-top-level-functions*)
-        (generalize type)))
-
-;;------------------------------------------------------------
-
-(define-type-system tables)
-
-(defmethod get-type-spec ((type-system tables) designator)
-  (let ((principle-name (first (alexandria:ensure-list designator))))
-    (or (gethash principle-name *registered-user-types*)
-        (error "Could not identify type for designator: ~a"
-               designator))))
-
-(defmethod get-parameter-spec ((type-system tables) name)
-  (or (gethash name *registered-parameter-types*)
-      (error
-       "define-ttype: ~a is not valid designator arg type.~%valid:~a"
-       name (alexandria:hash-table-keys *registered-parameter-types*))))
-
-(defmethod get-constraint-spec ((type-system tables) designator)
-  (let ((principle-name (first (alexandria:ensure-list designator))))
-    (or (gethash principle-name
-                 *registered-constraints*)
-        (error "Could not identify constraint for designator: ~a"
-               designator))))
-
-(defmethod get-top-level-function-type ((type-system tables) name)
-  (or (gethash name *registered-top-level-functions*)
-      (error "Could not function for name: ~a" name)))
-
-;;------------------------------------------------------------
-;; these will be removed, jsut for testing
-
-(defmacro define-ttype (designator
-                        &body rest
-                        &key where custom-spec-data)
-  (declare (ignore rest))
-  (destructuring-bind (name . rest) (uiop:ensure-list designator)
-    (declare (ignore rest))
-    (let ((spec (register-type
-                 (make-ttype-spec (find-type-system 'tables)
-                                  designator
-                                  where
-                                  custom-spec-data))))
-      `(progn
-         (register-type ,spec)
-         ',name))))
-
-(defmacro define-constraint (designator
-                             &body rest
-                             &key where satifies-this-p
-                               custom-spec-data)
-  (declare (ignore rest))
-  (destructuring-bind (name . rest) (uiop:ensure-list designator)
-    (declare (ignore rest))
-    (let ((spec (register-constraint
-                 (make-constraint-spec (find-type-system 'tables)
-                                       designator
-                                       where
-                                       satifies-this-p
-                                       custom-spec-data))))
-      `(progn
-         (register-constraint ,spec)
-         ',name))))
-
-(defmacro define-parameter-type (name
-                                 &body rest
-                                 &key valid-p equal)
-  (declare (ignore rest))
-  (let ((spec (register-parameter-type
-               (make-parameter-spec (find-type-system 'tables)
-                                    name
-                                    valid-p
-                                    equal))))
-    `(progn
-       (register-parameter-type ,spec)
-       ',name)))
-
-;;------------------------------------------------------------
+;; Types
 
 (define-parameter-type integer
   :valid-p integerp
@@ -120,270 +12,101 @@
 (define-ttype (unordered-set type size)
   :where ((size integer)))
 
-(define-ttype integer)
+(define-ttype i8)
+(define-ttype i16)
+(define-ttype i32)
+(define-ttype i64)
+
+(define-ttype u8)
+(define-ttype u16)
+(define-ttype u32)
+(define-ttype u64)
+
+;;------------------------------------------------------------
+;; Infer
+;;
+;; Infer for boolean is handled by checkmate because of defining
+;; the bool type as part of defining the type system
 
 (defmethod infer-literal ((type-system tables) (expression integer))
-  `(truly-the ,(ttype tables integer) ,expression))
+  ;; {TODO} this is wrong as we wont ever be able to get unsigned 8-32
+  ;;        we need to special case 'the' for literals so we dont need
+  ;;        to add casting
+  (let ((ttype
+         (typecase expression
+           ((signed-byte 8) (ttype tables i8))
+           ((signed-byte 16) (ttype tables i16))
+           ((signed-byte 32) (ttype tables i32))
+           ((signed-byte 64) (ttype tables i64))
+           ((unsigned-byte 8) (ttype tables u8))
+           ((unsigned-byte 16) (ttype tables u16))
+           ((unsigned-byte 32) (ttype tables u32))
+           ((unsigned-byte 64) (ttype tables u64)))))
+    `(truly-the ,ttype ,expression)))
 
 ;;------------------------------------------------------------
 
-(defclass blockify-context ()
-  ((parent :initarg :parent)
-   (bindings :initform nil :initarg :bindings)
-   (functions :initform nil :initarg :functions)))
+;; This doesnt work as we only allow one func binding per name
+;;
+;; (defn-host + (i8 i8) i8)
+;; (defn-host + (i16 i16) i16)
+;; (defn-host + (i32 i32) i32)
+;; (defn-host + (i64 i64) i64)
+;; (defn-host + (u8 u8) u8)
+;; (defn-host + (u16 u16) u16)
+;; (defn-host + (u32 u32) u32)
+;; (defn-host + (u64 u64) u64)
 
-(defun make-blockify-context (parent new-bindings new-functions)
-  (let ((res (make-instance
-              'blockify-context
-              :parent parent
-              :bindings (when parent
-                          (slot-value parent 'bindings))
-              :functions (when parent
-                           (slot-value parent 'functions)))))
-    (with-slots (bindings) res
-      (loop
-         :for binding :in new-bindings
-         :do (setf bindings (cons binding bindings))))
-    (with-slots (functions) res
-      (loop
-         :for function :in new-functions
-         :do (setf functions (cons function functions))))
-    res))
+(defun implements-trait-p (trait-name type-ref)
+  (let ((implements
+         (cdr (assoc 'implements
+                     (spec-custom-data type-ref)))))
+    (find trait-name implements)))
 
-(defun test ()
-  (let ((res (infer (make-check-context 'tables)
-                    `(funcall (lambda ((a ?a) (i integer))
-                                (let ((b a))
-                                  (if b
-                                      i
-                                      20)))
-                              t
-                              10))))
-    (print res)
-    (let* ((context (make-blockify-context nil nil nil))
-           (lets (blockify context res))
-           (last (first (last lets))))
-      `(let* ,lets
-         (truly-the ,(second (second last)) ,(first last))))))
+(defmacro define-trait (designator funcs &key where)
+  (destructuring-bind (name . rest) (uiop:ensure-list designator)
+    (declare (ignore rest))
+    (let* ((check-name (intern (format nil "CHECK-~s" name)))
+           (ts (find-type-system 'tables))
+           (spec
+            (register-constraint
+             (make-constraint-spec ts
+                                   designator
+                                   where
+                                   'early-check
+                                   nil))))
+      `(progn
+         (defun ,check-name (this type-ref)
+           (declare (ignore this))
+           (implements-trait-p ',name type-ref))
+         (register-constraint ,spec)
+         ,@(loop
+              :for fspec :in funcs
+              :collect (gen-trait-func ts fspec))
+         ',name))))
 
-(defun blockify (context ast)
-  (assert (eq (first ast) 'truly-the))
-  (multiple-value-bind (ssad-expr prior-lets)
-      (blockify-form context (third ast))
-    (let ((expr-name (gensym)))
-      (append
-       prior-lets
-       `((,expr-name (truly-the ,(second ast) ,ssad-expr)))))))
+(defun gen-trait-func (ts spec)
+  (destructuring-bind (name type-designator &key satifies)
+      spec
+    (assert (eq (first type-designator) 'function))
+    (let ((ftype (checkmate::designator->type ts type-designator)))
+      `())))
 
-(defun blockify-form (context form)
-  (typecase form
-    (list
-     (case (first form)
-       (lambda (blockify-lambda-form context form))
-       (if (blockify-if-form context form))
-       (let (blockify-let-form context form))
-       (progn (blockify-progn-form context form))
-       (funcall (blockify-funcall-form context form))
-       (otherwise (error "not sure what to do with ~s" (first form)))))
-    (symbol
-     (if (or (eq form t) (null form))
-         form
-         (blockify-var-access context form)))
-    (otherwise
-     form)))
+(defmacro define-trait-impl (trait type &body funcs)
+  (declare (ignore trait type funcs)))
 
-(defun blockify-var-access (context symbol)
-  (or (cdr (assoc symbol (slot-value context 'bindings)))
-      (error "bug: ~s" symbol)))
+#+nil
+(progn
+  (define-trait (addable type)
+      ((+ (function (?a ?a) ?a)
+          :satisfies ((addable ?a) ?a)))
+    :where ((type ttype))) ;; could be omitted as ttype is the default
 
-(defun gensym-named (name)
-  (gensym (format nil "~a_" name)))
+  (define-trait-impl (addable i8) i8
+    (+ (:host + i8)))
 
-(defun blockify-if-form (context form)
-  (let* ((test (blockify context (second form)))
-         (then (blockify context (third form)))
-         (then-last (first (last then)))
-         (else (blockify context (fourth form)))
-         (else-last (first (last else))))
-    (values `(if ,(first (last test))
-                 (let* ,then
-                   (truly-the ,(second (second then-last))
-                              ,(first then-last)))
-                 (let* ,else
-                   (truly-the ,(second (second else-last))
-                              ,(first else-last))))
-            (butlast test))))
+  (define-trait-impl (addable i16) i16
+    (+ (:host + i16)))
 
-(defun blockify-let-form (context form)
-  ;; note this is let, not let*
-  (let* ((renamed-args (loop
-                          :for (name val) :in (second form)
-                          :collect (list (gensym-named (symbol-name name))
-                                         val)))
-         (decls (loop
-                   :for (name val) :in renamed-args
-
-                   :for blocked := (blockify context val)
-                   :for last := (first (last blocked))
-                   :for ssad-name := (first last)
-                   :append blocked
-                   :collect (list name `(truly-the ,(second (second last))
-                                                   ,ssad-name))))
-         (context (make-blockify-context
-                   context
-                   (loop
-                      :for (old-name) :in (second form)
-                      :for (new-name) :in renamed-args
-                      :collect (cons old-name new-name))
-                   nil))
-         (body (third form))
-         (lets (blockify context body))
-         (ssad-name (first (first (last lets)))))
-    (values ssad-name
-            (append decls lets))))
-
-(defun blockify-progn-form (context form)
-  (let* ((lets (loop :for x :in (rest form)
-                  :append (blockify context x)))
-         (last (first lets)))
-    (values (first last)
-            lets)))
-
-(defun blockify-lambda-form (context form)
-  (let* ((renamed-args (loop
-                          :for (name type) :in (second form)
-                          :collect (list (gensym-named (symbol-name name))
-                                         type)))
-         (context (make-blockify-context
-                   context
-                   (loop
-                      :for (old-name) :in (second form)
-                      :for (new-name) :in renamed-args
-                      :collect (cons old-name new-name))
-                   nil))
-         (body (third form))
-         (lets (blockify context body))
-         (ssad-name (first (first (last lets)))))
-    (values `(lambda ,renamed-args
-               (let* ,lets
-                 (truly-the ,(second body) ,ssad-name)))
-            nil)))
-
-(defun blockify-funcall-form (context expr-ast)
-  (destructuring-bind (ssad-names prior-lets)
-      (loop
-         :for arg :in (rest expr-ast)
-         :for blocked-arg := (blockify context arg)
-         :for ssad-name := (first (first (last blocked-arg)))
-         :collect ssad-name :into names
-         :append blocked-arg :into lets
-         :finally (return (list names lets)))
-    (values
-     (cons (first expr-ast) ssad-names)
-     prior-lets)))
-
-;; (let* ((#:g1172
-;;         (truly-the #t(function (boolean) boolean)
-;;                    (lambda ((#:a_1162 #tboolean))
-;;                      (let* ((#:g1164 (truly-the #tboolean #:a_1162))
-;;                             (#:b_1163 #:g1164)
-;;                             (#:g1168
-;;                              (truly-the #tboolean
-;;                                         (if (#:g1165 (truly-the #tboolean #:b_1163))
-;;                                             (let* ((#:g1166 (truly-the #tboolean #:b_1163)))
-;;                                               (truly-the #tboolean #:g1166))
-;;                                             (let* ((#:g1167 (truly-the #tboolean #:b_1163)))
-;;                                               (truly-the #tboolean #:g1167)))))
-;;                             (#:g1169 (truly-the #tboolean #:g1168))
-;;                             (#:g1170 (truly-the #tboolean #:g1169))
-;;                             (#:g1171 (truly-the #tboolean #:g1164)))
-;;                        (truly-the #tboolean #:g1171)))))
-;;        (#:g1173 (truly-the #tboolean t))
-;;        (#:g1174 (truly-the #tboolean (funcall #:g1172 #:g1173))))
-;;   (truly-the #tboolean #:g1174))
-
-;; (let* ((#:g1173 (truly-the #tboolean t))
-;;        (#:a_1162 #:g1173)
-;;        (#:g1164 (truly-the #tboolean #:a_1162))
-;;        (#:b_1163 #:g1164)
-;;        (#:g1168
-;;         (truly-the #tboolean
-;;                    (if (#:g1165 (truly-the #tboolean #:b_1163))
-;;                        (let* ((#:g1166 (truly-the #tboolean #:b_1163)))
-;;                          (truly-the #tboolean #:g1166))
-;;                        (let* ((#:g1167 (truly-the #tboolean #:b_1163)))
-;;                          (truly-the #tboolean #:g1167)))))
-;;        (#:g1169 (truly-the #tboolean #:g1168))
-;;        (#:g1170 (truly-the #tboolean #:g1169))
-;;        (#:g1171 (truly-the #tboolean #:g1164))
-;;        (#:g1174 (truly-the #tboolean #:g1171)))
-;;   (truly-the #tboolean #:g1174))
-
-;; (labels ((a ()
-;;            (let* ((#:g1173 (truly-the #tboolean t))
-;;                   (#:a_1162 #:g1173)
-;;                   (#:g1164 (truly-the #tboolean #:a_1162))
-;;                   (#:b_1163 #:g1164))
-;;              (if (truly-the #tboolean #:b_1163)
-;;                  (b #:b_1163)
-;;                  (c #:b_1163))))
-;;          (b ((#:g1166 #tboolean))
-;;            (d (truly-the #tboolean #:g1166)))
-;;          (c ((#:g1167 #tboolean))
-;;            (d (truly-the #tboolean #:g1167)))
-;;          (d (#:g1168 #tboolean)
-;;            (let* ((#:g1169 (truly-the #tboolean #:g1168))
-;;                   (#:g1170 (truly-the #tboolean #:g1169))
-;;                   (#:g1171 (truly-the #tboolean #:g1164))
-;;                   (#:g1174 (truly-the #tboolean #:g1171)))
-;;              (truly-the #tboolean #:g1174))))
-;;   (a))
-
-;; (labels ((a ()
-;;            (let* ((#:b_1163 (truly-the #tboolean t)))
-;;              (if #:b_1163
-;;                  (b #:b_1163)
-;;                  (c #:b_1163))))
-;;          (b ((#:g1166 #tboolean))
-;;            (d (truly-the #tboolean #:g1166)))
-;;          (c ((#:g1167 #tboolean))
-;;            (d (truly-the #tboolean #:g1167)))
-;;          (d (#:g1168 #tboolean)
-;;            (let* ((#:g1174 :g1168))
-;;              (truly-the #tboolean #:g1174))))
-;;   (a))
-
-;; (labels ((a ()
-;;            (if (truly-the #tboolean t)
-;;                (b (truly-the #tboolean t))
-;;                (c (truly-the #tboolean t))))
-;;          (b ((#:g1166 #tboolean))
-;;            (d (truly-the #tboolean #:g1166)))
-;;          (c ((#:g1167 #tboolean))
-;;            (d (truly-the #tboolean #:g1167)))
-;;          (d (#:g1168 #tboolean)
-;;            (truly-the #tboolean #:g1168)))
-;;   (a))
-
-;; (labels ((a ()
-;;            (b (truly-the #tboolean t)))
-;;          (b ((#:g1166 #tboolean))
-;;            (d (truly-the #tboolean #:g1166)))
-;;          (c ((#:g1167 #tboolean))
-;;            (d (truly-the #tboolean #:g1167)))
-;;          (d (#:g1168 #tboolean)
-;;            (truly-the #tboolean #:g1168)))
-;;   (a))
-
-;; (labels ((b ((#:g1166 #tboolean))
-;;            (d (truly-the #tboolean #:g1166)))
-;;          (d (#:g1168 #tboolean)
-;;            (truly-the #tboolean #:g1168)))
-;;   (b (truly-the #tboolean t)))
-
-;; (labels ((d (#:g1168 #tboolean)
-;;            (truly-the #tboolean #:g1168)))
-;;   (d (truly-the #tboolean t)))
-
-;; (labels ()
-;;   (truly-the #tboolean t))
+  (define-trait-impl (addable i32) i32
+    (+ (:host + i32))))
