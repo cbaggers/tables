@@ -1,5 +1,10 @@
 (in-package :tables-lang)
 
+(defun last1 (list) (car (last list)))
+
+(defun gensym-named (name)
+  (gensym (format nil "~a_" name)))
+
 ;;------------------------------------------------------------
 ;; Acronyms
 ;;
@@ -32,28 +37,72 @@
 
 (defun test ()
   (let ((res (infer (make-check-context 'tables)
-                    `(funcall (lambda ((a ?a) (i integer))
+                    `(funcall (lambda ((a ?a) (i i8))
                                 (let ((b a))
                                   (if b
                                       i
                                       20)))
                               t
                               10))))
-    (print res)
+    ;;(print res)
     (let* ((context (make-blockify-context nil nil nil))
-           (lets (blockify context res))
-           (last (first (last lets))))
-      `(let* ,lets
-         (truly-the ,(second (second last)) ,(first last))))))
+           (lets (blockify context res)))
+      (with-slots (type name) (last1 lets)
+        (make-instance 'ssad-let1
+                       :bindings lets
+                       :body-form name
+                       :type type)))))
+
+
+(defclass ssad-let1 ()
+  ((bindings :initarg :bindings :initform nil)
+   (body-form :initarg :body-form :initform nil)
+   (type :initarg :type)))
+
+(defclass ssad-binding ()
+  ((name :initarg :name)
+   (form :initarg :form)
+   (type :initarg :type)))
+
+(defclass ssad-lambda ()
+  ((args :initarg :args)
+   (body-form :initarg :body-form)
+   (result-type :initarg :result-type)))
+
+(defclass ssad-if ()
+  ((test :initarg :test)
+   (then :initarg :then)
+   (else :initarg :else)))
+
+(defclass ssad-funcall ()
+  ((func :initarg :func)
+   (args :initarg :args)))
 
 (defun blockify (context ast)
   (assert (eq (first ast) 'truly-the))
-  (multiple-value-bind (ssad-expr prior-lets)
-      (blockify-form context (third ast))
-    (let ((expr-name (gensym)))
-      (append
-       prior-lets
-       `((,expr-name (truly-the ,(second ast) ,ssad-expr)))))))
+  (let* ((form (third ast))
+         (blockified (blockify-form context form)))
+    (typecase blockified
+      ((or ssad-lambda ssad-if ssad-funcall)
+       (list (make-instance 'ssad-binding
+                            :name (gensym)
+                            :form blockified
+                            :type (second ast))))
+      (ssad-let1
+       (with-slots (bindings body-form) blockified
+           (append
+            bindings
+            (list (make-instance 'ssad-binding
+                                 :name (gensym)
+                                 :form body-form
+                                 :type (second ast))))))
+      (ssad-binding
+       (error "naked binding in blockify"))
+      (t
+       (list (make-instance 'ssad-binding
+                            :name (gensym)
+                            :form form
+                            :type (second ast)))))))
 
 (defun blockify-form (context form)
   (typecase form
@@ -67,32 +116,42 @@
        (otherwise (error "not sure what to do with ~s" (first form)))))
     (symbol
      (if (or (eq form t) (null form))
-         form
+         (make-instance 'ssad-let1
+                        :body-form form
+                        :type 'boolean)
          (blockify-var-access context form)))
     (otherwise
      form)))
 
 (defun blockify-var-access (context symbol)
-  (or (cdr (assoc symbol (slot-value context 'bindings)))
+  (or (make-instance
+       'ssad-let1
+       :body-form (cdr (assoc symbol (slot-value context 'bindings))))
       (error "bug: ~s" symbol)))
-
-(defun gensym-named (name)
-  (gensym (format nil "~a_" name)))
 
 (defun blockify-if-form (context form)
   (let* ((test (blockify context (second form)))
+         (test-last (last1 test))
          (then (blockify context (third form)))
-         (then-last (first (last then)))
-         (else (blockify context (fourth form)))
-         (else-last (first (last else))))
-    (values `(if ,(first (last test))
-                 (let* ,then
-                   (truly-the ,(second (second then-last))
-                              ,(first then-last)))
-                 (let* ,else
-                   (truly-the ,(second (second else-last))
-                              ,(first else-last))))
-            (butlast test))))
+         (else (blockify context (fourth form))))
+    (make-instance
+     'ssad-let1
+     :bindings test
+     :body-form (make-instance
+                 'ssad-if
+                 :test (slot-value test-last 'name)
+                 :then (with-slots (name type) (last1 then)
+                         (make-instance
+                          'ssad-let1
+                          :bindings then
+                          :body-form name
+                          :type type))
+                 :else (with-slots (name type) (last1 else)
+                         (make-instance
+                          'ssad-let1
+                          :bindings else
+                          :body-form name
+                          :type type))))))
 
 (defun blockify-let-form (context form)
   ;; note: this function is for let, not let*
@@ -102,13 +161,14 @@
                                          val)))
          (decls (loop
                    :for (name val) :in renamed-args
-
-                   :for blocked := (blockify context val)
-                   :for last := (first (last blocked))
-                   :for ssad-name := (first last)
-                   :append blocked
-                   :collect (list name `(truly-the ,(second (second last))
-                                                   ,ssad-name))))
+                   :for bindings := (blockify context val)
+                   :append bindings
+                   :collect (with-slots ((lname name) (ltype type))
+                                (last1 bindings)
+                              (make-instance 'ssad-binding
+                                             :name name
+                                             :form lname
+                                             :type ltype))))
          (context (make-blockify-context
                    context
                    (loop
@@ -117,17 +177,21 @@
                       :collect (cons old-name new-name))
                    nil))
          (body (third form))
-         (lets (blockify context body))
-         (ssad-name (first (first (last lets)))))
-    (values ssad-name
-            (append decls lets))))
+         (bindings (blockify context body)))
+    (with-slots (name type) (last1 bindings)
+      (make-instance 'ssad-let1
+                     :bindings (append decls bindings)
+                     :body-form name
+                     :type type))))
 
 (defun blockify-progn-form (context form)
-  (let* ((lets (loop :for x :in (rest form)
-                  :append (blockify context x)))
-         (last (first lets)))
-    (values (first last)
-            lets)))
+  (let* ((bindings (loop :for x :in (rest form)
+                      :append (blockify context x))))
+    (with-slots (name type) (last1 bindings)
+      (make-instance 'ssad-let1
+                     :bindings bindings
+                     :body-form name
+                     :type type))))
 
 (defun blockify-lambda-form (context form)
   (let* ((renamed-args (loop
@@ -142,25 +206,35 @@
                       :collect (cons old-name new-name))
                    nil))
          (body (third form))
-         (lets (blockify context body))
-         (ssad-name (first (first (last lets)))))
-    (values `(lambda ,renamed-args
-               (let* ,lets
-                 (truly-the ,(second body) ,ssad-name)))
-            nil)))
+         (bindings (blockify context body))
+         (ssad-name (slot-value (last1 bindings) 'name)))
+    (make-instance
+     'ssad-lambda
+     :args renamed-args
+     :body-form (if bindings
+                    (make-instance 'ssad-let1
+                                   :bindings bindings
+                                   :body-form ssad-name
+                                   :type (second body))
+                    ssad-name)
+     :result-type (second body))))
 
 (defun blockify-funcall-form (context expr-ast)
+  (assert (eq (first expr-ast) 'funcall))
   (destructuring-bind (ssad-names prior-lets)
       (loop
          :for arg :in (rest expr-ast)
          :for blocked-arg := (blockify context arg)
-         :for ssad-name := (first (first (last blocked-arg)))
+         :for ssad-name := (slot-value (last1 blocked-arg) 'name)
          :collect ssad-name :into names
-         :append blocked-arg :into lets
-         :finally (return (list names lets)))
-    (values
-     (cons (first expr-ast) ssad-names)
-     prior-lets)))
+         :append blocked-arg :into bindings
+         :finally (return (list names bindings)))
+    (make-instance 'ssad-let1
+                   :bindings prior-lets
+                   :body-form (make-instance 'ssad-funcall
+                                             :func (first ssad-names)
+                                             :args (rest ssad-names)))))
+
 
 ;; (let* ((#:g1172
 ;;         (truly-the #t(function (boolean) boolean)
