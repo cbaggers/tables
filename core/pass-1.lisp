@@ -59,8 +59,6 @@
   ((func :initarg :func)
    (args :initarg :args)))
 
-(defvar *ssad-indent* 0)
-
 (defgeneric as-debug-form (o)
   (:method (o) o))
 
@@ -87,9 +85,8 @@
 
 (defmethod as-debug-form ((o ssad-funcall))
   (with-slots (func args) o
-    (list 'ssad-funcall
-          (as-debug-form func)
-          (mapcar #'as-debug-form args))))
+    `(ssad-funcall ,(as-debug-form func)
+                   ,@(mapcar #'as-debug-form args))))
 
 (defmethod print-object ((o ssad-let1) stream)
   (format stream "#~a" (as-debug-form o)))

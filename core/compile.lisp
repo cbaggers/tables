@@ -1,6 +1,6 @@
 (in-package :tables-lang)
 
-(defun test ()
+(defun test-pass-1 ()
   (let ((res (infer (make-check-context 'tables)
                     `(funcall (lambda ((a ?a) (i i8))
                                 (let ((b a))
@@ -17,3 +17,9 @@
                        :bindings lets
                        :body-form name
                        :type type)))))
+
+(defun test-pass-2 ()
+  (pass-2 (test-pass-1)))
+
+(defun test ()
+  (test-pass-2))
