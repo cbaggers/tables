@@ -9,9 +9,6 @@
 (defun pass-2 (ssad-let)
   (cfold ssad-let nil))
 
-(defun assocr (item alist)
-  (cdr (assoc item alist)))
-
 (defmethod cfold ((o ssad-let1) to-replace)
   ;;
   (labels ((fold (accum binding)

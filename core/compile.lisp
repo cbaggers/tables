@@ -2,13 +2,19 @@
 
 (defun test-pass-1 ()
   (let ((res (infer (make-check-context 'tables)
-                    `(funcall (lambda ((a ?a) (i i8))
-                                (let ((b a))
-                                  (if b
-                                      i
-                                      20)))
+                    `(funcall (let ((f (lambda ((a ?a) (i i8))
+                                         (let ((b a))
+                                           (if b
+                                               i
+                                               20))))
+                                    (g (lambda ((a ?a) (i i8))
+                                         10)))
+                                (if t
+                                    f
+                                    g))
                               t
-                              10))))
+                              (let ((x 20))
+                                20)))))
     ;;(print res)
     (let* ((context (make-blockify-context nil nil nil))
            (lets (blockify context res)))
