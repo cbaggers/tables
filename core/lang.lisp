@@ -72,7 +72,7 @@
 (defmacro define-trait (designator funcs &key where)
   (destructuring-bind (name . rest) (uiop:ensure-list designator)
     (declare (ignore rest))
-    (let* ((check-name (intern (format nil "CHECK-~s" name)))
+    (let* ((checker-name (intern (format nil "CHECK-~s" name)))
            (ts (find-type-system 'tables))
            (spec
             (register-constraint
@@ -82,7 +82,7 @@
                                    'early-check
                                    nil))))
       `(progn
-         (defun ,check-name (this type-ref)
+         (defun ,checker-name (this type-ref)
            (declare (ignore this))
            (implements-trait-p ',name type-ref))
          (register-constraint ,spec)
@@ -92,7 +92,7 @@
          ',name))))
 
 (defun gen-trait-func (ts spec)
-  (destructuring-bind (name type-designator &key satifies)
+  (destructuring-bind (name type-designator &key satisfies)
       spec
     (assert (eq (first type-designator) 'function))
     (let ((ftype (checkmate::designator->type ts type-designator)))
