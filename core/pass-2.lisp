@@ -1,4 +1,4 @@
-(in-package :tables-lang)
+(in-package :tables.compile.stage-0.early-constant-folding)
 
 ;; early local constant folding
 ;;
@@ -8,7 +8,7 @@
 ;;
 ;; As a side effect it removes unused constant bindings
 
-(defun pass-2 (ssad-let)
+(defun run-pass (ssad-let)
   (cfold ssad-let nil))
 
 (defmethod cfold ((o ssad-let1) to-replace)

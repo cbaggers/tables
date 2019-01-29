@@ -1,8 +1,8 @@
-(in-package :tables-lang)
+(in-package :tables.compile.stage-0.inline-direct-calls)
 
 ;; directly called function inlining
 
-(defun pass-3 (ssad-let)
+(defun run-pass (ssad-let)
   (inline-funcs ssad-let nil))
 
 (defmethod inline-funcs ((o ssad-let1) func-bindings)

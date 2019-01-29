@@ -1,7 +1,7 @@
-(in-package :tables-lang)
+(in-package :tables.compile)
 
 (defun test-pass-1 ()
-  (let ((res (infer (make-check-context 'tables)
+  (let ((ast (infer (make-check-context 'tables)
                     `(funcall (let ((f (lambda ((a ?a) (i i8))
                                          (let ((b a))
                                            (if b
@@ -16,23 +16,18 @@
                               t
                               (let ((x 20))
                                 20)))))
-    ;;(print res)
-    (let* ((context (make-blockify-context nil nil nil))
-           (lets (blockify context res)))
-      (with-slots (type name) (last1 lets)
-        (make-instance 'ssad-let1
-                       :bindings lets
-                       :body-form name
-                       :type type)))))
+    (tables.compile.stage-0.ast-to-ir:run-pass ast)))
 
 (defun test-pass-2 ()
-  (pass-2 (test-pass-1)))
+  (tables.compile.stage-0.early-constant-folding:run-pass
+   (tables.compile.stage-0.dead-binding-removal:run-pass
+    (test-pass-1))))
 
 (defun test-pass-3 ()
-  (pass-3 (test-pass-2)))
-
-(defun test-pass-4 ()
-  (pass-4 (pass-2 (test-pass-3))))
+  (tables.compile.stage-0.inline-direct-calls:run-pass
+   (tables.compile.stage-0.dead-binding-removal:run-pass
+    (test-pass-2))))
 
 (defun test ()
-  (test-pass-4))
+  (tables.compile.stage-0.dead-binding-removal:run-pass
+   (test-pass-3)))

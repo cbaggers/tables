@@ -1,4 +1,4 @@
-(in-package :tables-lang)
+(in-package :tables.lang)
 
 ;;------------------------------------------------------------
 ;; Types

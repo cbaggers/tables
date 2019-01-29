@@ -1,8 +1,8 @@
-(in-package :tables-lang)
+(in-package :tables.compile.stage-0.dead-binding-removal)
 
 ;;------------------------------------------------------------
 
-(defun pass-4 (ssad-let)
+(defun run-pass (ssad-let)
   (let* ((live-set (make-hash-table)))
     (find-live ssad-let live-set)
     (remove-dead ssad-let live-set)))
