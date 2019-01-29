@@ -9,6 +9,7 @@
                                                20))))
                                     (g (lambda ((a ?a) (i i8))
                                          10)))
+                                (funcall g nil 123)
                                 (if t
                                     f
                                     g))
@@ -27,5 +28,11 @@
 (defun test-pass-2 ()
   (pass-2 (test-pass-1)))
 
+(defun test-pass-3 ()
+  (pass-3 (test-pass-2)))
+
+(defun test-pass-4 ()
+  (pass-4 (pass-2 (test-pass-3))))
+
 (defun test ()
-  (test-pass-2))
+  (test-pass-4))

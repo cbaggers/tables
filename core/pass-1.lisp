@@ -131,6 +131,12 @@
 
 (defun blockify-form (context form)
   (typecase form
+    (symbol
+     (if (or (eq form t) (null form))
+         (make-instance 'ssad-let1
+                        :body-form form
+                        :type 'boolean)
+         (blockify-var-access context form)))
     (list
      (case (first form)
        (lambda (blockify-lambda-form context form))
@@ -139,12 +145,6 @@
        (progn (blockify-progn-form context form))
        (funcall (blockify-funcall-form context form))
        (otherwise (error "not sure what to do with ~s" (first form)))))
-    (symbol
-     (if (or (eq form t) (null form))
-         (make-instance 'ssad-let1
-                        :body-form form
-                        :type 'boolean)
-         (blockify-var-access context form)))
     (otherwise
      form)))
 

@@ -5,6 +5,8 @@
 ;; This pass is dirt simple as it's only goal is to remove some
 ;; cruft from the previous pass. It's main advantage is to us as
 ;; the reader as it makes the ssa'd code easier to read.
+;;
+;; As a side effect it removes unused constant bindings
 
 (defun pass-2 (ssad-let)
   (cfold ssad-let nil))

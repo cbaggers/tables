@@ -12,5 +12,7 @@
                (:file "core/lang")
                (:file "core/pass-1")
                (:file "core/pass-2")
-               ;;(:file "core/pass-3")
+               (:file "core/pass-3")
+               (:file "core/pass-4")
+               (:file "core/compile")
                ))

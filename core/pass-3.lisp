@@ -13,9 +13,23 @@
                  (if (typep form 'ssad-lambda)
                      (list (acons name form func-bindings)
                            (cons binding new-bindings))
-                     (list func-bindings
-                           (cons (inline-funcs binding func-bindings)
-                                 new-bindings)))))))
+                     (with-slots ((bname name) (bform form) (btype type))
+                         binding
+                       (let* ((expanded (inline-funcs form func-bindings))
+                              (is-let (typep expanded 'ssad-let1))
+                              (ebindings (when is-let
+                                           (reverse
+                                            (slot-value expanded 'bindings))))
+                              (eform (if is-let
+                                         (slot-value expanded 'body-form)
+                                         expanded)))
+                         (list func-bindings
+                               (cons (make-instance 'ssad-binding
+                                                    :name bname
+                                                    :form eform
+                                                    :type btype)
+                                     (append ebindings
+                                             new-bindings))))))))))
     (with-slots (bindings body-form type) o
       (destructuring-bind (to-inline new-bindings-reversed)
           (reduce #'inline bindings :initial-value (list func-bindings nil))
@@ -23,6 +37,56 @@
                        :bindings (reverse new-bindings-reversed)
                        :body-form (inline-funcs body-form to-inline)
                        :type type)))))
+
+(defmethod inline-funcs ((o ssad-lambda) func-bindings)
+  (with-slots (args body-form result-type) o
+    (make-instance 'ssad-lambda
+                   :args args
+                   :body-form (inline-funcs body-form func-bindings)
+                   :result-type result-type)))
+
+(defmethod inline-funcs ((o ssad-if) func-bindings)
+  (with-slots (test then else) o
+    (make-instance 'ssad-if
+                   :test (inline-funcs test func-bindings)
+                   :then (inline-funcs then func-bindings)
+                   :else (inline-funcs else func-bindings))))
+
+(defmethod inline-funcs ((o ssad-funcall) func-bindings)
+  (with-slots (func args) o
+    (assert (symbolp func))
+    (let ((match (assocr func func-bindings)))
+      (if match
+          (with-slots ((largs args) (lbody body-form) (ltype result-type))
+              match
+            (let* ((f-is-let (typep lbody 'ssad-let1))
+                   (fbindings (when f-is-let (slot-value lbody 'bindings)))
+                   (fbody (if f-is-let
+                              (slot-value lbody 'body-form)
+                              lbody)))
+              (inline-funcs
+               (make-instance
+                'ssad-let1
+                :bindings (append (mapcar (lambda (arg form)
+                                            (let ((arg-name (first arg)))
+                                              (make-instance 'ssad-binding
+                                                             :name arg-name
+                                                             :form form
+                                                             :type '???)))
+                                          largs
+                                          args)
+                                  fbindings)
+                :body-form fbody
+                :type ltype)
+               func-bindings)))
+          o))))
+
+(defmethod inline-funcs ((o symbol) func-bindings)
+  o)
+
+(defmethod inline-funcs ((o number) func-bindings)
+  o)
+
 
 #||
 
