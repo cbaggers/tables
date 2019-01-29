@@ -22,6 +22,12 @@
 (define-ttype u32)
 (define-ttype u64)
 
+(define-ttype (or type-a type-b))
+
+;; {TODO} add 'or designator' arg to define-type-system. If set
+;;        the 'if' will return an 'or' type in the case that
+;;        the branch types dont unify
+
 ;;------------------------------------------------------------
 ;; Infer
 ;;
