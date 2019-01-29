@@ -67,6 +67,10 @@
     (:use #:cl #:checkmate #:tables.utils #:tables.compile.stage-0)
   (:export :run-pass))
 
+(uiop:define-package #:tables.compile.stage-0.dead-if-branch-removal
+    (:use #:cl #:checkmate #:tables.utils #:tables.compile.stage-0)
+  (:export :run-pass))
+
 (uiop:define-package #:tables
     (:use)
   (:import-from :tables.lang))
