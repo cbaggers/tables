@@ -29,43 +29,45 @@
   (let* ((context (make-blockify-context nil nil nil))
          (lets (blockify context ast)))
     (with-slots (type name) (last1 lets)
-      (make-instance 'ssad-let1
-                     :bindings lets
-                     :body-form name
-                     :type type))))
+      (tables.compile.stage-0.vars-to-bindings:run-pass
+       (make-instance 'ssad-let1
+                      :bindings lets
+                      :body-form name
+                      :type type)))))
 
 (defun blockify (context ast)
   (assert (eq (first ast) 'truly-the))
-  (let* ((form (third ast))
-         (blockified (blockify-form context form)))
+  (let* ((type (second ast))
+         (form (third ast))
+         (blockified (blockify-form context form type)))
     (typecase blockified
       ((or ssad-lambda ssad-if ssad-funcall)
        (list (make-instance 'ssad-binding
                             :name (gensym)
                             :form blockified
-                            :type (second ast))))
+                            :type type)))
       (ssad-let1
        (with-slots (bindings body-form) blockified
-           (append
-            bindings
-            (list (make-instance 'ssad-binding
-                                 :name (gensym)
-                                 :form body-form
-                                 :type (second ast))))))
+         (append
+          bindings
+          (list (make-instance 'ssad-binding
+                               :name (gensym)
+                               :form body-form
+                               :type type)))))
       (ssad-binding
        (error "naked binding in blockify"))
-      (t
+      (ssad-constant
        (list (make-instance 'ssad-binding
                             :name (gensym)
-                            :form form
-                            :type (second ast)))))))
+                            :form blockified
+                            :type type))))))
 
-(defun blockify-form (context form)
+(defun blockify-form (context form type)
   (typecase form
     (symbol
      (if (or (eq form t) (null form))
-         (make-instance 'ssad-let1
-                        :body-form form
+         (make-instance 'ssad-constant
+                        :form form
                         :type 'boolean)
          (blockify-var-access context form)))
     (list
@@ -77,7 +79,9 @@
        (funcall (blockify-funcall-form context form))
        (otherwise (error "not sure what to do with ~s" (first form)))))
     (otherwise
-     form)))
+     (make-instance 'ssad-constant
+                    :form form
+                    :type type))))
 
 (defun blockify-var-access (context symbol)
   (or (make-instance
@@ -188,3 +192,5 @@
                    :body-form (make-instance 'ssad-funcall
                                              :func (first ssad-names)
                                              :args (rest ssad-names)))))
+
+;;------------------------------------------------------------

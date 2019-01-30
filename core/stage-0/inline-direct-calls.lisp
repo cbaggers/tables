@@ -1,91 +1,76 @@
 (in-package :tables.compile.stage-0.inline-direct-calls)
 
 ;; directly called function inlining
+;;
+;; WARNING: Pass mutates graph
+;;
 
 (defun run-pass (ssad-let)
-  (inline-funcs ssad-let nil))
+  (inline-funcs ssad-let))
 
-(defmethod inline-funcs ((o ssad-let1) func-bindings)
-  ;;
-  (labels ((inline (accum binding)
-             (with-slots (name form) binding
-               (destructuring-bind (func-bindings new-bindings) accum
-                 (if (typep form 'ssad-lambda)
-                     (list (acons name form func-bindings)
-                           (cons binding new-bindings))
-                     (with-slots ((bname name) (bform form) (btype type))
-                         binding
-                       (let* ((expanded (inline-funcs form func-bindings))
-                              (is-let (typep expanded 'ssad-let1))
-                              (ebindings (when is-let
-                                           (reverse
-                                            (slot-value expanded 'bindings))))
-                              (eform (if is-let
-                                         (slot-value expanded 'body-form)
-                                         expanded)))
-                         (list func-bindings
-                               (cons (make-instance 'ssad-binding
-                                                    :name bname
-                                                    :form eform
-                                                    :type btype)
-                                     (append ebindings
-                                             new-bindings))))))))))
-    (with-slots (bindings body-form type) o
-      (destructuring-bind (to-inline new-bindings-reversed)
-          (reduce #'inline bindings :initial-value (list func-bindings nil))
-        (make-instance 'ssad-let1
-                       :bindings (reverse new-bindings-reversed)
-                       :body-form (inline-funcs body-form to-inline)
-                       :type type)))))
+(defmethod inline-funcs ((o ssad-let1))
+  (with-slots (bindings body-form type) o
+    (setf bindings
+          (loop
+             :for binding :in bindings
+             :for old-form := (slot-value binding 'form)
+             :for new-form := (inline-funcs old-form)
+             :do (setf (slot-value binding 'form) new-form)
+             :if (typep old-form 'ssad-let1)
+             :append (progn
+                       (setf (slot-value binding 'form)
+                             (slot-value new-form 'body-form))
+                       (append (slot-value new-form 'bindings)
+                               (list binding)))
+             :else
+             :collect binding))
+    (setf body-form (inline-funcs body-form))
+    o))
 
-(defmethod inline-funcs ((o ssad-lambda) func-bindings)
-  (with-slots (args body-form result-type) o
-    (make-instance 'ssad-lambda
-                   :args args
-                   :body-form (inline-funcs body-form func-bindings)
-                   :result-type result-type)))
-
-(defmethod inline-funcs ((o ssad-if) func-bindings)
-  (with-slots (test then else) o
-    (make-instance 'ssad-if
-                   :test (inline-funcs test func-bindings)
-                   :then (inline-funcs then func-bindings)
-                   :else (inline-funcs else func-bindings))))
-
-(defmethod inline-funcs ((o ssad-funcall) func-bindings)
+(defmethod inline-funcs ((o ssad-funcall))
   (with-slots (func args) o
-    (assert (symbolp func))
-    (let ((match (assocr func func-bindings)))
-      (if match
-          (with-slots ((largs args) (lbody body-form) (ltype result-type))
-              match
+    (assert (typep func 'ssad-var))
+    (let ((form (slot-value (slot-value func 'binding) 'form)))
+      (if (typep form 'ssad-lambda)
+          (with-slots ((largs args) (lbody body-form) (ltype result-type)) form
             (let* ((f-is-let (typep lbody 'ssad-let1))
                    (fbindings (when f-is-let (slot-value lbody 'bindings)))
                    (fbody (if f-is-let
                               (slot-value lbody 'body-form)
                               lbody)))
               (inline-funcs
-               (make-instance
-                'ssad-let1
-                :bindings (append (mapcar (lambda (arg form)
-                                            (let ((arg-name (first arg)))
-                                              (make-instance 'ssad-binding
-                                                             :name arg-name
-                                                             :form form
-                                                             :type '???)))
-                                          largs
-                                          args)
-                                  fbindings)
-                :body-form fbody
-                :type ltype)
-               func-bindings)))
+               (tables.compile.stage-0.vars-to-bindings:run-pass
+                (make-instance
+                 'ssad-let1
+                 :bindings (append (mapcar (lambda (arg form)
+                                             (let ((arg-name (first arg))
+                                                   (arg-type (second arg)))
+                                               (make-instance 'ssad-binding
+                                                              :name arg-name
+                                                              :form form
+                                                              :type arg-type)))
+                                           largs
+                                           args)
+                                   fbindings)
+                 :body-form fbody
+                 :type ltype)))))
           o))))
 
-(defmethod inline-funcs ((o symbol) func-bindings)
-  o)
+(defmethod inline-funcs ((o ssad-lambda))
+  (with-slots (body-form) o
+    (setf body-form (inline-funcs body-form))
+    o))
 
-(defmethod inline-funcs ((o number) func-bindings)
-  o)
+(defmethod inline-funcs ((o ssad-if))
+  (with-slots (test then else) o
+    (setf test (inline-funcs test))
+    (setf then (inline-funcs then))
+    (setf else (inline-funcs else))
+    o))
+
+(defmethod inline-funcs ((o ssad-var)) o)
+(defmethod inline-funcs ((o symbol)) o)
+(defmethod inline-funcs ((o ssad-constant)) o)
 
 
 #||

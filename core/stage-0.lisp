@@ -15,6 +15,9 @@
    (form :initarg :form)
    (type :initarg :type)))
 
+(defclass ssad-var ()
+  ((binding :initarg :binding)))
+
 (defclass ssad-lambda ()
   ((args :initarg :args)
    (body-form :initarg :body-form) ;; always a ssad-let1
@@ -29,10 +32,13 @@
   ((func :initarg :func)
    (args :initarg :args)))
 
+(defclass ssad-constant ()
+  ((form :initarg :form)
+   (type :initarg :type)))
+
 ;;------------------------------------------------------------
 
-(defgeneric as-debug-form (o)
-  (:method (o) o))
+(defgeneric as-debug-form (o))
 
 (defmethod as-debug-form ((o ssad-let1))
   (with-slots (bindings body-form) o
@@ -42,6 +48,11 @@
 (defmethod as-debug-form ((o ssad-binding))
   (with-slots (name form) o
     (list name (as-debug-form form))))
+
+(defmethod as-debug-form ((o ssad-var))
+  (with-slots (binding) o
+    (with-slots (name) binding
+      (list :var name))))
 
 (defmethod as-debug-form ((o ssad-lambda))
   (with-slots (args body-form) o
@@ -59,6 +70,13 @@
   (with-slots (func args) o
     `(ssad-funcall ,(as-debug-form func)
                    ,@(mapcar #'as-debug-form args))))
+
+(defmethod as-debug-form ((o ssad-constant))
+  (with-slots (form) o
+    (list :constant form)))
+
+(defmethod as-debug-form ((o symbol))
+  o)
 
 ;;------------------------------------------------------------
 

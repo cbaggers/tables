@@ -7,71 +7,74 @@
 ;; the reader as it makes the ssa'd code easier to read.
 ;;
 ;; As a side effect it removes unused constant bindings
+;;
+;; WARNING: Pass mutates graph
+;;
 
 (defun run-pass (ssad-let)
-  (cfold ssad-let nil))
+  (tables.compile.stage-0.vars-to-bindings:run-pass
+   (cfold ssad-let)))
 
-(defmethod cfold ((o ssad-let1) to-replace)
+(defmethod cfold ((o ssad-let1))
   ;;
-  (labels ((fold (accum binding)
-             (destructuring-bind (to-fold new-bindings) accum
-               (with-slots (name form type) binding
-                 (if (foldable-constant-p form)
-                     (list (acons name form to-fold)
-                           new-bindings)
-                     (let ((match (assocr form to-fold)))
-                       (if match
-                           (list (acons name match to-fold)
-                                 new-bindings)
-                           (list (acons name name to-fold)
-                                 (cons (make-instance
-                                        'ssad-binding
-                                        :name name
-                                        :form (cfold form to-fold)
-                                        :type type)
-                                       new-bindings)))))))))
+  (labels ((fold (binding)
+             (with-slots (name form type) binding
+               (cond
+                 ((foldable-constant-p form)
+                  (setf name nil)
+                  t)
+                 ((symbolp form)
+                  (setf name nil)
+                  t)
+                 ((typep form 'ssad-var)
+                  (setf name nil)
+                  (with-slots ((b binding)) form
+                    (unless (slot-value b 'name)
+                      (setf form (slot-value b 'form))))
+                  t)
+                 (t
+                  (setf form (cfold form))
+                  nil)))))
     ;;
     (with-slots (bindings body-form type) o
-      (destructuring-bind (to-fold new-bindings-reversed)
-          (reduce #'fold bindings :initial-value (list to-replace nil))
-        (make-instance 'ssad-let1
-                       :bindings (reverse new-bindings-reversed)
-                       :body-form (cfold body-form to-fold)
-                       :type type)))))
+      (setf bindings (remove-if #'fold bindings))
+      (setf body-form (cfold body-form))
+      o)))
 
-(defmethod cfold ((o ssad-lambda) to-replace)
-  (with-slots (args body-form result-type) o
-    (let ((to-replace (reduce (lambda (a x)
-                                (let ((arg-name (first x)))
-                                  (acons arg-name arg-name a)))
-                              args
-                              :initial-value to-replace)))
-      (make-instance 'ssad-lambda
-                     :args args
-                     :body-form (cfold body-form to-replace)
-                     :result-type result-type))))
+(defmethod cfold ((o ssad-lambda))
+  (with-slots (body-form) o
+    (setf body-form (cfold body-form))
+    o))
 
-(defmethod cfold ((o ssad-if) to-replace)
+(defmethod cfold ((o ssad-if))
   (with-slots (test then else) o
-    (make-instance 'ssad-if
-                   :test (cfold test to-replace)
-                   :then (cfold then to-replace)
-                   :else (cfold else to-replace))))
+    (setf test (cfold test))
+    (setf then (cfold then))
+    (setf else (cfold else))
+    o))
 
-(defmethod cfold ((o ssad-funcall) to-replace)
+(defmethod cfold ((o ssad-funcall))
   (with-slots (func args) o
-    (make-instance 'ssad-funcall
-                   :func (cfold func to-replace)
-                   :args (mapcar (lambda (a) (cfold a to-replace))
-                                 args))))
+    (setf func (cfold func))
+    (setf args (mapcar #'cfold args))
+    o))
 
-(defmethod cfold ((o symbol) to-replace)
-  (or (assocr o to-replace) o))
+(defmethod cfold ((o ssad-var))
+  (with-slots (binding) o
+    (with-slots (name form type) binding
+      (cond
+        ((null name)
+         (if (typep form 'ssad-var)
+             (progn
+               (setf binding (slot-value form 'binding))
+               o)
+             form))
+        ((foldable-constant-p form)
+         form)
+        (t o)))))
 
-(defmethod cfold ((o number) to-replace)
-  o)
+(defmethod cfold ((o symbol)) o)
+(defmethod cfold ((o ssad-constant)) o)
 
 (defun foldable-constant-p (constant)
-  (or (numberp constant)
-      (eq constant t)
-      (eq constant nil)))
+  (typep constant 'ssad-constant))

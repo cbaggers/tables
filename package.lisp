@@ -34,8 +34,11 @@
            :ssad-lambda
            :ssad-if
            :ssad-funcall
+           :ssad-var
+           :ssad-constant
            ;;
            :args
+           :binding
            :bindings
            :body
            :body-form
@@ -52,6 +55,10 @@
            :as-debug-form))
 
 (uiop:define-package #:tables.compile.stage-0.ast-to-ir
+    (:use #:cl #:checkmate #:tables.utils #:tables.compile.stage-0)
+  (:export :run-pass))
+
+(uiop:define-package #:tables.compile.stage-0.vars-to-bindings
     (:use #:cl #:checkmate #:tables.utils #:tables.compile.stage-0)
   (:export :run-pass))
 
