@@ -109,10 +109,10 @@
     :where ((type ttype))) ;; could be omitted as ttype is the default
 
   (define-trait-impl (addable i8) i8
-    (+ (:host + i8)))
+    (+ (:host +)))
 
   (define-trait-impl (addable i16) i16
-    (+ (:host + i16)))
+    (+ (:host +)))
 
   (define-trait-impl (addable i32) i32
-    (+ (:host + i32))))
+    (+ (:host +))))
