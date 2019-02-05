@@ -63,6 +63,38 @@ state.
 
 Maybe I need to look at what c compiles stuff to to get an idea of what to use.
 
+
+one thing with tables is that it is kinda meant to be higher level. For example
+we wouldnt really advise people to used a sized bool in a column as it limits
+our ability to fold it in with other stuff.
+
+However how far can we go with this? If someone puts a trait in a column what
+does that mean? For example an 'addable' column is meaningless. So back to the
+bools.. the fucking bools. We could special-case them, but that feels like
+cheating.
+
+Well one point is important. Tables is high level, we want the freedom to
+somewhat control layout. We are gonna need to do this for simd stuff for sure.
+That means we dont assume tight packing between consecutive elements in
+columns. Instead it will be the correct packing for good simd use.
+
+So maybe a bool is 1 bit. Maybe we reserve the right for us to pick any runtime
+respresentation in code (so it can be lisp or asm) and we have some means of
+specifying default layouts for structs (packed, c, etc)
+
+or maybe we say screw it and all structs are bitstructs and you have to deal
+with stuff yourself... sounds like it would make ffi harder than it needs to be
+though.
+
+||#
+
+#||
+
+How does the simd alignment stuff affect valid layouts for structs? We coudl
+make a struct and then make a column from it. we might then have to do
+*something* to unpack the data into a form we could address.. or we just have
+to say fuck it and go linear.. which is the more likely case tbh
+
 ||#
 
 #||
