@@ -3,10 +3,6 @@
 ;;------------------------------------------------------------
 ;; Types
 
-(define-parameter-type integer
-  :valid-p integerp
-  :equal =)
-
 (define-ttype boolean)
 
 (define-ttype (unordered-set type size)

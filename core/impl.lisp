@@ -27,7 +27,7 @@
   (with-slots (name size slots) obj
     `(make-instance 'value-type-spec
                     :name ',name
-                    :size size
+                    :size ,size
                     :slots ,(cons 'list slots))))
 
 (defmethod make-load-form ((obj aggregate-slot)
@@ -71,17 +71,24 @@
 
 (defun register-record (spec)
   (let ((name (aggregate-name spec)))
-    (format t "~%;; Registered layout ~a" name)
+    (format t "~%;; Registered record ~a" name)
     (setf (gethash name *registered-records*) spec)))
 
 (defun register-value-type (spec)
   (let ((name (aggregate-name spec)))
-    (format t "~%;; Registered layout ~a" name)
+    (format t "~%;; Registered value-type ~a" name)
     (setf (gethash name *registered-value-types*) spec)))
 
 ;;------------------------------------------------------------
 
 (define-type-system tables)
+
+(defvar *type-system* (find-type-system 'tables))
+
+(defmethod expand-type-designator ((type-system tables) designator)
+  (if (integerp designator)
+      (list 'bits designator)
+      designator))
 
 (defmethod get-type-spec ((type-system tables) designator)
   (let ((principle-name (first (alexandria:ensure-list designator))))
@@ -110,18 +117,22 @@
 
 (defclass spec-data ()
   ((traits :initform (make-hash-table) :initarg :traits)
-   (layout :initarg :layout)))
+   (aggregate-info :initarg :aggregate-info)))
 
-(defun make-spec-data (layout)
-  (assert (or (null layout) (typep layout 'aggregate-spec)))
-  (make-instance 'spec-data :layout layout))
+(defun make-spec-data (aggregate-info)
+  (assert (or (null aggregate-info)
+              (typep aggregate-info 'aggregate-spec)))
+  (make-instance 'spec-data :aggregate-info aggregate-info))
 
 (defmethod make-load-form ((obj spec-data)
                            &optional environment)
   (declare (ignore environment))
-  (with-slots (traits) obj
-    (let ((ht-data (alexandria:hash-table-alist traits)))
-      `(make-instance 'spec-data :traits ',ht-data))))
+  (with-slots (traits aggregate-info) obj
+    (let ((ht-data (unless (null traits)
+                     (alexandria:hash-table-alist traits))))
+      `(make-instance 'spec-data
+                      :traits ',ht-data
+                      :aggregate-info ',aggregate-info))))
 
 ;;------------------------------------------------------------
 ;; these will be removed, jsut for testing
@@ -190,9 +201,10 @@
     ;; {TODO} proper checks
     (assert (symbolp name))
     (assert (symbol-package name))
-    (make-instance 'aggregate-slot
-                   :name name
-                   :type type)))
+    (let ((type-obj (find-ttype *type-system* type)))
+      (make-instance 'aggregate-slot
+                     :name name
+                     :type type-obj))))
 
 (defmacro define-record (name &body slots)
   (let ((spec (make-instance
@@ -205,15 +217,10 @@
        (define-ttype ,name :aggregate-info ,spec)
        ',name)))
 
-#+nil
-(define-record ff32
-  (sign 1)
-  (mantissa 7)
-  (exponent 23))
-
 ;;------------------------------------------------------------
 
 (defmacro define-value-type (name (size) &body slots)
+  (assert (and (> size 0) (<= size 64)))
   (let ((spec (make-instance
                'value-type-spec
                :name name
