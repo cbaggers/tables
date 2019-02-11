@@ -30,21 +30,7 @@
 ;; Infer for boolean is handled by checkmate because of defining
 ;; the bool type as part of defining the type system
 
-(defmethod infer-literal ((type-system tables) (expression integer))
-  ;; {TODO} this is wrong as we wont ever be able to get unsigned 8-32
-  ;;        we need to special case 'the' for literals so we dont need
-  ;;        to add casting
-  (let ((ttype
-         (typecase expression
-           ((signed-byte 8) (ttype tables i8))
-           ((signed-byte 16) (ttype tables i16))
-           ((signed-byte 32) (ttype tables i32))
-           ((signed-byte 64) (ttype tables i64))
-           ((unsigned-byte 8) (ttype tables u8))
-           ((unsigned-byte 16) (ttype tables u16))
-           ((unsigned-byte 32) (ttype tables u32))
-           ((unsigned-byte 64) (ttype tables u64)))))
-    `(truly-the ,ttype ,expression)))
+
 
 ;;------------------------------------------------------------
 

@@ -81,37 +81,96 @@
 
 ;;------------------------------------------------------------
 
-(define-type-system tables)
 
-(defvar *type-system* (find-type-system 'tables))
+(defun infer-atom (type-system expression)
+  (if (symbolp expression)
+      (if (or (null expression) (eq expression t))
+          `(truly-the ,(find-ttype type-system 'boolean)
+                      ,expression)
+          (infer-variable type-system expression))
+      (infer-literal type-system expression)))
 
-(defmethod expand-type-designator ((type-system tables) designator)
+(defun infer-literal (type-system expression)
+  (declare (ignore type-system))
+  ;; {TODO} this is wrong as we wont ever be able to get unsigned 8-32
+  ;;        we need to special case 'the' for literals so we dont need
+  ;;        to add casting
+  (let ((ttype
+         (typecase expression
+           ((signed-byte 8) (ttype tables i8))
+           ((signed-byte 16) (ttype tables i16))
+           ((signed-byte 32) (ttype tables i32))
+           ((signed-byte 64) (ttype tables i64))
+           ((unsigned-byte 8) (ttype tables u8))
+           ((unsigned-byte 16) (ttype tables u16))
+           ((unsigned-byte 32) (ttype tables u32))
+           ((unsigned-byte 64) (ttype tables u64)))))
+    `(truly-the ,ttype ,expression)))
+
+(defun infer-special-form (context name args)
+  (when (eq name 'if)
+    (assert (= (length args) 3))
+    (infer-if context (first args) (second args) (third args))))
+
+(defun infer-if (context test then else)
+  (with-slots (type-system) context
+    (let* (;; {TODO} support any object in test
+           (typed-test
+            (check context test (find-ttype type-system 'boolean)))
+           ;; {TODO} can we support 'or' types here?
+           (typed-then (infer context then))
+           (let-type (type-of-typed-expression typed-then))
+           (typed-else (check context else let-type)))
+      `(truly-the ,let-type
+                  (if ,typed-test
+                      ,typed-then
+                    ,typed-else)))))
+
+(defun expand-type-designator (type-system designator)
+  (declare (ignore type-system))
   (if (integerp designator)
       (list 'bits designator)
       designator))
 
-(defmethod get-type-spec ((type-system tables) designator)
+(defun get-type-spec (type-system designator)
+  (declare (ignore type-system))
   (let ((principle-name (first (alexandria:ensure-list designator))))
     (or (gethash principle-name *registered-user-types*)
         (error "Could not identify type for designator: ~a"
                designator))))
 
-(defmethod get-parameter-spec ((type-system tables) name)
+(defun get-parameter-spec (type-system name)
+  (declare (ignore type-system))
   (or (gethash name *registered-parameter-types*)
       (error
        "define-ttype: ~a is not valid designator arg type.~%valid:~a"
        name (alexandria:hash-table-keys *registered-parameter-types*))))
 
-(defmethod get-constraint-spec ((type-system tables) designator)
+(defun get-constraint-spec (type-system designator)
+  (declare (ignore type-system))
   (let ((principle-name (first (alexandria:ensure-list designator))))
     (or (gethash principle-name
                  *registered-constraints*)
         (error "Could not identify constraint for designator: ~a"
                designator))))
 
-(defmethod get-top-level-function-type ((type-system tables) name)
+(defun get-top-level-function-type (type-system name)
+  (declare (ignore type-system))
   (or (gethash name *registered-top-level-functions*)
       (error "Could not identify function for name: ~a" name)))
+
+;;------------------------------------------------------------
+
+(define-type-system tables
+    :infer-atom infer-atom
+    :infer-special-form infer-special-form
+    :type-expander expand-type-designator
+    :get-type-spec get-type-spec
+    :get-constraint-spec get-constraint-spec
+    :get-parameter-spec get-parameter-spec
+    :get-top-level-function-type get-top-level-function-type)
+
+(defvar *type-system* (find-type-system 'tables))
 
 ;;------------------------------------------------------------
 
