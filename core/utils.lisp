@@ -7,3 +7,9 @@
 
 (defun gensym-named (name)
   (gensym (format nil "~a_" name)))
+
+(defun rehome-symbol (symbol new-package-name)
+  (intern (format nil "~a.~a"
+                  (package-name (symbol-package symbol))
+                  (symbol-name symbol))
+          new-package-name))

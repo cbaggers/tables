@@ -125,11 +125,53 @@
                       ,typed-then
                     ,typed-else)))))
 
+;;------------------------------------------------------------
+
+;; {TODO} pass type objects as arguments rather than symbols
 (defun expand-type-designator (type-system designator)
-  (declare (ignore type-system))
   (if (integerp designator)
       (list 'bits designator)
-      designator))
+      (destructuring-bind (principle-name . args)
+          (alexandria:ensure-list designator)
+        (let ((macro (type-macro-function principle-name)))
+          (if macro
+              (expand-type-designator
+               type-system
+               (apply macro type-system args))
+              designator)))))
+
+(defun type-macro-function (name)
+  (gethash name *registered-type-macro-functions*))
+
+(defvar *registered-type-macro-functions*
+  (make-hash-table :test #'eq))
+
+(defun register-type-macro (name func)
+  (setf (gethash name *registered-type-macro-functions*)
+        func))
+
+(defmacro define-type-macro (designator
+                             (type-system-var)
+                             &body body)
+  (when (listp designator)
+    (assert (> (length designator) 1)))
+  (destructuring-bind (name &rest args)
+      (alexandria:ensure-list designator)
+    (let ((mangled-name (rehome-symbol name :tables.macros)))
+      (register-type-macro name mangled-name)
+      `(progn
+         (defun ,mangled-name (,type-system-var ,@args)
+           (declare (ignorable ,type-system-var))
+           ,@body)
+         (register-type-macro ',name #',mangled-name)
+         ',name))))
+
+#+nil
+(define-type-macro (foop x) (type-system)
+  (print x)
+  'f32)
+
+;;------------------------------------------------------------
 
 (defun get-type-spec (type-system designator)
   (declare (ignore type-system))
@@ -163,6 +205,7 @@
 (define-type-system tables
     :infer-atom infer-atom
     :infer-special-form infer-special-form
+
     :type-expander expand-type-designator
     :get-type-spec get-type-spec
     :get-constraint-spec get-constraint-spec
@@ -241,10 +284,8 @@
 
 ;;------------------------------------------------------------
 
-(defmacro defn-host (name arg-types return-type)
-  (let ((spec (checkmate::designator->type
-               (find-type-system 'tables)
-               `(function ,arg-types ,return-type))))
+(defmacro defn-host-func (name arg-types return-type)
+  (let ((spec (find-ttype 'tables `(function ,arg-types ,return-type))))
     (register-top-level-function name spec)
     `(progn
        (register-top-level-function ',name ,spec))))

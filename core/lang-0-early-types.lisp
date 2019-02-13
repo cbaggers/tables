@@ -17,7 +17,7 @@
 
 (define-value-type f32 (32)
   (sign 1)
-  (mantissa 7)
-  (exponent 23))
+  (exponent 8)
+  (mantissa 23))
 
 ;;------------------------------------------------------------

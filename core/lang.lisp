@@ -66,7 +66,7 @@
   (destructuring-bind (name type-designator &key satisfies)
       spec
     (assert (eq (first type-designator) 'function))
-    (let ((ftype (checkmate::designator->type ts type-designator)))
+    (let ((ftype (find-ttype ts type-designator)))
       `())))
 
 (defmacro define-trait-impl (trait type &body funcs)

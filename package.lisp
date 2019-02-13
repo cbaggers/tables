@@ -4,7 +4,10 @@
     (:use #:cl)
   (:export :assocr
            :last1
-           :gensym-named))
+           :gensym-named
+           :rehome-symbol))
+
+(uiop:define-package #:tables.macros (:use))
 
 (uiop:define-package #:tables.lang
     (:use #:cl #:checkmate #:tables.utils)
