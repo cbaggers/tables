@@ -10,7 +10,6 @@
                (:file "core/utils")
                (:file "core/impl")
                (:file "core/lang-0-early-types")
-               (:file "core/lang")
                (:file "core/stage-0")
                (:file "core/stage-0/ast-to-ir")
                (:file "core/stage-0/vars-to-bindings")

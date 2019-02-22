@@ -81,29 +81,28 @@
 
 ;;------------------------------------------------------------
 
-
-(defun infer-atom (type-system expression)
+(defun infer-atom (context expression)
   (if (symbolp expression)
       (if (or (null expression) (eq expression t))
-          `(truly-the ,(find-ttype type-system 'boolean)
+          `(truly-the ,(find-ttype context 'boolean)
                       ,expression)
-          (infer-variable type-system expression))
-      (infer-literal type-system expression)))
+          (infer-variable context expression))
+      (infer-literal context expression)))
 
-(defun infer-literal (type-system expression)
+(defun infer-literal (context expression)
   ;; {TODO} this is wrong as we wont ever be able to get unsigned 8-32
   ;;        we need to special case 'the' for literals so we dont need
   ;;        to add casting
   (let ((ttype
          (typecase expression
-           ((signed-byte 8) (find-ttype type-system 'i8))
-           ((signed-byte 16) (find-ttype type-system 'i16))
-           ((signed-byte 32) (find-ttype type-system 'i32))
-           ((signed-byte 64) (find-ttype type-system 'i64))
-           ;; ((unsigned-byte 8) (find-ttype type-system 'u8))
-           ;; ((unsigned-byte 16) (find-ttype type-system 'u16))
-           ;; ((unsigned-byte 32) (find-ttype type-system 'u32))
-           ((unsigned-byte 64) (find-ttype type-system 'u64)))))
+           ((signed-byte 8) (find-ttype context 'i8))
+           ((signed-byte 16) (find-ttype context 'i16))
+           ((signed-byte 32) (find-ttype context 'i32))
+           ((signed-byte 64) (find-ttype context 'i64))
+           ;; ((unsigned-byte 8) (find-ttype context 'u8))
+           ;; ((unsigned-byte 16) (find-ttype context 'u16))
+           ;; ((unsigned-byte 32) (find-ttype context 'u32))
+           ((unsigned-byte 64) (find-ttype context 'u64)))))
     `(truly-the ,ttype ,expression)))
 
 (defun infer-special-form (context name args)
@@ -112,23 +111,25 @@
     (infer-if context (first args) (second args) (third args))))
 
 (defun infer-if (context test then else)
-  (with-slots (type-system) context
-    (let* (;; {TODO} support any object in test
-           (typed-test
-            (check context test (find-ttype type-system 'boolean)))
-           ;; {TODO} can we support 'or' types here?
-           (typed-then (infer context then))
-           (let-type (type-of-typed-expression typed-then))
-           (typed-else (check context else let-type)))
-      `(truly-the ,let-type
-                  (if ,typed-test
-                      ,typed-then
-                    ,typed-else)))))
+  (let* (;; {TODO} support any object in test
+         (typed-test
+          (check context test (find-ttype context 'boolean)))
+         ;; {TODO} can we support 'or' types here?
+         (typed-then (infer context then))
+         (let-type (type-of-typed-expression typed-then))
+         (typed-else (check context else let-type)))
+    `(truly-the ,let-type
+                (if ,typed-test
+                    ,typed-then
+                    ,typed-else))))
 
 ;;------------------------------------------------------------
 
+(defvar *registered-type-macro-functions*
+  (make-hash-table :test #'eq))
+
 ;; {TODO} pass type objects as arguments rather than symbols
-(defun expand-type-designator (type-system designator)
+(defun expand-type-designator (context designator)
   (if (integerp designator)
       (list 'bits designator)
       (destructuring-bind (principle-name . args)
@@ -136,22 +137,19 @@
         (let ((macro (type-macro-function principle-name)))
           (if macro
               (expand-type-designator
-               type-system
-               (apply macro type-system args))
+               context
+               (apply macro context args))
               designator)))))
 
 (defun type-macro-function (name)
   (gethash name *registered-type-macro-functions*))
-
-(defvar *registered-type-macro-functions*
-  (make-hash-table :test #'eq))
 
 (defun register-type-macro (name func)
   (setf (gethash name *registered-type-macro-functions*)
         func))
 
 (defmacro define-type-macro (designator
-                             (type-system-var)
+                             (context-var)
                              &body body)
   (when (listp designator)
     (assert (> (length designator) 1)))
@@ -160,43 +158,43 @@
     (let ((mangled-name (rehome-symbol name :tables.macros)))
       (register-type-macro name mangled-name)
       `(progn
-         (defun ,mangled-name (,type-system-var ,@args)
-           (declare (ignorable ,type-system-var))
+         (defun ,mangled-name (,context-var ,@args)
+           (declare (ignorable ,context-var))
            ,@body)
          (register-type-macro ',name #',mangled-name)
          ',name))))
 
 #+nil
-(define-type-macro (foop x) (type-system)
+(define-type-macro (foop x) (context)
   (print x)
   'f32)
 
 ;;------------------------------------------------------------
 
-(defun get-type-spec (type-system designator)
-  (declare (ignore type-system))
+(defun get-type-spec (context designator)
+  (declare (ignore context))
   (let ((principle-name (first (alexandria:ensure-list designator))))
     (or (gethash principle-name *registered-user-types*)
         (error "Could not identify type for designator: ~a"
                designator))))
 
-(defun get-parameter-spec (type-system name)
-  (declare (ignore type-system))
+(defun get-parameter-spec (context name)
+  (declare (ignore context))
   (or (gethash name *registered-parameter-types*)
       (error
        "define-ttype: ~a is not valid designator arg type.~%valid:~a"
        name (alexandria:hash-table-keys *registered-parameter-types*))))
 
-(defun get-constraint-spec (type-system designator)
-  (declare (ignore type-system))
+(defun get-constraint-spec (context designator)
+  (declare (ignore context))
   (let ((principle-name (first (alexandria:ensure-list designator))))
     (or (gethash principle-name
                  *registered-constraints*)
         (error "Could not identify constraint for designator: ~a"
                designator))))
 
-(defun get-top-level-function-type (type-system name)
-  (declare (ignore type-system))
+(defun get-top-level-function-type (context name)
+  (declare (ignore context))
   (or (gethash name *registered-top-level-functions*)
       (error "Could not identify function for name: ~a" name)))
 
@@ -232,7 +230,7 @@
     (let ((ht-data (unless (null traits)
                      (alexandria:hash-table-alist traits))))
       `(make-instance 'spec-data
-                      :traits ',ht-data
+                      :traits (alexandria:alist-hash-table ',ht-data)
                       :aggregate-info ',aggregate-info))))
 
 ;;------------------------------------------------------------
@@ -245,7 +243,8 @@
   (destructuring-bind (name . rest) (uiop:ensure-list designator)
     (declare (ignore rest))
     (let ((spec (register-type
-                 (make-ttype-spec (find-type-system 'tables)
+                 (make-ttype-spec (make-check-context
+                                   (find-type-system 'tables))
                                   designator
                                   where
                                   (make-spec-data aggregate-info)))))
@@ -342,3 +341,103 @@
   ;; (let ((layout-name (intern )))
   ;;   `(defun ,name () ))
   `',name)
+
+;;------------------------------------------------------------
+
+(defmacro define-dummy-func (name args return)
+  (let ((type (make-function-ttype (make-check-context 'tables)
+                                   args return nil)))
+    (register-top-level-function name type)
+    `(register-top-level-function ',name ,type)))
+
+;;------------------------------------------------------------
+
+(defvar *pending-new-trait-impl-type* nil)
+
+(defun implements-trait-p (trait-name type-ref)
+  (with-slots (traits) (spec-custom-data type-ref)
+    (when (gethash trait-name traits)
+      t)))
+
+(defun trait-constraint-checker (this type-ref)
+  (let ((name (slot-value (checkmate::deref this)
+                          'checkmate::name)))
+    (or (implements-trait-p name type-ref)
+        (let ((wip *pending-new-trait-impl-type*))
+          (when wip
+            (destructuring-bind (wip-trait-name . impl-type) wip
+              (when (eq name wip-trait-name)
+                (unify type-ref impl-type nil)
+                t)))))))
+
+(defmacro define-trait (designator funcs &key where)
+  (destructuring-bind (name . rest) (uiop:ensure-list designator)
+    (declare (ignore rest))
+    (let* ((ts (find-type-system 'tables))
+           (context (make-check-context ts))
+           (func-names (mapcar #'first funcs))
+           (spec
+            (register-constraint
+             (make-constraint-spec context
+                                   designator
+                                   where
+                                   'trait-constraint-checker
+                                   func-names)))
+           (trait-funcs
+            (loop
+               :for fspec :in funcs
+               :collect (gen-and-register-trait-func context fspec))))
+      `(progn
+         (register-constraint ,spec)
+         ,@trait-funcs
+         ',name))))
+
+(defun gen-and-register-trait-func (context spec)
+  (destructuring-bind (name (d-type d-args d-ret) &key satisfies)
+      spec
+    (assert (eq d-type 'function))
+    (assert (not (null satisfies)))
+    (let* ((decls `((satisfies ,@satisfies)))
+           (ftype (make-function-ttype context d-args d-ret decls)))
+      (register-top-level-function name ftype)
+      `(register-top-level-function ',name ,ftype))))
+
+(defmacro define-trait-impl (trait-name type &body func-specs)
+  (register-trait-impl (find-type-system 'tables)
+                       trait-name type func-specs)
+  `(register-trait-impl (find-type-system 'tables)
+                        ',trait-name
+                        ',type
+                        ',func-specs))
+
+
+(defun register-trait-impl (type-system trait-name type-principle-name
+                            func-specs)
+  ;; {TODO} We want to only specify 1 type. Should not allowing
+  ;;        anything but unknowns in the arg positions. Maybe
+  ;;        add way to find-type by principle name in checkmate
+  (check-type type-principle-name symbol)
+  (let* ((constraint-spec (get-constraint-spec nil trait-name))
+         (type (find-ttype-by-principle-name
+                type-system type-principle-name))
+         ;;              {TODO} make this vv work
+         (funcs-needed ;;(spec-custom-data constraint-spec)
+          (slot-value constraint-spec 'checkmate::custom-data)))
+    (assert (= (length func-specs) (length funcs-needed)))
+    (assert (every (lambda (x) (find x func-specs :key #'first))
+                   funcs-needed))
+    (let ((*pending-new-trait-impl-type* (cons trait-name type)))
+      (loop
+         :for (trait-func-name impl-func-name) :in func-specs
+         :for trait-func-type := (get-top-level-function-type
+                                  type-system trait-func-name)
+         :for impl-func-type := (get-top-level-function-type
+                                 type-system impl-func-name)
+         :for gimpl-type := (instantiate-function-type trait-func-type)
+         :for gfunc-type := (instantiate-function-type impl-func-type)
+         :do (unify gimpl-type gfunc-type nil)))
+    (with-slots (traits) (spec-custom-data type)
+      (setf (gethash trait-name traits) func-specs)
+      trait-name)))
+
+;;------------------------------------------------------------
