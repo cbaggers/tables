@@ -104,8 +104,10 @@
            ;; ((unsigned-byte 8) (find-ttype context 'u8))
            ;; ((unsigned-byte 16) (find-ttype context 'u16))
            ;; ((unsigned-byte 32) (find-ttype context 'u32))
-           ((unsigned-byte 64) (find-ttype context 'u64)))))
-    `(truly-the ,ttype ,expression)))
+           ((unsigned-byte 64) (find-ttype context 'u64))
+           (single-float (find-ttype context 'f32)))))
+    (when ttype
+      `(truly-the ,ttype ,expression))))
 
 (defun infer-special-form (context name args)
   (when (eq name 'if)
