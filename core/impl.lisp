@@ -254,7 +254,7 @@
 
 (defmacro define-constraint (designator
                              &body rest
-                             &key where satifies-this-p)
+                             &key where satisfies-this-p)
   (declare (ignore rest))
   (destructuring-bind (name . rest) (uiop:ensure-list designator)
     (declare (ignore rest))
@@ -262,7 +262,7 @@
                  (make-constraint-spec (find-type-system 'tables)
                                        designator
                                        where
-                                       satifies-this-p
+                                       satisfies-this-p
                                        (make-spec-data nil)))))
       `(progn
          (register-constraint ,spec)
@@ -370,34 +370,38 @@
                 (unify type-ref impl-type nil)
                 t)))))))
 
-(defmacro define-trait (designator funcs &key where)
-  (destructuring-bind (name . rest) (uiop:ensure-list designator)
-    (declare (ignore rest))
-    (let* ((ts (find-type-system 'tables))
-           (context (make-check-context ts))
-           (func-names (mapcar #'first funcs))
-           (spec
-            (register-constraint
-             (make-constraint-spec context
-                                   designator
-                                   where
-                                   'trait-constraint-checker
-                                   func-names)))
-           (trait-funcs
-            (loop
-               :for fspec :in funcs
-               :collect (gen-and-register-trait-func context fspec))))
-      `(progn
-         (register-constraint ,spec)
-         ,@trait-funcs
-         ',name))))
+(defmacro define-trait (trait-name funcs &key where)
+  (check-type trait-name symbol)
+  (let* ((ts (find-type-system 'tables))
+         (context (make-check-context ts))
+         (func-names (mapcar #'first funcs))
+         (spec
+          (register-constraint
+           (make-constraint-spec context
+                                 trait-name
+                                 where
+                                 'trait-constraint-checker
+                                 func-names)))
+         (trait-funcs
+          (loop
+             :for fspec :in funcs
+             :collect (gen-and-register-trait-func
+                       trait-name context fspec))))
+    `(progn
+       (register-constraint ,spec)
+       ,@trait-funcs
+       ',trait-name)))
 
-(defun gen-and-register-trait-func (context spec)
+(defun gen-and-register-trait-func (trait-name context spec)
   (destructuring-bind (name (d-type d-args d-ret) &key satisfies)
       spec
     (assert (eq d-type 'function))
-    (assert (not (null satisfies)))
-    (let* ((decls `((satisfies ,@satisfies)))
+    (let* ((satisfies
+            (remove-duplicates
+             (cons (list trait-name (first d-args))
+                   satisfies)
+             :test #'equal))
+           (decls (loop :for s :in satisfies :collect `(satisfies ,@s)))
            (ftype (make-function-ttype context d-args d-ret decls)))
       (register-top-level-function name ftype)
       `(register-top-level-function ',name ,ftype))))
@@ -413,9 +417,6 @@
 
 (defun register-trait-impl (type-system trait-name type-principle-name
                             func-specs)
-  ;; {TODO} We want to only specify 1 type. Should not allowing
-  ;;        anything but unknowns in the arg positions. Maybe
-  ;;        add way to find-type by principle name in checkmate
   (check-type type-principle-name symbol)
   (let* ((constraint-spec (get-constraint-spec nil trait-name))
          (type (find-ttype-by-principle-name
@@ -433,9 +434,15 @@
                                   type-system trait-func-name)
          :for impl-func-type := (get-top-level-function-type
                                  type-system impl-func-name)
-         :for gimpl-type := (instantiate-function-type trait-func-type)
-         :for gfunc-type := (instantiate-function-type impl-func-type)
-         :do (unify gimpl-type gfunc-type nil)))
+         :for gfunc-type := (instantiate-function-type trait-func-type)
+         :for gimpl-type := (instantiate-function-type impl-func-type)
+         :do (dbind-ttype (function ~args ~) gimpl-type
+               (if (eq (ttype-principle-name (aref args 0))
+                       type-principle-name)
+                   (unify gimpl-type gfunc-type nil)
+                   (error "first arg of ~a is not ~a"
+                          impl-func-name
+                          type-principle-name)))))
     (with-slots (traits) (spec-custom-data type)
       (setf (gethash trait-name traits) func-specs)
       trait-name)))

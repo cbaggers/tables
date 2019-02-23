@@ -34,19 +34,14 @@
 ;;------------------------------------------------------------
 ;; Traits
 
-(define-trait (addable type)
-      ((+ (function (?a ?a) ?a)
-          :satisfies ((addable ?a) ?a)))
+(define-trait addable
+    ((+ (function (?a ?a) ?a)))
   ;; vv- could be omitted as ttype is the default
   :where ((type ttype)))
 
 (define-dummy-func i8+ (i8 i8) i8)
 
 (define-trait-impl addable i8
-  (+ i8+))
-
-#+null
-(define-trait-impl addable u8
   (+ i8+))
 
 ;;------------------------------------------------------------
