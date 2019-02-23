@@ -365,10 +365,10 @@
     (or (implements-trait-p name type-ref)
         (let ((wip *pending-new-trait-impl-type*))
           (when wip
-            (destructuring-bind (wip-trait-name . impl-type) wip
-              (when (eq name wip-trait-name)
-                (unify type-ref impl-type nil)
-                t)))))))
+            (destructuring-bind (wip-trait-name . impl-principle-name) wip
+              (and (eq name wip-trait-name)
+                   (eq impl-principle-name
+                       (ttype-principle-name type-ref)))))))))
 
 (defmacro define-trait (trait-name funcs &key where)
   (check-type trait-name symbol)
@@ -427,7 +427,8 @@
     (assert (= (length func-specs) (length funcs-needed)))
     (assert (every (lambda (x) (find x func-specs :key #'first))
                    funcs-needed))
-    (let ((*pending-new-trait-impl-type* (cons trait-name type)))
+    (let ((*pending-new-trait-impl-type*
+           (cons trait-name type-principle-name)))
       (loop
          :for (trait-func-name impl-func-name) :in func-specs
          :for trait-func-type := (get-top-level-function-type
@@ -439,7 +440,9 @@
          :do (dbind-ttype (function ~args ~) gimpl-type
                (if (eq (ttype-principle-name (aref args 0))
                        type-principle-name)
-                   (unify gimpl-type gfunc-type nil)
+                   (or (unifies-p gimpl-type gfunc-type)
+                       (error "~a does not unify with ~a for ~a"
+                              gimpl-type gfunc-type trait-func-name))
                    (error "first arg of ~a is not ~a"
                           impl-func-name
                           type-principle-name)))))
