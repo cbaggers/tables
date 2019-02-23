@@ -44,6 +44,7 @@
 (defvar *registered-parameter-types* (make-hash-table :test #'eq))
 (defvar *registered-constraints* (make-hash-table :test #'eq))
 (defvar *registered-top-level-functions* (make-hash-table :test #'eq))
+(defvar *top-level-function-code* (make-hash-table :test #'eq))
 (defvar *registered-records* (make-hash-table :test #'eq))
 (defvar *registered-value-types* (make-hash-table :test #'eq))
 
@@ -64,8 +65,9 @@
     (format t "~%;; Registered param type ~a" name)
     (setf (gethash name *registered-parameter-types*) spec)))
 
-(defun register-top-level-function (func-name type)
+(defun register-top-level-function (func-name type ast)
   (format t "~%;; Registered function ~a" func-name)
+  (setf (gethash func-name *top-level-function-code*) ast)
   (setf (gethash func-name *registered-top-level-functions*)
         (generalize type)))
 
@@ -449,3 +451,15 @@
       trait-name)))
 
 ;;------------------------------------------------------------
+
+(defmacro defn (name args &body body)
+  (let* ((lbody `(lambda ,args ,@body))
+         (ast (infer 'tables lbody))
+         (type (type-of-typed-expression ast)))
+    (register-top-level-function name type ast)
+    `(progn
+       (register-top-level-function ',name ,type ',ast)
+       ',name)))
+
+(defn horse ()
+  1)
