@@ -355,13 +355,12 @@
 (defvar *pending-new-trait-impl-type* nil)
 
 (defun implements-trait-p (trait-name type-ref)
-  (with-slots (traits) (spec-custom-data type-ref)
+  (with-slots (traits) (ttype-custom-data type-ref)
     (when (gethash trait-name traits)
       t)))
 
 (defun trait-constraint-checker (this type-ref)
-  (let ((name (slot-value (checkmate::deref this)
-                          'checkmate::name)))
+  (let ((name (ttype-principle-name this)))
     (or (implements-trait-p name type-ref)
         (let ((wip *pending-new-trait-impl-type*))
           (when wip
@@ -422,8 +421,7 @@
          (type (find-ttype-by-principle-name
                 type-system type-principle-name))
          ;;              {TODO} make this vv work
-         (funcs-needed ;;(spec-custom-data constraint-spec)
-          (slot-value constraint-spec 'checkmate::custom-data)))
+         (funcs-needed (spec-custom-data constraint-spec)))
     (assert (= (length func-specs) (length funcs-needed)))
     (assert (every (lambda (x) (find x func-specs :key #'first))
                    funcs-needed))
@@ -446,7 +444,7 @@
                    (error "first arg of ~a is not ~a"
                           impl-func-name
                           type-principle-name)))))
-    (with-slots (traits) (spec-custom-data type)
+    (with-slots (traits) (ttype-custom-data type)
       (setf (gethash trait-name traits) func-specs)
       trait-name)))
 
