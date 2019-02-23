@@ -77,11 +77,18 @@
        (let (blockify-let-form context form))
        (progn (blockify-progn-form context form))
        (funcall (blockify-funcall-form context form))
+       (function (blockify-function-form context form type))
        (otherwise (error "not sure what to do with ~s" (first form)))))
     (otherwise
      (make-instance 'ssad-constant
                     :form form
                     :type type))))
+
+(defun blockify-function-form (context form type)
+  (declare (ignore context))
+  (make-instance 'ssad-constant
+                 :form form
+                 :type type))
 
 (defun blockify-var-access (context symbol)
   (or (make-instance

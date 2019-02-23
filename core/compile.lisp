@@ -5,7 +5,7 @@
                     `(funcall (let ((f (lambda ((a ?a) (i i8))
                                          (let ((b a))
                                            (if b
-                                               i
+                                               (+ i i)
                                                20))))
                                     (g (lambda ((a ?a) (i i8))
                                          10)))
