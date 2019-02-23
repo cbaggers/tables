@@ -289,9 +289,9 @@
 
 (defmacro defn-host-func (name arg-types return-type)
   (let ((spec (find-ttype 'tables `(function ,arg-types ,return-type))))
-    (register-top-level-function name spec)
+    (register-top-level-function name spec nil)
     `(progn
-       (register-top-level-function ',name ,spec))))
+       (register-top-level-function ',name ,spec nil))))
 
 ;;------------------------------------------------------------
 
@@ -309,14 +309,27 @@
                      :type type-obj))))
 
 (defmacro define-record (name &body slots)
-  (let ((spec (make-instance
-               'aggregate-spec
-               :name name
-               :slots (mapcar #'parse-slot slots))))
+  (let* ((slot-specs (mapcar #'parse-slot slots))
+         (spec (make-instance
+                'aggregate-spec
+                :name name
+                :slots slot-specs))
+         (constructor-name name)
+         (slot-type-desigs
+          (mapcar (lambda (x) (ttype-of (slot-type x)))
+                  slot-specs)))
     (register-record spec)
     `(progn
        (register-record ,spec)
        (define-ttype ,name :aggregate-info ,spec)
+       (define-dummy-func ,constructor-name ,slot-type-desigs ,name)
+       ,@(loop
+            :for (slot-name slot-type-desig) :in slots
+            :for acc-name := (intern
+                              (format nil "~a-~a" name slot-name)
+                              (symbol-package name))
+            :collect `(define-dummy-func ,acc-name (,name)
+                        ,slot-type-desig))
        ',name)))
 
 ;;------------------------------------------------------------
@@ -351,8 +364,8 @@
 (defmacro define-dummy-func (name args return)
   (let ((type (make-function-ttype (make-check-context 'tables)
                                    args return nil)))
-    (register-top-level-function name type)
-    `(register-top-level-function ',name ,type)))
+    (register-top-level-function name type nil)
+    `(register-top-level-function ',name ,type nil)))
 
 ;;------------------------------------------------------------
 
@@ -406,8 +419,8 @@
              :test #'equal))
            (decls (loop :for s :in satisfies :collect `(satisfies ,@s)))
            (ftype (make-function-ttype context d-args d-ret decls)))
-      (register-top-level-function name ftype)
-      `(register-top-level-function ',name ,ftype))))
+      (register-top-level-function name ftype nil)
+      `(register-top-level-function ',name ,ftype nil))))
 
 (defmacro define-trait-impl (trait-name type &body func-specs)
   (register-trait-impl (find-type-system 'tables)

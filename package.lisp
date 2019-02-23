@@ -23,7 +23,9 @@
            :u8
            :u16
            :u32
-           :u64))
+           :u64
+           :f32
+           :vec3))
 
 (uiop:define-package #:tables.compile
     (:use #:cl #:checkmate #:tables.utils #:tables.lang)

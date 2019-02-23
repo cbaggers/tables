@@ -44,6 +44,11 @@
 (define-trait-impl addable i8
   (+ i8+))
 
+(define-dummy-func f32+ (f32 f32) f32)
+
+(define-trait-impl addable f32
+  (+ f32+))
+
 ;;------------------------------------------------------------
 ;; Value types
 
@@ -54,6 +59,21 @@
   (sign 1)
   (exponent 8)
   (mantissa 23))
+
+;;------------------------------------------------------------
+
+(define-record vec3
+  (x f32)
+  (y f32)
+  (z f32))
+
+(defn vec3+ ((a vec3) (b vec3))
+  (vec3 (+ (vec3-x a) (vec3-x b))
+        (+ (vec3-y a) (vec3-z b))
+        (+ (vec3-y a) (vec3-z b))))
+
+(define-trait-impl addable vec3
+  (+ vec3+))
 
 ;;------------------------------------------------------------
 
