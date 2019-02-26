@@ -363,7 +363,7 @@
 
 (defmacro define-dummy-func (name args return)
   (let ((type (make-function-ttype (make-check-context 'tables)
-                                   args return nil)))
+                                   args return)))
     (register-top-level-function name type nil)
     `(register-top-level-function ',name ,type nil)))
 
@@ -373,18 +373,17 @@
 
 (defun implements-trait-p (trait-name type-ref)
   (with-slots (traits) (ttype-custom-data type-ref)
-    (when (gethash trait-name traits)
-      t)))
-
-(defun trait-constraint-checker (this type-ref)
-  (let ((name (ttype-principle-name this)))
-    (or (implements-trait-p name type-ref)
+    (or (gethash trait-name traits)
         (let ((wip *pending-new-trait-impl-type*))
           (when wip
             (destructuring-bind (wip-trait-name . impl-principle-name) wip
-              (and (eq name wip-trait-name)
+              (and (eq trait-name wip-trait-name)
                    (eq impl-principle-name
                        (ttype-principle-name type-ref)))))))))
+
+(defun trait-constraint-checker (this type-ref)
+  (let ((name (ttype-principle-name this)))
+    (not (null (implements-trait-p name type-ref)))))
 
 (defmacro define-trait (trait-name funcs &key where)
   (check-type trait-name symbol)
@@ -418,7 +417,8 @@
                    satisfies)
              :test #'equal))
            (decls (loop :for s :in satisfies :collect `(satisfies ,@s)))
-           (ftype (make-function-ttype context d-args d-ret decls)))
+           (ftype (make-function-ttype context d-args d-ret
+                                       :declarations decls)))
       (register-top-level-function name ftype nil)
       `(register-top-level-function ',name ,ftype nil))))
 
@@ -476,5 +476,6 @@
        (register-top-level-function ',name ,type ',ast)
        ',name)))
 
+#+nil
 (defn horse ()
   1)
