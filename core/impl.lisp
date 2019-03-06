@@ -220,6 +220,7 @@
 
 (defclass spec-data ()
   ((traits :initform (make-hash-table) :initarg :traits)
+   (potential-traits :initform (make-hash-table))
    (aggregate-info :initarg :aggregate-info)))
 
 (defun make-spec-data (aggregate-info)
@@ -369,56 +370,74 @@
 
 ;;------------------------------------------------------------
 
-(defvar *pending-new-trait-impl-type* nil)
+(defvar *pending-trait-key* nil)
 
-(defun implements-trait-p (trait-name type-ref)
-  (with-slots (traits) (ttype-custom-data type-ref)
-    (or (gethash trait-name traits)
-        (let ((wip *pending-new-trait-impl-type*))
-          (when wip
-            (destructuring-bind (wip-trait-name . impl-principle-name) wip
-              (and (eq trait-name wip-trait-name)
-                   (eq impl-principle-name
-                       (ttype-principle-name type-ref)))))))))
+(defun implements-trait-p (trait type-ref)
+  (let ((trait-name (ttype-principle-name trait)))
+    (with-slots (traits potential-traits) (ttype-custom-data type-ref)
+      (print (list :>> trait-name type-ref traits potential-traits
+                   *pending-trait-key*))
+      (print
+       (let ((impl (gethash trait-name traits)))
+         (if impl
+             (when (unifies-p impl type-ref)
+               (break "ok"))
+             (when *pending-trait-key*
+               (let ((impl (gethash *pending-trait-key* potential-traits)))
+                 (when (and impl (unifies-p impl type-ref))
+                   (break "yipee!"))))))))))
 
 (defun trait-constraint-checker (this type-ref)
-  (let ((name (ttype-principle-name this)))
-    (not (null (implements-trait-p name type-ref)))))
+  (implements-trait-p this type-ref))
 
-(defmacro define-trait (trait-name funcs &key where)
-  (check-type trait-name symbol)
+(defmacro define-trait (trait-designator associated-type funcs)
+  (assert (null associated-type))
+  (assert (or (symbolp trait-designator)
+              (every #'symbolp trait-designator)))
   (let* ((ts (find-type-system 'tables))
          (context (make-check-context ts))
+         (unknowns
+          (when (listp trait-designator)
+            (reduce
+             (lambda (u d)
+               (find-ttype 'tables d :unknowns u)
+               u)
+             (remove-duplicates
+              (remove-if-not #'checkmate::unknown-designator-name-p
+                             (rest trait-designator)))
+             :initial-value (make-hash-table))))
          (func-names (mapcar #'first funcs))
          (spec
           (register-constraint
            (make-constraint-spec context
-                                 trait-name
-                                 where
+                                 trait-designator
+                                 nil
                                  'trait-constraint-checker
                                  func-names)))
          (trait-funcs
           (loop
              :for fspec :in funcs
              :collect (gen-and-register-trait-func
-                       trait-name context fspec))))
+                       trait-designator context fspec unknowns))))
     `(progn
        (register-constraint ,spec)
        ,@trait-funcs
-       ',trait-name)))
+       ',trait-designator)))
 
-(defun gen-and-register-trait-func (trait-name context spec)
+(defun gen-and-register-trait-func (trait-designator context spec
+                                    unknowns)
   (destructuring-bind (name (d-type d-args d-ret) &key satisfies)
       spec
     (assert (eq d-type 'function))
     (let* ((satisfies
             (remove-duplicates
-             (cons (list trait-name (first d-args))
+             (cons (list trait-designator (first d-args))
                    satisfies)
              :test #'equal))
            (decls (loop :for s :in satisfies :collect `(satisfies ,@s)))
            (ftype (make-function-ttype context d-args d-ret
-                                       :declarations decls)))
+                                       :declarations decls
+                                       :unknowns unknowns)))
       (register-top-level-function name ftype nil)
       `(register-top-level-function ',name ,ftype nil))))
 
@@ -430,39 +449,47 @@
                         ',type
                         ',func-specs))
 
-
-(defun register-trait-impl (type-system trait-name type-principle-name
+;; NEXT STEPS:
+;; - add type-eql
+;; - refactor define-type to reuse type-spec object if binding already
+;;   exists (maybe)
+;; - must check that every unknown arg in trait-designator appears in
+;;   the type designator somewhere
+;; - must store the indices of the unknown trait args in our type so
+;;   we can return the correct types from the trait predicate
+(defun register-trait-impl (type-system trait-designator type-designator
                             func-specs)
-  (check-type type-principle-name symbol)
-  (let* ((constraint-spec (get-constraint-spec nil trait-name))
-         (type (find-ttype-by-principle-name
-                type-system type-principle-name))
-         ;;              {TODO} make this vv work
+  (let* ((trait-name (first trait-designator))
+         (constraint-spec (get-constraint-spec nil trait-name))
+         (impl-type (find-ttype type-system type-designator))
          (funcs-needed (spec-custom-data constraint-spec)))
     (assert (= (length func-specs) (length funcs-needed)))
     (assert (every (lambda (x) (find x func-specs :key #'first))
                    funcs-needed))
-    (let ((*pending-new-trait-impl-type*
-           (cons trait-name type-principle-name)))
-      (loop
-         :for (trait-func-name impl-func-name) :in func-specs
-         :for trait-func-type := (get-top-level-function-type
-                                  type-system trait-func-name)
-         :for impl-func-type := (get-top-level-function-type
-                                 type-system impl-func-name)
-         :for gfunc-type := (instantiate-function-type trait-func-type)
-         :for gimpl-type := (instantiate-function-type impl-func-type)
-         :do (dbind-ttype (function ~args ~) gimpl-type
-               (if (eq (ttype-principle-name (aref args 0))
-                       type-principle-name)
-                   (or (unifies-p gimpl-type gfunc-type)
-                       (error "~a does not unify with ~a for ~a"
-                              gimpl-type gfunc-type trait-func-name))
-                   (error "first arg of ~a is not ~a"
-                          impl-func-name
-                          type-principle-name)))))
-    (with-slots (traits) (ttype-custom-data type)
-      (setf (gethash trait-name traits) func-specs)
+    (let* ((key (gensym))
+           (*pending-trait-key* key))
+      (with-slots (traits potential-traits) (ttype-custom-data impl-type)
+        (setf (gethash key potential-traits) impl-type)
+        (unwind-protect
+             (loop
+                :for (trait-func-name impl-func-name) :in func-specs
+                :for trait-func-type := (get-top-level-function-type
+                                         type-system trait-func-name)
+                :for impl-func-type := (get-top-level-function-type
+                                        type-system impl-func-name)
+                :for gfunc-type := (instantiate-function-type trait-func-type)
+                :for gimpl-type := (instantiate-function-type impl-func-type)
+                :do (dbind-ttype (function ~args ~) gimpl-type
+                      ;;    vvvv this should be a type-eql or something
+                      (if (unifies-p (aref args 0) impl-type)
+                          (or (unifies-p gimpl-type gfunc-type)
+                              (error "~a does not unify with ~a for ~a"
+                                     gimpl-type gfunc-type trait-func-name))
+                          (error "first arg of ~a is not ~a"
+                                 impl-func-name
+                                 type-designator))))
+          (remhash key potential-traits))
+        (setf (gethash trait-name traits) func-specs))
       trait-name)))
 
 ;;------------------------------------------------------------
