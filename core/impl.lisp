@@ -40,13 +40,23 @@
 
 ;;------------------------------------------------------------
 
+(defclass function-info ()
+  ((type :initarg :type :reader function-type)
+   (is-trait-func-p :initarg :is-trait-func-p :reader is-trait-func-p)
+   (ast :initarg :ast :initform nil :reader function-ast)
+   (trait-impls :initarg :trait-impls :initform (make-hash-table)
+                :reader trait-impls)))
+
+;;------------------------------------------------------------
+
 (defvar *registered-user-types* (make-hash-table :test #'eq))
 (defvar *registered-parameter-types* (make-hash-table :test #'eq))
 (defvar *registered-constraints* (make-hash-table :test #'eq))
 (defvar *registered-top-level-functions* (make-hash-table :test #'eq))
-(defvar *top-level-function-code* (make-hash-table :test #'eq))
 (defvar *registered-records* (make-hash-table :test #'eq))
 (defvar *registered-value-types* (make-hash-table :test #'eq))
+(defvar *registered-traits* (make-hash-table :test #'eq))
+(defvar *registered-trait-funcs* (make-hash-table :test #'eq))
 
 ;;------------------------------------------------------------
 
@@ -65,11 +75,13 @@
     (format t "~%;; Registered param type ~a" name)
     (setf (gethash name *registered-parameter-types*) spec)))
 
-(defun register-top-level-function (func-name type ast)
+(defun register-top-level-function (func-name type ast is-trait-func)
   (format t "~%;; Registered function ~a" func-name)
-  (setf (gethash func-name *top-level-function-code*) ast)
   (setf (gethash func-name *registered-top-level-functions*)
-        (generalize type)))
+        (make-instance 'function-info
+                       :type (generalize type)
+                       :is-trait-func-p is-trait-func
+                       :ast ast)))
 
 (defun register-record (spec)
   (let ((name (aggregate-name spec)))
@@ -197,10 +209,22 @@
         (error "Could not identify constraint for designator: ~a"
                designator))))
 
-(defun get-top-level-function-type (context name)
-  (declare (ignore context))
-  (or (gethash name *registered-top-level-functions*)
-      (error "Could not identify function for name: ~a" name)))
+(defun get-top-level-function-type (context name arg-types-provided-p
+                                    arg-types)
+  (print name)
+  (let ((func-info (gethash name *registered-top-level-functions*)))
+    (if func-info
+        (with-slots (is-trait-func-p trait-impls type) func-info
+          (if is-trait-func-p
+              (if arg-types-provided-p
+                  (let ((impl-name
+                         (gethash (ttype-principle-name (first arg-types))
+                                  trait-impls)))
+                    (get-top-level-function-type
+                     context impl-name arg-types-provided-p arg-types))
+                  (error "Cannot find a trait function without knowing the argument types:~%~a" name))
+              type))
+        (error "Could not identify function for name: ~a" name))))
 
 ;;------------------------------------------------------------
 
@@ -290,7 +314,7 @@
 
 (defmacro defn-host-func (name arg-types return-type)
   (let ((spec (find-ttype 'tables `(function ,arg-types ,return-type))))
-    (register-top-level-function name spec nil)
+    (register-top-level-function name spec nil nil)
     `(progn
        (register-top-level-function ',name ,spec nil))))
 
@@ -365,30 +389,10 @@
 (defmacro define-dummy-func (name args return)
   (let ((type (make-function-ttype (make-check-context 'tables)
                                    args return)))
-    (register-top-level-function name type nil)
-    `(register-top-level-function ',name ,type nil)))
+    (register-top-level-function name type nil nil)
+    `(register-top-level-function ',name ,type nil nil)))
 
 ;;------------------------------------------------------------
-
-(defvar *pending-trait-key* nil)
-
-(defun implements-trait-p (trait type-ref)
-  (let ((trait-name (ttype-principle-name trait)))
-    (with-slots (traits potential-traits) (ttype-custom-data type-ref)
-      (print (list :>> trait-name type-ref traits potential-traits
-                   *pending-trait-key*))
-      (print
-       (let ((impl (gethash trait-name traits)))
-         (if impl
-             (when (unifies-p impl type-ref)
-               (break "ok"))
-             (when *pending-trait-key*
-               (let ((impl (gethash *pending-trait-key* potential-traits)))
-                 (when (and impl (unifies-p impl type-ref))
-                   (break "yipee!"))))))))))
-
-(defun trait-constraint-checker (this type-ref)
-  (implements-trait-p this type-ref))
 
 (defmacro define-trait (trait-designator associated-type funcs)
   (assert (null associated-type))
@@ -396,6 +400,8 @@
               (every #'symbolp trait-designator)))
   (let* ((ts (find-type-system 'tables))
          (context (make-check-context ts))
+         (principle-name
+          (first (alexandria:ensure-list trait-designator)))
          (unknowns
           (when (listp trait-designator)
             (reduce
@@ -407,20 +413,16 @@
                              (rest trait-designator)))
              :initial-value (make-hash-table))))
          (func-names (mapcar #'first funcs))
-         (spec
-          (register-constraint
-           (make-constraint-spec context
-                                 trait-designator
-                                 nil
-                                 'trait-constraint-checker
-                                 func-names)))
          (trait-funcs
           (loop
              :for fspec :in funcs
              :collect (gen-and-register-trait-func
-                       trait-designator context fspec unknowns))))
+                       trait-designator context fspec unknowns)))
+         (trait-info
+          (list principle-name func-names)))
+    (setf (gethash principle-name *registered-traits*) trait-info)
     `(progn
-       (register-constraint ,spec)
+       (setf (gethash ',principle-name *registered-traits*) ',trait-info)
        ,@trait-funcs
        ',trait-designator)))
 
@@ -429,17 +431,21 @@
   (destructuring-bind (name (d-type d-args d-ret) &key satisfies)
       spec
     (assert (eq d-type 'function))
-    (let* ((satisfies
-            (remove-duplicates
-             (cons (list trait-designator (first d-args))
-                   satisfies)
-             :test #'equal))
+    (let* (;; (satisfies
+           ;;  nil
+           ;;   (remove-duplicates
+           ;;   (cons (list trait-designator (first d-args))
+           ;;         satisfies)
+           ;;   :test #'equal))
            (decls (loop :for s :in satisfies :collect `(satisfies ,@s)))
            (ftype (make-function-ttype context d-args d-ret
                                        :declarations decls
                                        :unknowns unknowns)))
-      (register-top-level-function name ftype nil)
-      `(register-top-level-function ',name ,ftype nil))))
+      (register-top-level-function name ftype nil t)
+      (setf (gethash name *registered-trait-funcs*) trait-designator)
+      `(progn
+         (setf (gethash ',name *registered-trait-funcs*) ',trait-designator)
+         (register-top-level-function ',name ,ftype nil t)))))
 
 (defmacro define-trait-impl (trait-name type &body func-specs)
   (register-trait-impl (find-type-system 'tables)
@@ -459,38 +465,40 @@
 ;;   we can return the correct types from the trait predicate
 (defun register-trait-impl (type-system trait-designator type-designator
                             func-specs)
-  (let* ((trait-name (first trait-designator))
-         (constraint-spec (get-constraint-spec nil trait-name))
-         (impl-type (find-ttype type-system type-designator))
-         (funcs-needed (spec-custom-data constraint-spec)))
+  (let* ((trait-principle-name
+          (first (alexandria:ensure-list trait-designator)))
+         (trait-info (gethash trait-principle-name *registered-traits*))
+         (funcs-needed (second trait-info)))
+    (assert trait-info () "Unknown trait ~a" trait-principle-name)
     (assert (= (length func-specs) (length funcs-needed)))
     (assert (every (lambda (x) (find x func-specs :key #'first))
                    funcs-needed))
-    (let* ((key (gensym))
-           (*pending-trait-key* key))
+    (let* ((impl-type (find-ttype type-system type-designator)))
       (with-slots (traits potential-traits) (ttype-custom-data impl-type)
-        (setf (gethash key potential-traits) impl-type)
-        (unwind-protect
-             (loop
-                :for (trait-func-name impl-func-name) :in func-specs
-                :for trait-func-type := (get-top-level-function-type
-                                         type-system trait-func-name)
-                :for impl-func-type := (get-top-level-function-type
-                                        type-system impl-func-name)
-                :for gfunc-type := (instantiate-function-type trait-func-type)
-                :for gimpl-type := (instantiate-function-type impl-func-type)
-                :do (dbind-ttype (function ~args ~) gimpl-type
-                      ;;    vvvv this should be a type-eql or something
-                      (if (unifies-p (aref args 0) impl-type)
-                          (or (unifies-p gimpl-type gfunc-type)
-                              (error "~a does not unify with ~a for ~a"
-                                     gimpl-type gfunc-type trait-func-name))
-                          (error "first arg of ~a is not ~a"
-                                 impl-func-name
-                                 type-designator))))
-          (remhash key potential-traits))
-        (setf (gethash trait-name traits) func-specs))
-      trait-name)))
+        (loop
+           :for (trait-func-name impl-func-name) :in func-specs
+           :for trait-func-info :=
+             (gethash trait-func-name *registered-top-level-functions*)
+           :for impl-func-info :=
+             (gethash impl-func-name *registered-top-level-functions*)
+           :for trait-func-type := (slot-value trait-func-info 'type)
+           :for impl-func-type := (slot-value trait-func-info 'type)
+           :for gfunc-type := (instantiate-function-type trait-func-type)
+           :for gimpl-type := (instantiate-function-type impl-func-type)
+           :do (dbind-ttype (function ~args ~) gimpl-type
+                 ;;    vvvv this should be a type-eql or something
+                 (if (unifies-p (aref args 0) impl-type)
+                     (if (unifies-p gimpl-type gfunc-type)
+                         (setf (gethash (ttype-principle-name impl-type)
+                                        (slot-value trait-func-info
+                                                    'trait-impls))
+                               impl-func-name)
+                         (error "~a does not unify with ~a for ~a"
+                                gimpl-type gfunc-type trait-func-name))
+                     (error "first arg of ~a is not ~a"
+                            impl-func-name
+                            type-designator)))))
+      trait-designator)))
 
 ;;------------------------------------------------------------
 
@@ -498,9 +506,9 @@
   (let* ((lbody `(lambda ,args ,@body))
          (ast (infer 'tables lbody))
          (type (type-of-typed-expression ast)))
-    (register-top-level-function name type ast)
+    (register-top-level-function name type ast nil)
     `(progn
-       (register-top-level-function ',name ,type ',ast)
+       (register-top-level-function ',name ,type ',ast nil)
        ',name)))
 
 #+nil
