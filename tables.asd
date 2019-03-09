@@ -8,8 +8,19 @@
   :depends-on (:checkmate)
   :components ((:file "package")
                (:file "core/utils")
+               ;;
+               ;; language impl
                (:file "core/impl")
-               (:file "core/lang-0-early-types")
+               ;;
+               ;; standard lib
+               (:file "std-lib/type-parameters")
+               (:file "std-lib/early-traits")
+               (:file "std-lib/bits")
+               (:file "std-lib/sized-integers")
+               (:file "std-lib/floating-point")
+               (:file "std-lib/vectors/vec3")
+               ;;
+               ;; compilation
                (:file "core/stage-0")
                (:file "core/stage-0/ast-to-ir")
                (:file "core/stage-0/vars-to-bindings")
