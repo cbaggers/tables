@@ -226,7 +226,9 @@
                           (gethash impl-name
                                    *registered-top-level-functions*)))
                     (if func-info
-                        (slot-value func-info 'type)
+                        (values
+                         (slot-value func-info 'type)
+                         impl-name)
                         (error "Could not identify traint function implementation for ~a ~%when passed ~a" name (mapcar #'ttype-of arg-types))))
                   (error "Cannot find a trait function without knowing the argument types:~%~a" name))
               type))
