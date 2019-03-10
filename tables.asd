@@ -14,6 +14,7 @@
                ;;
                ;; standard lib
                (:file "std-lib/type-parameters")
+               (:file "std-lib/logical-types")
                (:file "std-lib/early-traits")
                (:file "std-lib/bits")
                (:file "std-lib/sized-integers")
@@ -28,4 +29,5 @@
                (:file "core/stage-0/early-constant-folding")
                (:file "core/stage-0/inline-direct-calls")
                (:file "core/stage-0/dead-if-branch-removal")
+               (:file "core/stage-0/inline-top-level-funcs")
                (:file "core/compile")))
