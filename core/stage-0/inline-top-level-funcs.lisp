@@ -60,12 +60,16 @@
                      (ast
                       (slot-value info 'tables.lang::ast)))
                 (if ast
-                    (let ((binding
-                           (first
-                            (slot-value
+                    (let* ((new-ssad-let
+                            (find-top-level-funcs
                              (tables.compile.stage-0.ast-to-ir:run-pass
                               ast)
-                             'tables.compile.stage-0:bindings))))
+                             ht))
+                           (binding
+                            (first
+                             (slot-value
+                              new-ssad-let
+                              'tables.compile.stage-0:bindings))))
                       (setf (gethash name ht) binding)
                       (make-instance 'ssad-var :binding binding))
                     o))))
