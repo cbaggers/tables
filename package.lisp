@@ -83,6 +83,10 @@
     (:use #:cl #:checkmate #:tables.utils #:tables.compile.stage-0)
   (:export :run-pass))
 
+(uiop:define-package #:tables.compile.stage-0.inline-top-level-functions
+    (:use #:cl #:checkmate #:tables.utils #:tables.compile.stage-0)
+  (:export :run-pass))
+
 (uiop:define-package #:tables
     (:use)
   (:import-from :tables.lang))
