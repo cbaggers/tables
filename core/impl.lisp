@@ -402,37 +402,41 @@
 ;;------------------------------------------------------------
 
 (defmacro define-trait (trait-designator associated-type funcs)
-  (assert (null associated-type))
   (assert (or (symbolp trait-designator)
               (every #'symbolp trait-designator)))
+  (assert (or (null associated-type)
+              (checkmate::unknown-designator-name-p associated-type)))
   (let* ((ts (find-type-system 'tables))
          (context (make-check-context ts))
-         (designator-as-list
-          (alexandria:ensure-list trait-designator))
-         (principle-name
-          (first designator-as-list))
-         (unknowns
-          (when (listp trait-designator)
-            (reduce
-             (lambda (u d)
-               (find-ttype 'tables d :unknowns u)
-               u)
-             (remove-duplicates
-              (remove-if-not #'checkmate::unknown-designator-name-p
-                             (rest trait-designator)))
-             :initial-value (make-hash-table))))
-         (trait-funcs
-          (loop
-             :for fspec :in funcs
-             :collect (gen-and-register-trait-func
-                       trait-designator context fspec unknowns)))
-         (trait-info
-          (list (rest designator-as-list) associated-type funcs)))
-    (setf (gethash principle-name *registered-traits*) trait-info)
-    `(progn
-       (setf (gethash ',principle-name *registered-traits*) ',trait-info)
-       ,@trait-funcs
-       ',trait-designator)))
+         (unknowns (make-hash-table)))
+    (when associated-type
+      (find-ttype 'tables associated-type :unknowns unknowns))
+    (when (listp trait-designator)
+      (reduce
+       (lambda (u d)
+         (find-ttype 'tables d :unknowns u)
+         u)
+       (remove-duplicates
+        (remove-if-not #'checkmate::unknown-designator-name-p
+                       (rest trait-designator)))
+       :initial-value unknowns))
+    (let* ((designator-as-list
+            (alexandria:ensure-list trait-designator))
+           (principle-name
+            (first designator-as-list))
+           (trait-funcs
+            (loop
+               :for fspec :in funcs
+               :collect (gen-and-register-trait-func
+                         trait-designator context fspec unknowns)))
+           (trait-info
+            (list (rest designator-as-list) associated-type funcs)))
+      (setf (gethash principle-name *registered-traits*) trait-info)
+      `(progn
+         (setf (gethash ',principle-name *registered-traits*)
+               ',trait-info)
+         ,@trait-funcs
+         ',trait-designator))))
 
 (defun gen-and-register-trait-func (trait-designator context spec
                                     unknowns)
@@ -462,7 +466,6 @@
 
 (defun register-trait-impl (type-system trait-designator associated-type
                             type-designator func-specs)
-  (declare (ignore associated-type))
   (let* ((trait-desig-as-list
           (alexandria:ensure-list trait-designator))
          (trait-principle-name
@@ -472,14 +475,19 @@
          (trait-impl-args (rest trait-desig-as-list))
          (trait-info (gethash trait-principle-name *registered-traits*)))
     (assert trait-info () "Unknown trait ~a" trait-principle-name)
-    (destructuring-bind (trait-args associated-type funcs-needed)
+    (destructuring-bind (trait-args t-associated-type funcs-needed)
         trait-info
-      (declare (ignore associated-type))
       (assert (= (length trait-impl-args) (length trait-args)))
       (assert (= (length func-specs) (length funcs-needed)))
       (assert (every (lambda (x) (find (first x) func-specs :key #'first))
-                   funcs-needed))
+                     funcs-needed))
+      (when t-associated-type
+        (assert associated-type))
       (let* ((funcs-needed
+              (if t-associated-type
+                  (subst associated-type t-associated-type funcs-needed)
+                  funcs-needed))
+             (funcs-needed
               (reduce (lambda (a x)
                         (destructuring-bind (targ . iarg) x
                           (subst iarg targ a :test #'eq)))
@@ -489,6 +497,13 @@
               (make-hash-table))
              (unknowns1
               (make-hash-table))
+             (unknowns0
+              (if associated-type
+                  (progn
+                    (find-ttype 'tables associated-type
+                                :unknowns unknowns1)
+                    unknowns0)
+                  unknowns0))
              (funcs-needed
               (mapcar (lambda (x)
                         (destructuring-bind (name spec) x
@@ -511,7 +526,8 @@
                               :named-unknowns unknowns1)))
                      (list name impl-func-name z))))
                func-specs))
-             (impl-type (find-ttype type-system type-designator)))
+             (impl-type (find-ttype type-system type-designator
+                                    :unknowns unknowns1)))
         (loop
            :for (needed-name info needed-type) :in funcs-needed
            :for (impl-func-name provided-type)

@@ -1,7 +1,4 @@
 
-(defn boop ((x vec3))
-  (+ x x))
-
 ;;------------------------------------------------------------
 
 ;; dont eval type macros until all types are known
@@ -36,3 +33,14 @@
 (define-trait-impl (fooable i8) () i8
   (foo i8foo)
   (foop i8foop))
+
+
+(define-trait iter ?item
+  ((next (function (?a) ?item))))
+
+(define-ttype (unordered-set ?x))
+
+(define-dummy-func u-set-next ((unordered-set ?x)) ?x)
+
+(define-trait-impl iter (?b) (unordered-set ?b)
+  (next u-set-next))
