@@ -109,17 +109,17 @@
 ;;------------------------------------------------------------
 
 (defn vec3-length ((a vec3))
-  (f32-sqrt (length-squared a)))
+  (f32-sqrt (vec3-length-squared a)))
 
 ;;------------------------------------------------------------
 
 (defn vec3-distance-squared ((a vec3) (b vec3))
-  (length-squared (- b a)))
+  (vec3-length-squared (- b a)))
 
 ;;------------------------------------------------------------
 
 (defn vec3-distance ((a vec3) (b vec3))
-  (length (- b a)))
+  (vec3-length (- b a)))
 
 ;;------------------------------------------------------------
 
