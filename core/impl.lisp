@@ -56,7 +56,6 @@
 (defvar *registered-records* (make-hash-table :test #'eq))
 (defvar *registered-value-types* (make-hash-table :test #'eq))
 (defvar *registered-traits* (make-hash-table :test #'eq))
-(defvar *registered-trait-funcs* (make-hash-table :test #'eq))
 
 ;;------------------------------------------------------------
 
@@ -75,13 +74,30 @@
     (format t "~%;; Registered param type ~a" name)
     (setf (gethash name *registered-parameter-types*) spec)))
 
-(defun register-top-level-function (func-name type ast is-trait-func)
-  (format t "~%;; Registered function ~a" func-name)
-  (setf (gethash func-name *registered-top-level-functions*)
-        (make-instance 'function-info
-                       :type (generalize type)
-                       :is-trait-func-p is-trait-func
-                       :ast ast)))
+(defun register-tlf-from-code (func-name code is-trait-func)
+  (let* ((ast (infer 'tables code))
+         (type (type-of-typed-expression ast)))
+    (format t "~%;; Registered function ~a" func-name)
+    (setf (gethash func-name *registered-top-level-functions*)
+          (make-instance 'function-info
+                         :type (generalize type)
+                         :is-trait-func-p is-trait-func
+                         :ast ast))))
+
+(defun register-tlf-from-type (func-name type-designator is-trait-func
+                               unknowns declarations)
+  (destructuring-bind (f args ret) type-designator
+    (assert (eq f 'function))
+    (let* ((unknowns (or unknowns (make-hash-table)))
+           (type (make-function-ttype (make-check-context 'tables)
+                                      args ret :unknowns unknowns
+                                      :declarations declarations)))
+      (format t "~%;; Registered function ~a" func-name)
+      (setf (gethash func-name *registered-top-level-functions*)
+            (make-instance 'function-info
+                           :type (generalize type)
+                           :is-trait-func-p is-trait-func
+                           :ast nil)))))
 
 (defun register-record (spec)
   (let ((name (aggregate-name spec)))
@@ -320,10 +336,9 @@
 ;;------------------------------------------------------------
 
 (defmacro defn-host-func (name arg-types return-type)
-  (let ((spec (find-ttype 'tables `(function ,arg-types ,return-type))))
-    (register-top-level-function name spec nil nil)
-    `(progn
-       (register-top-level-function ',name ,spec nil))))
+  (declare (ignore arg-types return-type))
+  `(progn
+     ',name))
 
 ;;------------------------------------------------------------
 
@@ -394,10 +409,9 @@
 ;;------------------------------------------------------------
 
 (defmacro define-dummy-func (name args return)
-  (let ((type (make-function-ttype (make-check-context 'tables)
-                                   args return)))
-    (register-top-level-function name type nil nil)
-    `(register-top-level-function ',name ,type nil nil)))
+  (let ((type `(function ,args ,return)))
+    (register-tlf-from-type name type nil nil nil)
+    `(register-tlf-from-type ',name ',type nil nil nil)))
 
 ;;------------------------------------------------------------
 
@@ -406,8 +420,18 @@
               (every #'symbolp trait-designator)))
   (assert (or (null associated-type)
               (checkmate::unknown-designator-name-p associated-type)))
-  (let* ((ts (find-type-system 'tables))
-         (context (make-check-context ts))
+  (register-trait trait-designator associated-type funcs)
+  `(progn
+     (register-trait ',trait-designator ',associated-type ',funcs)
+     ',trait-designator))
+
+(defun register-trait (trait-designator associated-type funcs)
+  (let* ((designator-as-list
+          (alexandria:ensure-list trait-designator))
+         (trait-info
+          (list (rest designator-as-list) associated-type funcs))
+         (principle-name
+          (first designator-as-list))
          (unknowns (make-hash-table)))
     (when associated-type
       (find-ttype 'tables associated-type :unknowns unknowns))
@@ -420,38 +444,21 @@
         (remove-if-not #'checkmate::unknown-designator-name-p
                        (rest trait-designator)))
        :initial-value unknowns))
-    (let* ((designator-as-list
-            (alexandria:ensure-list trait-designator))
-           (principle-name
-            (first designator-as-list))
-           (trait-funcs
-            (loop
-               :for fspec :in funcs
-               :collect (gen-and-register-trait-func
-                         trait-designator context fspec unknowns)))
-           (trait-info
-            (list (rest designator-as-list) associated-type funcs)))
-      (setf (gethash principle-name *registered-traits*) trait-info)
-      `(progn
-         (setf (gethash ',principle-name *registered-traits*)
-               ',trait-info)
-         ,@trait-funcs
-         ',trait-designator))))
+    (setf (gethash principle-name *registered-traits*)
+        trait-info)
+    (loop
+       :for fspec :in funcs
+       :do (gen-and-register-trait-func fspec unknowns))
+    (values)))
 
-(defun gen-and-register-trait-func (trait-designator context spec
-                                    unknowns)
+(defun gen-and-register-trait-func (spec unknowns)
   (destructuring-bind (name (d-type d-args d-ret) &key satisfies)
       spec
     (assert (eq d-type 'function))
     (let* ((decls (loop :for s :in satisfies :collect `(satisfies ,@s)))
-           (ftype (make-function-ttype context d-args d-ret
-                                       :declarations decls
-                                       :unknowns unknowns)))
-      (register-top-level-function name ftype nil t)
-      (setf (gethash name *registered-trait-funcs*) trait-designator)
-      `(progn
-         (setf (gethash ',name *registered-trait-funcs*) ',trait-designator)
-         (register-top-level-function ',name ,ftype nil t)))))
+           (ftype `(function ,d-args ,d-ret)))
+      (register-tlf-from-type name ftype t unknowns decls)
+      (values))))
 
 (defmacro define-trait-impl (trait-name (&optional associated-type) type
                              &body func-specs)
@@ -551,12 +558,10 @@
 ;;------------------------------------------------------------
 
 (defmacro defn (name args &body body)
-  (let* ((lbody `(lambda ,args ,@body))
-         (ast (infer 'tables lbody))
-         (type (type-of-typed-expression ast)))
-    (register-top-level-function name type ast nil)
+  (let* ((code `(lambda ,args ,@body)))
+    (register-tlf-from-code name code nil)
     `(progn
-       (register-top-level-function ',name ,type ',ast nil)
+       (register-tlf-from-code ',name ',code nil)
        ',name)))
 
 #+nil
