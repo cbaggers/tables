@@ -288,6 +288,8 @@
 ;;------------------------------------------------------------
 ;; these will be removed, jsut for testing
 
+;; {TODO} look up the spec rather than storing it, load forms seem to be
+;;        slow.
 (defmacro define-ttype (designator
                         &body rest
                         &key where aggregate-info)
