@@ -1,7 +1,7 @@
 (in-package :tables.utils)
 
-(defun assocr (item alist)
-  (cdr (assoc item alist)))
+(defun assocr (item alist &key (test #'eql))
+  (cdr (assoc item alist :test test)))
 
 (defun last1 (list) (car (last list)))
 
