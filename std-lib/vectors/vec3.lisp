@@ -12,22 +12,22 @@
 (defn vec3+ ((a vec3) (b vec3))
   (vec3 (+ (vec3-x a) (vec3-x b))
         (+ (vec3-y a) (vec3-y b))
-        (+ (vec3-y a) (vec3-z b))))
+        (+ (vec3-z a) (vec3-z b))))
 
 (defn vec3- ((a vec3) (b vec3))
   (vec3 (- (vec3-x a) (vec3-x b))
         (- (vec3-y a) (vec3-y b))
-        (- (vec3-y a) (vec3-z b))))
+        (- (vec3-z a) (vec3-z b))))
 
 (defn vec3* ((a vec3) (b vec3))
   (vec3 (* (vec3-x a) (vec3-x b))
         (* (vec3-y a) (vec3-y b))
-        (* (vec3-y a) (vec3-z b))))
+        (* (vec3-z a) (vec3-z b))))
 
 (defn vec3/ ((a vec3) (b vec3))
   (vec3 (/ (vec3-x a) (vec3-x b))
         (/ (vec3-y a) (vec3-y b))
-        (/ (vec3-y a) (vec3-z b))))
+        (/ (vec3-z a) (vec3-z b))))
 
 (define-trait-impl addable () vec3
   (+ vec3+))
