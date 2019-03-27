@@ -36,6 +36,10 @@
   ((form :initarg :form)
    (type :initarg :type)))
 
+(defclass ssad-constructed ()
+  ((form :initarg :form)
+   (type :initarg :type)))
+
 ;;------------------------------------------------------------
 
 (defgeneric as-debug-form (o))
@@ -77,6 +81,10 @@
 
 (defmethod as-debug-form ((o symbol))
   o)
+
+(defmethod as-debug-form ((o ssad-constructed))
+  (with-slots (type form) o
+    (list :construct type form)))
 
 ;;------------------------------------------------------------
 

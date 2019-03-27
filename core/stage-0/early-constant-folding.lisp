@@ -75,6 +75,7 @@
 
 (defmethod cfold ((o symbol)) o)
 (defmethod cfold ((o ssad-constant)) o)
+(defmethod cfold ((o ssad-constructed)) o)
 
 (defun foldable-constant-p (constant)
   (typep constant 'ssad-constant))

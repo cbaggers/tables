@@ -41,6 +41,7 @@
            :ssad-funcall
            :ssad-var
            :ssad-constant
+           :ssad-constructed
            ;;
            :args
            :binding

@@ -55,3 +55,7 @@
 (defmethod vars-to-bindings ((o ssad-var) env)
   (declare (ignore env))
   o)
+
+(defmethod vars-to-bindings ((o ssad-constructed) env)
+  (declare (ignore env))
+  o)

@@ -41,3 +41,12 @@
    '(let ((a (checkmate.lang:construct i8 dang)))
      (let ((b a))
        (+ (- a 2) (- 1 2))))))
+
+
+#+nil
+(defun ftest ()
+  (tables.compile::test
+   '(funcall (if (checkmate.lang:construct boolean ??)
+                 (lambda ((x i8)) (+ x x))
+                 (lambda ((x i8)) (* x x)))
+     1)))

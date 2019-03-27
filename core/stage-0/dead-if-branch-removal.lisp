@@ -66,5 +66,6 @@
 (defmethod remove-dead ((o ssad-var)) o)
 (defmethod remove-dead ((o symbol)) o)
 (defmethod remove-dead ((o ssad-constant)) o)
+(defmethod remove-dead ((o ssad-constructed)) o)
 
 ;;------------------------------------------------------------

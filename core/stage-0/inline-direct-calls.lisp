@@ -81,6 +81,7 @@
 (defmethod inline-funcs ((o ssad-var)) o)
 (defmethod inline-funcs ((o symbol)) o)
 (defmethod inline-funcs ((o ssad-constant)) o)
+(defmethod inline-funcs ((o ssad-constructed)) o)
 
 
 #||

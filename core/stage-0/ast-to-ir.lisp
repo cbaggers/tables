@@ -40,8 +40,9 @@
   (let* ((type (second ast))
          (form (third ast))
          (blockified (blockify-form context form type)))
-    (typecase blockified
-      ((or ssad-lambda ssad-if ssad-funcall)
+    (etypecase blockified
+      ((or ssad-lambda ssad-if ssad-funcall ssad-constant
+           ssad-constructed)
        (list (make-instance 'ssad-binding
                             :name (gensym)
                             :form blockified
@@ -55,12 +56,7 @@
                                :form body-form
                                :type type)))))
       (ssad-binding
-       (error "naked binding in blockify"))
-      (ssad-constant
-       (list (make-instance 'ssad-binding
-                            :name (gensym)
-                            :form blockified
-                            :type type))))))
+       (error "naked binding in blockify")))))
 
 (defun blockify-form (context form type)
   (typecase form
@@ -78,11 +74,18 @@
        (progn (blockify-progn-form context form))
        (funcall (blockify-funcall-form context form))
        (function (blockify-function-form context form type))
+       (:construct (blockify-construct-form context form type))
        (otherwise (error "not sure what to do with ~s" (first form)))))
     (otherwise
      (make-instance 'ssad-constant
                     :form form
                     :type type))))
+
+(defun blockify-construct-form (context form type)
+  (declare (ignore context))
+  (make-instance 'ssad-constructed
+                 :form (second form)
+                 :type type))
 
 (defun blockify-function-form (context form type)
   (declare (ignore context))

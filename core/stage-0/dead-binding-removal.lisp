@@ -45,6 +45,7 @@
 
 (defmethod find-live ((o symbol) live))
 (defmethod find-live ((o ssad-constant) live))
+(defmethod find-live ((o ssad-constructed) live))
 
 ;;------------------------------------------------------------
 
@@ -77,5 +78,6 @@
 (defmethod remove-dead ((o ssad-var) live) (values))
 (defmethod remove-dead ((o symbol) live) (values))
 (defmethod remove-dead ((o ssad-constant) live) (values))
+(defmethod remove-dead ((o ssad-constructed) live) (values))
 
 ;;------------------------------------------------------------

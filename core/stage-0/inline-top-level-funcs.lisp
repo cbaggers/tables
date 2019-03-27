@@ -83,4 +83,8 @@
   (declare (ignore ht))
   o)
 
+(defmethod find-top-level-funcs ((o ssad-constructed) ht)
+  (declare (ignore ht))
+  o)
+
 ;;------------------------------------------------------------
