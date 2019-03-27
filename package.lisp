@@ -88,6 +88,10 @@
     (:use #:cl #:checkmate #:tables.utils #:tables.compile.stage-0)
   (:export :run-pass))
 
+(uiop:define-package #:tables.compile.stage-0.subexpression-elim
+    (:use #:cl #:checkmate #:tables.utils #:tables.compile.stage-0)
+  (:export :run-pass))
+
 (uiop:define-package #:tables
     (:use)
   (:import-from :tables.lang))
