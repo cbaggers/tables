@@ -44,6 +44,8 @@
   ((type :initarg :type :reader function-type)
    (is-trait-func-p :initarg :is-trait-func-p :reader is-trait-func-p)
    (ast :initarg :ast :initform nil :reader function-ast)
+   (record-ctor-slots :initarg :record-ctor-slots
+                      :reader record-ctor-slots)
    (trait-impls :initarg :trait-impls :initform (make-hash-table)
                 :reader trait-impls)))
 
@@ -85,7 +87,7 @@
                          :ast ast))))
 
 (defun register-tlf-from-type (func-name type-designator is-trait-func
-                               unknowns declarations)
+                               record-ctor-slots unknowns declarations)
   (destructuring-bind (f args ret) type-designator
     (assert (eq f 'function))
     (let* ((unknowns (or unknowns (make-hash-table)))
@@ -97,6 +99,7 @@
             (make-instance 'function-info
                            :type (generalize type)
                            :is-trait-func-p is-trait-func
+                           :record-ctor-slots record-ctor-slots
                            :ast nil)))))
 
 (defun register-record (spec)
@@ -366,19 +369,22 @@
          (constructor-name name)
          (slot-type-desigs
           (mapcar (lambda (x) (ttype-of (slot-type x)))
-                  slot-specs)))
+                  slot-specs))
+         (slot-funcs
+          (loop
+             :for (slot-name slot-type-desig) :in slots
+             :for acc-name := (intern
+                               (format nil "~a-~a" name slot-name)
+                               (symbol-package name))
+             :collect `(define-dummy-func ,acc-name (,name)
+                         ,slot-type-desig))))
     (register-record spec)
     `(progn
        (register-record ,spec)
        (define-ttype ,name :aggregate-info ,spec)
-       (define-dummy-func ,constructor-name ,slot-type-desigs ,name)
-       ,@(loop
-            :for (slot-name slot-type-desig) :in slots
-            :for acc-name := (intern
-                              (format nil "~a-~a" name slot-name)
-                              (symbol-package name))
-            :collect `(define-dummy-func ,acc-name (,name)
-                        ,slot-type-desig))
+       (define-record-ctor-func ,constructor-name ,slot-type-desigs ,name
+                                ,(mapcar #'second slot-funcs))
+       ,@slot-funcs
        ',name)))
 
 ;;------------------------------------------------------------
@@ -412,8 +418,13 @@
 
 (defmacro define-dummy-func (name args return)
   (let ((type `(function ,args ,return)))
-    (register-tlf-from-type name type nil nil nil)
-    `(register-tlf-from-type ',name ',type nil nil nil)))
+    (register-tlf-from-type name type nil nil nil nil)
+    `(register-tlf-from-type ',name ',type nil nil nil nil)))
+
+(defmacro define-record-ctor-func (name args return slot-func-names)
+  (let ((type `(function ,args ,return)))
+    (register-tlf-from-type name type nil t nil nil)
+    `(register-tlf-from-type ',name ',type nil',slot-func-names nil nil)))
 
 ;;------------------------------------------------------------
 
@@ -459,7 +470,7 @@
     (assert (eq d-type 'function))
     (let* ((decls (loop :for s :in satisfies :collect `(satisfies ,@s)))
            (ftype `(function ,d-args ,d-ret)))
-      (register-tlf-from-type name ftype t unknowns decls)
+      (register-tlf-from-type name ftype t nil unknowns decls)
       (values))))
 
 (defmacro define-trait-impl (trait-name (&optional associated-type) type

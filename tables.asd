@@ -30,4 +30,5 @@
                (:file "core/stage-0/inline-direct-calls")
                (:file "core/stage-0/dead-if-branch-removal")
                (:file "core/stage-0/inline-top-level-funcs")
+               (:file "core/stage-0/subexpression-elim")
                (:file "core/compile")))
