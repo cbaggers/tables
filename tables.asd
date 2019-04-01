@@ -32,4 +32,5 @@
                (:file "core/stage-0/inline-top-level-funcs")
                (:file "core/stage-0/subexpression-elim")
                (:file "core/stage-0/uniform-propagation")
+               (:file "core/stage-0/uniform-local-lift")
                (:file "core/compile")))
