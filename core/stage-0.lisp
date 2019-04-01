@@ -13,7 +13,8 @@
 (defclass ssad-binding ()
   ((name :initarg :name)
    (form :initarg :form)
-   (type :initarg :type)))
+   (type :initarg :type)
+   (is-uniform :initarg :is-uniform :initform nil)))
 
 (defclass ssad-var ()
   ((binding :initarg :binding)))
