@@ -31,7 +31,12 @@
                       (every #'arg-is-uniform-p args))))
               (ssad-constructed
                (with-slots ((cform form)) form
-                 (eq cform :arg)))))))
+                 (eq cform :arg)))
+              (ssad-if
+               (with-slots (test then else) form
+                 (and (arg-is-uniform-p test)
+                      (arg-is-uniform-p then)
+                      (arg-is-uniform-p else))))))))
   (values))
 
 (defmethod u-prop ((o ssad-lambda))
