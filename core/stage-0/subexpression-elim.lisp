@@ -21,11 +21,13 @@
               :collect key)))
       (setf bindings
             (loop :for binding :in bindings
-               :for new-bindings := (s-elim (slot-value binding 'form) env)
-               :append new-bindings
+               :append (multiple-value-bind (ikeys new-bindings)
+                           (s-elim (slot-value binding 'form) env)
+                         (declare (ignore ikeys))
+                         (remove nil new-bindings))
                :collect binding))
       (s-elim body-form env)
-      keys)))
+      (values keys nil))))
 
 (defun form-key (binding-name form)
   (typecase form
@@ -76,7 +78,7 @@
 
 (defmethod s-elim ((o ssad-lambda) env)
   (with-slots (body-form) o
-    (s-elim o env)
+    (s-elim body-form env)
     nil))
 
 (defmethod s-elim ((o ssad-if) env)
@@ -85,29 +87,31 @@
     (s-elim test env)
     (let* ((then-keys (s-elim then env))
            (else-keys (s-elim else env)))
-      (loop
-         :for tpos :from 0
-         :for tkey :in then-keys
-         :for tbinding :in (slot-value then 'bindings)
-         :for ebindings := (slot-value else 'bindings)
-         :for epos := (position tkey else-keys :test #'equal)
-         :when epos
-         :collect
-           (let* ((tform (slot-value tbinding 'form))
-                  (ttype (slot-value tbinding 'type))
-                  (tunif (slot-value tbinding 'is-uniform))
-                  (new-binding
-                   (make-instance 'ssad-binding
-                                  :name (gensym)
-                                  :form tform
-                                  :type ttype
-                                  :is-uniform tunif))
-                  (ebinding (nth epos ebindings)))
-             (setf (slot-value tbinding 'form)
-                   (make-instance 'ssad-var :binding new-binding))
-             (setf (slot-value ebinding 'form)
-                   (make-instance 'ssad-var :binding new-binding))
-             new-binding)))))
+      (values
+       nil
+       (loop
+          :for tpos :from 0
+          :for tkey :in then-keys
+          :for tbinding :in (slot-value then 'bindings)
+          :for ebindings := (slot-value else 'bindings)
+          :for epos := (when tkey (position tkey else-keys :test #'equal))
+          :when epos
+          :collect
+            (let* ((tform (slot-value tbinding 'form))
+                   (ttype (slot-value tbinding 'type))
+                   (tunif (slot-value tbinding 'is-uniform))
+                   (new-binding
+                    (make-instance 'ssad-binding
+                                   :name (gensym)
+                                   :form tform
+                                   :type ttype
+                                   :is-uniform tunif))
+                   (ebinding (nth epos ebindings)))
+              (setf (slot-value tbinding 'form)
+                    (make-instance 'ssad-var :binding new-binding))
+              (setf (slot-value ebinding 'form)
+                    (make-instance 'ssad-var :binding new-binding))
+              new-binding))))))
 
 (defmethod s-elim ((o ssad-funcall) env) nil)
 (defmethod s-elim ((o ssad-var) env) nil)
