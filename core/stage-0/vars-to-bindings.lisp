@@ -14,20 +14,35 @@
 (defun run-pass (ssad-let)
   (vars-to-bindings ssad-let nil))
 
+(defun push-into-env (bindings env)
+  (labels ((proc (env binding)
+             (with-slots (name form) binding
+               (setf form (vars-to-bindings form env))
+               (acons name binding env))))
+    (reduce #'proc bindings :initial-value env)))
+
 (defmethod vars-to-bindings ((o ssad-let1) env)
   (with-slots (bindings body-form) o
-    (labels ((proc (env binding)
-               (with-slots (name form) binding
-                 (setf form (vars-to-bindings form env))
-                 (acons name binding env))))
-      (let ((env (reduce #'proc bindings :initial-value env)))
-        (setf body-form (vars-to-bindings body-form env))
-        o))))
+    (let ((env (push-into-env bindings env)))
+      (setf body-form (vars-to-bindings body-form env))
+      o)))
 
 (defmethod vars-to-bindings ((o ssad-lambda) env)
-  (with-slots (args body-form result-type) o
-    (setf body-form (vars-to-bindings body-form env))
-    o))
+  (with-slots (args body-form result-type arg-bindings) o
+    (let* ((bindings
+            (loop
+               :for (name type) :in args
+               :collect (make-instance
+                         'ssad-binding
+                         :name name
+                         :form (make-instance 'ssad-constructed
+                                              :type type
+                                              :form :arg)
+                         :type type)))
+           (env (push-into-env bindings env)))
+      (setf body-form (vars-to-bindings body-form env)
+            arg-bindings bindings)
+      o)))
 
 (defmethod vars-to-bindings ((o ssad-if) env)
   (with-slots (test then else) o

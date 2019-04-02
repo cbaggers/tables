@@ -47,6 +47,7 @@
            :ssad-constructed
            ;;
            :args
+           :arg-bindings
            :binding
            :bindings
            :body

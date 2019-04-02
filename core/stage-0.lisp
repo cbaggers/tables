@@ -22,7 +22,8 @@
 (defclass ssad-lambda ()
   ((args :initarg :args)
    (body-form :initarg :body-form) ;; always a ssad-let1
-   (result-type :initarg :result-type)))
+   (result-type :initarg :result-type)
+   (arg-bindings :initform nil)))
 
 (defclass ssad-if ()
   ((test :initarg :test)
