@@ -39,8 +39,8 @@
 ;; - funcall sinking (push funcall of conditional result to branches)
 ;; - make and & or special forms?
 ;; - integer ops
-;; - uniform tracking
 ;; - code hoisting
+;; - add arg name to arg bindings
 ;;
 ;; Amongst others..
 
