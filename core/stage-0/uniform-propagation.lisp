@@ -23,6 +23,7 @@
                 (slot-value (slot-value arg 'binding)
                             'is-uniform)))))
     (with-slots (form is-uniform) binding
+      (u-prop form)
       (setf is-uniform
             (typecase form
               (ssad-funcall
@@ -36,8 +37,8 @@
                (with-slots (test then else) form
                  (and (arg-is-uniform-p test)
                       (arg-is-uniform-p then)
-                      (arg-is-uniform-p else))))))))
-  (values))
+                      (arg-is-uniform-p else)))))))
+    (values)))
 
 (defmethod u-prop ((o ssad-lambda))
   (with-slots (body-form) o
