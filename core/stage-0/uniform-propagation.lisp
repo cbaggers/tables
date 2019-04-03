@@ -41,7 +41,7 @@
 
 (defmethod u-prop ((o ssad-lambda))
   (with-slots (body-form) o
-    (u-prop o)
+    (u-prop body-form)
     (values)))
 
 (defmethod u-prop ((o ssad-if))
