@@ -28,6 +28,7 @@
            :vec3
            ;;
            :*registered-top-level-functions*
+           :*registered-constant-folds*
            :record-ctor-slots))
 
 (uiop:define-package #:tables.compile
@@ -102,6 +103,10 @@
   (:export :run-pass))
 
 (uiop:define-package #:tables.compile.stage-0.uniform-local-lift
+    (:use #:cl #:checkmate #:tables.utils #:tables.compile.stage-0)
+  (:export :run-pass))
+
+(uiop:define-package #:tables.compile.stage-0.user-constant-folds
     (:use #:cl #:checkmate #:tables.utils #:tables.compile.stage-0)
   (:export :run-pass))
 

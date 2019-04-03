@@ -19,6 +19,12 @@
 (define-dummy-func i8* (i8 i8) i8)
 (define-dummy-func i8/ (i8 i8) i8)
 
+(define-constant-folder i8+ (a b)
+  (- (mod (+ 127 (+ a b)) 255) 127))
+
+(define-constant-folder i8- (a b)
+  (- (mod (+ 127 (- a b)) 255) 127))
+
 ;;------------------------------------------------------------
 
 (define-dummy-func i16+ (i16 i16) i16)

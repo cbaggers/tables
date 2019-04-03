@@ -59,6 +59,10 @@
 (defvar *registered-value-types* (make-hash-table :test #'eq))
 (defvar *registered-traits* (make-hash-table :test #'eq))
 
+;; {TODO} This is temporary, will be replaced with something more
+;;        general
+(defvar *registered-constant-folds* (make-hash-table :test #'eq))
+
 ;;------------------------------------------------------------
 
 (defun register-type (spec)
@@ -580,3 +584,11 @@
 #+nil
 (defn horse ()
   1)
+
+;;------------------------------------------------------------
+
+(defmacro define-constant-folder (func-name args &body body)
+  `(progn
+     (setf (gethash ',func-name *registered-constant-folds*)
+           (lambda ,args ,@body))
+     ',func-name))
