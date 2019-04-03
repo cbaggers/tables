@@ -20,29 +20,29 @@
 (define-dummy-func i8/ (i8 i8) i8)
 
 (define-optimize-macro i8+ (&whole whole a b)
-  (if (and (numberp a) (numberp b))
-      (- (mod (+ 127 (+ a b)) 255) 127)
-      whole))
+  (cond
+    ((and (numberp a) (numberp b)) (- (mod (+ 127 (+ a b)) 255) 127))
+    (t whole)))
 
 (define-optimize-macro i8- (&whole whole a b)
   (cond
-    ((and (numberp a) (numberp b))
-     (- (mod (+ 127 (- a b)) 255) 127))
+    ((and (numberp a) (numberp b)) (- (mod (+ 127 (- a b)) 255) 127))
     ((tables.compile.stage-0:var-eq a b) 0)
     (t whole)))
 
 (define-optimize-macro i8* (&whole whole a b)
   (cond
-    ((and (numberp a) (numberp b))
-     (- (mod (+ 127 (* a b)) 255) 127))
-    ((eql a 1)
-     b)
-    ((eql b 1)
-     a)
-    ((or (eql a 0) (eql a 0))
-     0)
-    (t
-     whole)))
+    ((and (numberp a) (numberp b)) (- (mod (+ 127 (* a b)) 255) 127))
+    ((eql a 1) b)
+    ((eql b 1) a)
+    ((or (eql a 0) (eql a 0)) 0)
+    (t whole)))
+
+(define-optimize-macro i8/ (&whole whole a b)
+  (cond
+    ((eql a 0) 0)
+    ((tables.compile.stage-0:var-eq a b) 1)
+    (t whole)))
 
 ;;------------------------------------------------------------
 
