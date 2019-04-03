@@ -5,7 +5,8 @@
   (:export :assocr
            :last1
            :gensym-named
-           :rehome-symbol))
+           :rehome-symbol
+           :vbind))
 
 (uiop:define-package #:tables.macros (:use))
 
@@ -29,6 +30,7 @@
            ;;
            :*registered-top-level-functions*
            :*registered-constant-folds*
+           :*registered-compiler-macros*
            :record-ctor-slots))
 
 (uiop:define-package #:tables.compile
@@ -64,7 +66,8 @@
            :type
            :is-uniform
            ;;
-           :as-debug-form))
+           :as-debug-form
+           :var-eq))
 
 (uiop:define-package #:tables.compile.stage-0.ast-to-ir
     (:use #:cl #:checkmate #:tables.utils #:tables.compile.stage-0)
@@ -106,7 +109,7 @@
     (:use #:cl #:checkmate #:tables.utils #:tables.compile.stage-0)
   (:export :run-pass))
 
-(uiop:define-package #:tables.compile.stage-0.user-constant-folds
+(uiop:define-package #:tables.compile.stage-0.compiler-macro-expand
     (:use #:cl #:checkmate #:tables.utils #:tables.compile.stage-0)
   (:export :run-pass))
 

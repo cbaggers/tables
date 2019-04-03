@@ -1,4 +1,5 @@
 (in-package :tables.compile.stage-0)
+;; {TODO} rename this file to ir-types
 
 ;;
 ;; IR nodes for stage-0
@@ -106,3 +107,9 @@
   (format stream "#~a" (as-debug-form o)))
 
 ;;------------------------------------------------------------
+
+(defun var-eq (a b)
+  (and (typep a 'ssad-var)
+       (typep b 'ssad-var)
+       (eq (slot-value a 'binding)
+           (slot-value b 'binding))))

@@ -42,7 +42,7 @@
          (blockified (blockify-form context form type)))
     (etypecase blockified
       ((or ssad-lambda ssad-if ssad-funcall ssad-constant
-           ssad-constructed)
+           ssad-constructed ssad-var)
        (list (make-instance 'ssad-binding
                             :name (gensym)
                             :form blockified
@@ -66,6 +66,8 @@
                         :form form
                         :type 'boolean)
          (blockify-var-access context form)))
+    (tables.compile.stage-0:ssad-var
+     form)
     (list
      (case (first form)
        (lambda (blockify-lambda-form context form))

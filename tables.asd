@@ -10,7 +10,9 @@
                (:file "core/utils")
                ;;
                ;; language impl
+               (:file "core/compiler-macros-helpers.lisp")
                (:file "core/impl")
+               (:file "core/stage-0")
                ;;
                ;; standard lib
                (:file "std-lib/type-parameters")
@@ -22,7 +24,6 @@
                (:file "std-lib/vectors/vec3")
                ;;
                ;; compilation
-               (:file "core/stage-0")
                (:file "core/stage-0/ast-to-ir")
                (:file "core/stage-0/vars-to-bindings")
                (:file "core/stage-0/dead-binding-removal")
@@ -33,4 +34,5 @@
                (:file "core/stage-0/subexpression-elim")
                (:file "core/stage-0/uniform-propagation")
                (:file "core/stage-0/uniform-local-lift")
+               (:file "core/stage-0/compiler-macro-expand")
                (:file "core/compile")))
