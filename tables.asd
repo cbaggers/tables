@@ -10,7 +10,7 @@
                (:file "core/utils")
                ;;
                ;; language impl
-               (:file "core/compiler-macros-helpers.lisp")
+               (:file "core/compiler-macros-helpers")
                (:file "core/impl")
                (:file "core/stage-0")
                ;;
