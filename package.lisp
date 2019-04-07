@@ -67,7 +67,9 @@
            :is-uniform
            ;;
            :as-debug-form
-           :var-eq))
+           :var-eq
+           :match-ir-1
+           :match-ir*))
 
 (uiop:define-package #:tables.compile.stage-0.ast-to-ir
     (:use #:cl #:checkmate #:tables.utils #:tables.compile.stage-0)

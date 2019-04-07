@@ -68,6 +68,8 @@
          (blockify-var-access context form)))
     (tables.compile.stage-0:ssad-var
      form)
+    (tables.compile.stage-0:ssad-constant
+     form)
     (list
      (case (first form)
        (lambda (blockify-lambda-form context form))

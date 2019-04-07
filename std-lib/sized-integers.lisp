@@ -19,10 +19,31 @@
 (define-dummy-func i8* (i8 i8) i8)
 (define-dummy-func i8/ (i8 i8) i8)
 
-(define-optimize-macro i8+ (&whole whole a b)
-  (cond
-    ((and (numberp a) (numberp b)) (- (mod (+ 127 (+ a b)) 255) 127))
-    (t whole)))
+(define-optimize-macro i8+ (&whole whole arg-0 arg-1)
+  (labels ((refactor (form-arg constant-arg)
+             (if (= constant-arg 0)
+                 form-arg
+                 (tables.compile.stage-0:match-ir-1 form-arg
+                   ((i8+ (:constant c) (:form f))
+                    `(i8+ ,f (i8+ ,c ,constant-arg)))
+                   ((i8+ (:form f) (:constant c))
+                    `(i8+ ,f (i8+ ,constant-arg ,c)))
+                   ((i8+ (:form f0) (:form f1))
+                    `(i8+ ,f0 (i8+ ,f1 ,constant-arg)))
+                   (otherwise whole)))))
+    (let* ((a0-nump (numberp arg-0))
+           (a1-nump (numberp arg-1)))
+      (cond
+        ((and a0-nump a1-nump) (- (mod (+ 127 (+ arg-0 arg-1)) 255) 127))
+        (a0-nump (refactor arg-1 arg-0))
+        (a1-nump (refactor arg-0 arg-1))
+        (t
+         (tables.compile.stage-0:match-ir* (arg-0 arg-1)
+           ((:> (i8+ (:form a) (:form b))
+                (i8+ (:form c) (:form d)))
+            `(i8+ ,a (i8+ ,b (i8+ ,c ,d))))
+           (otherwise
+            whole)))))))
 
 (define-optimize-macro i8- (&whole whole a b)
   (cond
@@ -30,13 +51,41 @@
     ((tables.compile.stage-0:var-eq a b) 0)
     (t whole)))
 
-(define-optimize-macro i8* (&whole whole a b)
-  (cond
-    ((and (numberp a) (numberp b)) (- (mod (+ 127 (* a b)) 255) 127))
-    ((eql a 1) b)
-    ((eql b 1) a)
-    ((or (eql a 0) (eql a 0)) 0)
-    (t whole)))
+(define-optimize-macro i8* (&whole whole arg-0 arg-1)
+  (labels ((refactor (form-arg constant-arg)
+             (if (= constant-arg 0)
+                 form-arg
+                 (tables.compile.stage-0:match-ir-1 form-arg
+                   ((i8* (:constant c) (:form f))
+                    `(i8* ,f (i8* ,c ,constant-arg)))
+                   ((i8* (:form f) (:constant c))
+                    `(i8* ,f (i8* ,constant-arg ,c)))
+                   ((i8* (:form f0) (:form f1))
+                    `(i8* ,f0 (i8* ,f1 ,constant-arg)))
+                   ((i8+ (:form f) (:constant c))
+                    `(i8+ (i8* ,c ,constant-arg)
+                          (i8* ,f ,constant-arg)))
+                   ((i8+ (:constant c) (:form f))
+                    `(i8+ (i8* ,f ,constant-arg)
+                          (i8* ,c ,constant-arg)))
+                   (otherwise whole)))))
+    (let* ((a0-nump (numberp arg-0))
+           (a1-nump (numberp arg-1)))
+      (cond
+        ((and a0-nump a1-nump) (- (mod (+ 127 (* arg-0 arg-1)) 255) 127))
+        ((eql arg-0 0) 0)
+        ((eql arg-1 0) 0)
+        ((eql arg-0 1) arg-1)
+        ((eql arg-1 1) arg-0)
+        (a0-nump (refactor arg-1 arg-0))
+        (a1-nump (refactor arg-0 arg-1))
+        (t
+         (tables.compile.stage-0:match-ir* (arg-0 arg-1)
+           ((:> (i8* (:form a) (:form b))
+                (i8* (:form c) (:form d)))
+            `(i8* ,a (i8* ,b (i8* ,c ,d))))
+           (otherwise
+            whole)))))))
 
 (define-optimize-macro i8/ (&whole whole a b)
   (cond

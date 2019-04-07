@@ -146,7 +146,9 @@
            (tables.compile.stage-0:ssad-var
             (slot-value
              (slot-value expression 'tables.compile.stage-0:binding)
-             'tables.compile.stage-0:type)))))
+             'tables.compile.stage-0:type))
+           (tables.compile.stage-0:ssad-constant
+            (slot-value expression 'tables.compile.stage-0:type)))))
     (when ttype
       `(truly-the ,ttype ,expression))))
 
