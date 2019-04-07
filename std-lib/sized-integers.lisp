@@ -42,6 +42,15 @@
            ((:> (i8+ (:form a) (:form b))
                 (i8+ (:form c) (:form d)))
             `(i8+ ,a (i8+ ,b (i8+ ,c ,d))))
+
+           ;; {TODO}
+           ;; This requires match-ir* to be able to bind at any depth
+           ;; and to support walking deeper into the ir
+           ;;
+           ;; ((:> (:form a)
+           ;;      (i8+ (i8* (:form b) (:constant c))
+           ;;           (:form d)))
+           ;;  :mooooo)
            (otherwise
             whole)))))))
 

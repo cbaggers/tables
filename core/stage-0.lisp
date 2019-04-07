@@ -227,6 +227,17 @@
                  ,@cases-butlast
                  ,cases-last))))))))
 
+;; {TODO} redefine match-ir-1 using match-ir*
+;;
+;; (defmacro match-ir-1 (form &body cases)
+;;   `(match-ir* (0 ,form)
+;;      ,@(loop
+;;           :for (test . body) :in cases
+;;           :collect (if (and (symbolp test)
+;;                             (string= test 'otherwise))
+;;                        (cons test body)
+;;                        `((:> 0 ,test) ,@body)))))
+
 (defmacro match-ir* ((&rest forms) &body cases)
   ;; Patterns
   ;;
