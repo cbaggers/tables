@@ -40,30 +40,31 @@
                  form
                (let* ((f-is-let
                        (typep lbody 'ssad-let1))
+                      ;; {TODO} when is this ever NIL?
                       (fbindings
                        (when f-is-let (slot-value lbody 'bindings)))
                       (fbody
                        (if f-is-let
                            (slot-value lbody 'body-form)
-                           lbody)))
-                 (inline-funcs
-                  (tables.compile.stage-0.vars-to-bindings:run-pass
-                   (make-instance
-                    'ssad-let1
-                    :bindings (append
-                               (mapcar (lambda (arg form)
-                                         (let ((arg-name (first arg))
-                                               (arg-type (second arg)))
-                                           (make-instance
-                                            'ssad-binding
-                                            :name arg-name
-                                            :form form
-                                            :type arg-type)))
-                                       largs
-                                       args)
-                                      fbindings)
-                    :body-form fbody
-                    :type ltype)))))
+                           lbody))
+                      (new (make-instance
+                            'ssad-let1
+                            :bindings (append
+                                       (mapcar (lambda (arg form)
+                                                 (let ((arg-name (first arg))
+                                                       (arg-type (second arg)))
+                                                   (make-instance
+                                                    'ssad-binding
+                                                    :name arg-name
+                                                    :form form
+                                                    :type arg-type)))
+                                               largs
+                                               args)
+                                       fbindings)
+                            :body-form fbody
+                            :type ltype)))
+                 (patch-bindings new (make-hash-table))
+                 (inline-funcs new)))
              o))))))
 
 (defmethod inline-funcs ((o ssad-lambda))
@@ -82,6 +83,49 @@
 (defmethod inline-funcs ((o symbol)) o)
 (defmethod inline-funcs ((o ssad-constant)) o)
 (defmethod inline-funcs ((o ssad-constructed)) o)
+
+
+(defmethod patch-bindings ((o ssad-let1) env)
+  (with-slots (bindings body-form) o
+    (loop
+       :for binding :in bindings
+       :do
+         (with-slots (name form) binding
+           (patch-bindings form env)
+           (setf (gethash name env) binding)))
+    (patch-bindings body-form env)
+    (values)))
+
+(defmethod patch-bindings ((o ssad-funcall) env)
+  (with-slots (func args) o
+    (patch-bindings func env)
+    (loop :for a :in args :do (patch-bindings a env))
+    (values)))
+
+(defmethod patch-bindings ((o ssad-lambda) env)
+  (with-slots (body-form) o
+    (patch-bindings body-form env)
+    (values)))
+
+(defmethod patch-bindings ((o ssad-if) env)
+  (with-slots (test then else) o
+    (patch-bindings test env)
+    (patch-bindings then env)
+    (patch-bindings else env)
+    (values)))
+
+(defmethod patch-bindings ((o ssad-var) env)
+  (with-slots (binding) o
+    (let* ((name
+            (slot-value binding 'name))
+           (new-binding
+            (or (gethash name env) binding)))
+      (setf binding new-binding)
+      (values))))
+
+(defmethod patch-bindings ((o symbol) env) (values))
+(defmethod patch-bindings ((o ssad-constant) env) (values))
+(defmethod patch-bindings ((o ssad-constructed) env) (values))
 
 
 #||
