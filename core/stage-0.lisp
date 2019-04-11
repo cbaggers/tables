@@ -6,40 +6,42 @@
 ;;
 ;;------------------------------------------------------------
 
-(defclass ssad-let1 ()
+(defclass ir-node () ())
+
+(defclass ssad-let1 (ir-node)
   ((bindings :initarg :bindings :initform nil)
    (body-form :initarg :body-form :initform nil)
    (type :initarg :type)))
 
-(defclass ssad-binding ()
+(defclass ssad-binding (ir-node)
   ((name :initarg :name)
    (form :initarg :form)
    (type :initarg :type)
    (is-uniform :initarg :is-uniform :initform nil)))
 
-(defclass ssad-var ()
+(defclass ssad-var (ir-node)
   ((binding :initarg :binding)))
 
-(defclass ssad-lambda ()
+(defclass ssad-lambda (ir-node)
   ((args :initarg :args)
    (body-form :initarg :body-form) ;; always a ssad-let1
    (result-type :initarg :result-type)
    (arg-bindings :initform nil)))
 
-(defclass ssad-if ()
+(defclass ssad-if (ir-node)
   ((test :initarg :test)
    (then :initarg :then)   ;; always a ssad-let1
    (else :initarg :else))) ;; always a ssad-let1
 
-(defclass ssad-funcall ()
+(defclass ssad-funcall (ir-node)
   ((func :initarg :func)
    (args :initarg :args)))
 
-(defclass ssad-constant ()
+(defclass ssad-constant (ir-node)
   ((form :initarg :form)
    (type :initarg :type)))
 
-(defclass ssad-constructed ()
+(defclass ssad-constructed (ir-node)
   ((form :initarg :form)
    (type :initarg :type)))
 
