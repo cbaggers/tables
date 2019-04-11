@@ -13,6 +13,7 @@
                (:file "core/compiler-macros-helpers")
                (:file "core/impl")
                (:file "core/stage-0")
+               (:file "core/match-ir")
                ;;
                ;; standard lib
                (:file "std-lib/type-parameters")

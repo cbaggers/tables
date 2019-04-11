@@ -23,12 +23,12 @@
   (labels ((refactor (form-arg constant-arg)
              (if (= constant-arg 0)
                  form-arg
-                 (tables.compile.stage-0:match-ir-1 form-arg
-                   ((i8+ (:constant c) (:form f))
+                 (tables.compile.stage-0:match-ir* (form-arg)
+                   ((:> (i8+ (:constant c) (:form f)))
                     `(i8+ ,f (i8+ ,c ,constant-arg)))
-                   ((i8+ (:form f) (:constant c))
+                   ((:> (i8+ (:form f) (:constant c)))
                     `(i8+ ,f (i8+ ,constant-arg ,c)))
-                   ((i8+ (:form f0) (:form f1))
+                   ((:> (i8+ (:form f0) (:form f1)))
                     `(i8+ ,f0 (i8+ ,f1 ,constant-arg)))
                    (otherwise whole)))))
     (let* ((a0-nump (numberp arg-0))
@@ -42,15 +42,15 @@
            ((:> (i8+ (:form a) (:form b))
                 (i8+ (:form c) (:form d)))
             `(i8+ ,a (i8+ ,b (i8+ ,c ,d))))
-
-           ;; {TODO}
-           ;; This requires match-ir* to be able to bind at any depth
-           ;; and to support walking deeper into the ir
-           ;;
-           ;; ((:> (:form a)
-           ;;      (i8+ (i8* (:form b) (:constant c))
-           ;;           (:form d)))
-           ;;  :mooooo)
+           ;; ((:> (:form c)
+           ;;      (i8+ (:form a) (:constant b)))
+           ;;  `(i8+ (i8+ ,a ,c) ,b))
+           ;; ((:> (i8+ (:form a) (:constant b))
+           ;;      (:form c))
+           ;;  `(i8+ (i8+ ,a ,c) ,b))
+           ((:> (i8* (:form a) (:constant b))
+                (:form a))
+            `(i8* ,a (+ ,b 1)))
            (otherwise
             whole)))))))
 
@@ -64,17 +64,17 @@
   (labels ((refactor (form-arg constant-arg)
              (if (= constant-arg 0)
                  form-arg
-                 (tables.compile.stage-0:match-ir-1 form-arg
-                   ((i8* (:constant c) (:form f))
+                 (tables.compile.stage-0:match-ir* (form-arg)
+                   ((:> (i8* (:constant c) (:form f)))
                     `(i8* ,f (i8* ,c ,constant-arg)))
-                   ((i8* (:form f) (:constant c))
+                   ((:> (i8* (:form f) (:constant c)))
                     `(i8* ,f (i8* ,constant-arg ,c)))
-                   ((i8* (:form f0) (:form f1))
+                   ((:> (i8* (:form f0) (:form f1)))
                     `(i8* ,f0 (i8* ,f1 ,constant-arg)))
-                   ((i8+ (:form f) (:constant c))
+                   ((:> (i8+ (:form f) (:constant c)))
                     `(i8+ (i8* ,c ,constant-arg)
                           (i8* ,f ,constant-arg)))
-                   ((i8+ (:constant c) (:form f))
+                   ((:> (i8+ (:constant c) (:form f)))
                     `(i8+ (i8* ,f ,constant-arg)
                           (i8* ,c ,constant-arg)))
                    (otherwise whole)))))
