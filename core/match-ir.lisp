@@ -4,10 +4,7 @@
 
 (declaim (inline ir-constant-p))
 (defun ir-constant-p (x)
-  (or (numberp x)
-      (eq x t)
-      (null x)
-      (typep x 'ssad-constant)))
+  (typep x 'ssad-constant))
 
 (declaim (inline ir-expr-p))
 (defun ir-expr-p (x)
@@ -82,8 +79,9 @@
   (gsymb nil :type symbol))
 
 (defun gen-list-match-check (pattern symb seen-args)
-  (let ((focus (first pattern)))
-    (if (find focus '(:constant :form :expr))
+  (let* ((focus (first pattern))
+         (non-func (find focus '(:constant :form :expr))))
+    (if non-func
         (let ((var (second pattern))
               (gvar (gensym)))
           (assert (= (length pattern) 2))
@@ -99,15 +97,17 @@
                            (or (eql ,seen ,symb)
                                (var-eq ,seen ,symb))))
                  nil)
-                (progn
+                (let ((set-val (if (eq non-func :constant)
+                                   `(slot-value ,symb 'form)
+                                   symb)))
                   (setf (gethash var seen-args) gvar)
                   (cons
                    (if (eq test t)
                        `(progn
-                          (setf ,gvar ,symb)
+                          (setf ,gvar ,set-val)
                           t)
                        `(when ,test
-                          (setf ,gvar ,symb)
+                          (setf ,gvar ,set-val)
                           t))
                    (make-var-pair :symb var :gsymb gvar))))))
         (destructuring-bind (matches . vars)

@@ -56,13 +56,7 @@
               (dbind-ttype (function ~ ~return-type)
                   func-type
                 (multiple-value-bind (new-code is-new-code)
-                    (funcall expander
-                             (loop
-                                :for a :in args :collect
-                                  (if (typep a 'ssad-constant)
-                                      (slot-value a 'form)
-                                      a))
-                             :TODO_ENVIRONMENT)
+                    (funcall expander args :TODO_ENVIRONMENT)
                   (if is-new-code
                       (tables.compile.stage-0.ast-to-ir:run-pass
                        (check check-env new-code return-type))
