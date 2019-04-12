@@ -51,11 +51,17 @@
                             :for p :in (rest patterns)
                             :for s :in symbs
                             :collect (gen-match-check p s seen-args-ht)))
-                        (matchers (mapcar #'car processed))
-                        (vars (mapcar #'cdr processed)))
-                   `(let ,(alexandria:flatten vars)
+                        (matchers
+                         (mapcar #'car processed))
+                        (var-pairs
+                         (alexandria:flatten (mapcar #'cdr processed))))
+                   `(let ,(mapcar #'var-pair-gsymb var-pairs)
                       (if (and ,@matchers)
-                          (progn ,@body)
+                          (let ,(loop
+                                   :for pair :in var-pairs
+                                   :collect (list (var-pair-symb pair)
+                                                  (var-pair-gsymb pair)))
+                            ,@body)
                           ,accum))))))
       (let* ((rcases (reverse cases))
              (butlast (rest rcases))
@@ -71,10 +77,15 @@
       (gen-list-match-check pattern symb seen-args)
       (cons (gen-straight-match-check pattern symb) nil)))
 
+(defstruct var-pair
+  (symb nil :type symbol)
+  (gsymb nil :type symbol))
+
 (defun gen-list-match-check (pattern symb seen-args)
   (let ((focus (first pattern)))
     (if (find focus '(:constant :form :expr))
-        (let ((var (second pattern)))
+        (let ((var (second pattern))
+              (gvar (gensym)))
           (assert (= (length pattern) 2))
           (assert (symbolp var))
           (let ((test (gen-straight-match-check focus symb))
@@ -82,23 +93,23 @@
             (if seen
                 (cons
                  (if (eq test t)
-                     `(or (eql ,var ,symb)
-                          (var-eq ,var ,symb))
+                     `(or (eql ,seen ,symb)
+                          (var-eq ,seen ,symb))
                      `(and ,test
-                           (or (eql ,var ,symb)
-                               (var-eq ,var ,symb))))
+                           (or (eql ,seen ,symb)
+                               (var-eq ,seen ,symb))))
                  nil)
                 (progn
-                  (setf (gethash var seen-args) t)
+                  (setf (gethash var seen-args) gvar)
                   (cons
                    (if (eq test t)
                        `(progn
-                          (setf ,var ,symb)
+                          (setf ,gvar ,symb)
                           t)
                        `(when ,test
-                          (setf ,var ,symb)
+                          (setf ,gvar ,symb)
                           t))
-                   var)))))
+                   (make-var-pair :symb var :gsymb gvar))))))
         (destructuring-bind (matches . vars)
             (loop
                :for subpat :in (rest pattern)
