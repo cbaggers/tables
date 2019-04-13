@@ -57,6 +57,13 @@
                   func-type
                 (multiple-value-bind (new-code is-new-code)
                     (funcall expander args :TODO_ENVIRONMENT)
+                  ;; I want to do this here:
+                  ;; (if (typep new-code 'ir-node)
+                  ;;         new-code
+                  ;;         (tables.compile.stage-0.ast-to-ir:run-pass
+                  ;;          (check check-env new-code return-type)))
+                  ;; but we need to check that new-code has the same type
+                  ;; as the original so we'd probably need to expose unify
                   (if is-new-code
                       (tables.compile.stage-0.ast-to-ir:run-pass
                        (check check-env new-code return-type))
