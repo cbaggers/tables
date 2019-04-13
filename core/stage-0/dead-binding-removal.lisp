@@ -54,6 +54,8 @@
     (setf bindings
           (remove-if-not (lambda (b) (gethash b live))
                          bindings))
+    (map nil (lambda (b) (remove-dead (slot-value b 'form) live))
+         bindings)
     (remove-dead body-form live)
     (values)))
 
