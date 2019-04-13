@@ -24,16 +24,17 @@
        :for i :below 10
        :do (setf
             hi
-            (tables.compile.stage-0.inline-conditional-call:run-pass
-             (tables.compile.stage-0.compiler-macro-expand:run-pass
-              (tables.compile.stage-0.uniform-local-lift:run-pass
-               (tables.compile.stage-0.uniform-propagation:run-pass
-                (tables.compile.stage-0.subexpression-elim:run-pass
-                 (tables.compile.stage-0.early-constant-folding:run-pass
-                  (tables.compile.stage-0.dead-binding-removal:run-pass
-                   (tables.compile.stage-0.inline-direct-calls:run-pass
-                    (tables.compile.stage-0.dead-if-branch-removal:run-pass
-                     hi)))))))))))
+            (tables.compile.stage-0.inline-conditional-constants:run-pass
+             (tables.compile.stage-0.inline-conditional-call:run-pass
+              (tables.compile.stage-0.compiler-macro-expand:run-pass
+               (tables.compile.stage-0.uniform-local-lift:run-pass
+                (tables.compile.stage-0.uniform-propagation:run-pass
+                 (tables.compile.stage-0.subexpression-elim:run-pass
+                  (tables.compile.stage-0.early-constant-folding:run-pass
+                   (tables.compile.stage-0.dead-binding-removal:run-pass
+                    (tables.compile.stage-0.inline-direct-calls:run-pass
+                     (tables.compile.stage-0.dead-if-branch-removal:run-pass
+                      hi))))))))))))
     hi))
 
 #+nil
@@ -51,22 +52,12 @@
 ;; {TODO}
 ;;
 ;; - code hoisting
-;; - funcall sinking (push funcall of conditional result to branches)
 ;; - make and & or special forms?
 ;; - add arg name to arg bindings
-;; - integer ops
 ;; - query if var/form depends on var (lets us do limited lamdba fold)
 ;; - track number of things depending on binding?
 ;;
 ;; Amongst others..
-
-#+nil
-(test '(let ((f (if a
-                    (lambda ((x i8)) (* x x))
-                    (lambda ((x i8)) (+ x x)))))
-        (+ (funcall f 10)
-         (funcall f 20)))
-      '((a boolean)))
 
 #||
 
