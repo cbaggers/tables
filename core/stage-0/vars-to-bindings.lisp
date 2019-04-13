@@ -28,7 +28,7 @@
       o)))
 
 (defmethod vars-to-bindings ((o ssad-lambda) env)
-  (with-slots (args body-form result-type arg-bindings) o
+  (with-slots (args body-form result-type) o
     (let* ((bindings
             (loop
                :for (name type) :in args
@@ -40,8 +40,7 @@
                                               :form :arg)
                          :type type)))
            (env (push-into-env bindings env)))
-      (setf body-form (vars-to-bindings body-form env)
-            arg-bindings bindings)
+      (setf body-form (vars-to-bindings body-form env))
       o)))
 
 (defmethod vars-to-bindings ((o ssad-if) env)

@@ -40,7 +40,8 @@
 (uiop:define-package #:tables.compile.stage-0
     (:use #:cl #:checkmate #:tables.utils #:tables.compile)
   (:reexport #:tables.lang)
-  (:export :ssad-let1
+  (:export :ir-node
+           :ssad-let1
            :ssad-binding
            :ssad-lambda
            :ssad-if
@@ -68,7 +69,9 @@
            ;;
            :as-debug-form
            :var-eq
-           :match-ir*))
+           :match-ir*
+           ;;
+           :copy-for-inlining))
 
 (uiop:define-package #:tables.compile.stage-0.ast-to-ir
     (:use #:cl #:checkmate #:tables.utils #:tables.compile.stage-0)

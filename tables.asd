@@ -25,6 +25,7 @@
                (:file "std-lib/vectors/vec3")
                ;;
                ;; compilation
+               (:file "core/stage-0/copy-for-inlining")
                (:file "core/stage-0/ast-to-ir")
                (:file "core/stage-0/vars-to-bindings")
                (:file "core/stage-0/dead-binding-removal")
