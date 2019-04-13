@@ -116,3 +116,40 @@
            (slot-value b 'binding))))
 
 ;;------------------------------------------------------------
+
+(defgeneric dumb-to-sexp (o)
+  (:method ((o ssad-let1))
+    (with-slots (bindings body-form) o
+      (if bindings
+          `(let* ,(mapcar #'dumb-to-sexp bindings)
+             ,(dumb-to-sexp body-form))
+          (dumb-to-sexp body-form))))
+  (:method ((o ssad-binding))
+    (with-slots (name form) o
+      (list name (dumb-to-sexp form))))
+  (:method ((o ssad-var))
+    (with-slots (binding) o
+      (slot-value binding 'name)))
+  (:method ((o ssad-lambda))
+    (with-slots (args body-form) o
+      `(lambda ,(mapcar #'first args)
+         ,(dumb-to-sexp body-form))))
+  (:method ((o ssad-if))
+    (with-slots (test then else) o
+      (list 'if
+            (dumb-to-sexp test)
+            (dumb-to-sexp then)
+            (dumb-to-sexp else))))
+  (:method ((o ssad-funcall))
+    (with-slots (func args) o
+      (if (typep func 'ssad-constant)
+          (with-slots (form) func
+            (cons (second form) (mapcar #'dumb-to-sexp args)))
+          `(funcall ,(dumb-to-sexp func)
+                    ,@(mapcar #'dumb-to-sexp args)))))
+  (:method ((o ssad-constant))
+    (with-slots (form) o
+      form))
+  (:method ((o ssad-constructed))
+    (with-slots (form) o
+      form)))
