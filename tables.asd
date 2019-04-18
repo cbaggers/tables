@@ -37,4 +37,6 @@
                (:file "core/stage-0/uniform-propagation")
                (:file "core/stage-0/uniform-local-lift")
                (:file "core/stage-0/compiler-macro-expand")
+               (:file "core/stage-0/inline-conditional-call")
+               (:file "core/stage-0/inline-cond-constants")
                (:file "core/compile")))
