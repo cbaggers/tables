@@ -2,20 +2,20 @@
 
 ;; description
 
-(defun run-pass (ssad-let)
-  (u-prop ssad-let)
-  ssad-let)
+(defun run-pass (ssad-let cmp-ctx)
+  (u-prop ssad-let cmp-ctx)
+  (values))
 
-(defmethod u-prop ((o ssad-let1))
+(defmethod u-prop ((o ssad-let1) cmp-ctx)
   ;;
   (with-slots (bindings body-form) o
     (loop
        :for b :in bindings
-       :do (u-prop-binding b))
-    (u-prop body-form)
+       :do (u-prop-binding b cmp-ctx))
+    (u-prop body-form cmp-ctx)
     (values)))
 
-(defun u-prop-binding (binding)
+(defun u-prop-binding (binding cmp-ctx)
   (labels ((arg-is-uniform-p (arg)
              (typecase arg
                (ssad-constant t)
@@ -23,7 +23,7 @@
                 (slot-value (slot-value arg 'binding)
                             'is-uniform)))))
     (with-slots (form is-uniform) binding
-      (u-prop form)
+      (u-prop form cmp-ctx)
       (setf is-uniform
             (typecase form
               (ssad-funcall
@@ -40,20 +40,20 @@
                       (arg-is-uniform-p else)))))))
     (values)))
 
-(defmethod u-prop ((o ssad-lambda))
+(defmethod u-prop ((o ssad-lambda) cmp-ctx)
   (with-slots (body-form) o
-    (u-prop body-form)
+    (u-prop body-form cmp-ctx)
     (values)))
 
-(defmethod u-prop ((o ssad-if))
+(defmethod u-prop ((o ssad-if) cmp-ctx)
   (with-slots (test then else) o
-    (u-prop test)
-    (u-prop then)
-    (u-prop else)
+    (u-prop test cmp-ctx)
+    (u-prop then cmp-ctx)
+    (u-prop else cmp-ctx)
     (values)))
 
-(defmethod u-prop ((o ssad-funcall)) (values))
-(defmethod u-prop ((o ssad-var)) (values))
-(defmethod u-prop ((o symbol)) (values))
-(defmethod u-prop ((o ssad-constant)) (values))
-(defmethod u-prop ((o ssad-constructed)) (values))
+(defmethod u-prop ((o ssad-funcall) cmp-ctx) (values))
+(defmethod u-prop ((o ssad-var) cmp-ctx) (values))
+(defmethod u-prop ((o symbol) cmp-ctx) (values))
+(defmethod u-prop ((o ssad-constant) cmp-ctx) (values))
+(defmethod u-prop ((o ssad-constructed) cmp-ctx) (values))

@@ -29,11 +29,13 @@
   (let* ((context (make-blockify-context nil nil nil))
          (lets (blockify context ast)))
     (with-slots (type name) (last1 lets)
-      (tables.compile.stage-0.vars-to-bindings:run-pass
-       (make-instance 'ssad-let1
-                      :bindings lets
-                      :body-form name
-                      :type type)))))
+      (let ((ir (make-instance 'ssad-let1
+                               :bindings lets
+                               :body-form name
+                               :type type))
+            (cmp-ctx (make-compile-context)))
+        (tables.compile.stage-0.vars-to-bindings:run-pass ir cmp-ctx)
+        ir))))
 
 (defun blockify (context ast)
   (assert (eq (first ast) 'truly-the))

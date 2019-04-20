@@ -5,16 +5,16 @@
 ;; WARNING: Pass mutates graph
 ;;
 
-(defun run-pass (ssad-let)
-  (inline-funcs ssad-let))
+(defun run-pass (ssad-let cmp-ctx)
+  (inline-funcs ssad-let cmp-ctx))
 
-(defmethod inline-funcs ((o ssad-let1))
+(defmethod inline-funcs ((o ssad-let1) cmp-ctx)
   (with-slots (bindings body-form type) o
     (setf bindings
           (loop
              :for binding :in bindings
              :for old-form := (slot-value binding 'form)
-             :for new-form := (inline-funcs old-form)
+             :for new-form := (inline-funcs old-form cmp-ctx)
              :do (setf (slot-value binding 'form) new-form)
              :if (typep old-form 'ssad-let1)
              :append (progn
@@ -24,10 +24,10 @@
                                (list binding)))
              :else
              :collect binding))
-    (setf body-form (inline-funcs body-form))
+    (setf body-form (inline-funcs body-form cmp-ctx))
     o))
 
-(defmethod inline-funcs ((o ssad-funcall))
+(defmethod inline-funcs ((o ssad-funcall) cmp-ctx)
   (with-slots (func args) o
     (etypecase func
       (ssad-constant o)
@@ -37,6 +37,7 @@
              (with-slots ((largs args)
                           (ltype result-type))
                  form
+               (mark-changed cmp-ctx)
                (let* ((lbody (slot-value form 'body-form))
                       (copy-env (make-hash-table))
                       (new-bindings
@@ -56,22 +57,22 @@
                        (copy-for-inlining lbody copy-env)))
                  (with-slots (bindings) copied
                    (setf bindings (append new-bindings bindings)))
-                 (inline-funcs copied)))
+                 (inline-funcs copied cmp-ctx)))
              o))))))
 
-(defmethod inline-funcs ((o ssad-lambda))
+(defmethod inline-funcs ((o ssad-lambda) cmp-ctx)
   (with-slots (body-form) o
-    (setf body-form (inline-funcs body-form))
+    (setf body-form (inline-funcs body-form cmp-ctx))
     o))
 
-(defmethod inline-funcs ((o ssad-if))
+(defmethod inline-funcs ((o ssad-if) cmp-ctx)
   (with-slots (test then else) o
-    (setf test (inline-funcs test))
-    (setf then (inline-funcs then))
-    (setf else (inline-funcs else))
+    (setf test (inline-funcs test cmp-ctx))
+    (setf then (inline-funcs then cmp-ctx))
+    (setf else (inline-funcs else cmp-ctx))
     o))
 
-(defmethod inline-funcs ((o ssad-var)) o)
-(defmethod inline-funcs ((o symbol)) o)
-(defmethod inline-funcs ((o ssad-constant)) o)
-(defmethod inline-funcs ((o ssad-constructed)) o)
+(defmethod inline-funcs ((o ssad-var) cmp-ctx) o)
+(defmethod inline-funcs ((o symbol) cmp-ctx) o)
+(defmethod inline-funcs ((o ssad-constant) cmp-ctx) o)
+(defmethod inline-funcs ((o ssad-constructed) cmp-ctx) o)

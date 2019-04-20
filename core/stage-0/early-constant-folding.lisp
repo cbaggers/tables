@@ -11,11 +11,12 @@
 ;; WARNING: Pass mutates graph
 ;;
 
-(defun run-pass (ssad-let)
-  (tables.compile.stage-0.vars-to-bindings:run-pass
-   (cfold ssad-let)))
+(defun run-pass (ssad-let cmp-ctx)
+  (cfold ssad-let cmp-ctx)
+  (tables.compile.stage-0.vars-to-bindings:run-pass ssad-let cmp-ctx)
+  (values))
 
-(defmethod cfold ((o ssad-let1))
+(defmethod cfold ((o ssad-let1) cmp-ctx)
   ;;
   (labels ((fold (binding)
              (with-slots (name form type) binding
@@ -33,49 +34,55 @@
                       (setf form (slot-value b 'form))))
                   t)
                  (t
-                  (setf form (cfold form))
+                  (setf form (cfold form cmp-ctx))
                   nil)))))
     ;;
     (with-slots (bindings body-form type) o
-      (setf bindings (remove-if #'fold bindings))
-      (setf body-form (cfold body-form))
+      (let ((new-bindings (remove-if #'fold bindings)))
+        (when (/= (length new-bindings) (length bindings))
+          (mark-changed cmp-ctx)
+          (setf bindings new-bindings)))
+      (setf body-form (cfold body-form cmp-ctx))
       o)))
 
-(defmethod cfold ((o ssad-lambda))
+(defmethod cfold ((o ssad-lambda) cmp-ctx)
   (with-slots (body-form) o
-    (setf body-form (cfold body-form))
+    (setf body-form (cfold body-form cmp-ctx))
     o))
 
-(defmethod cfold ((o ssad-if))
+(defmethod cfold ((o ssad-if) cmp-ctx)
   (with-slots (test then else) o
-    (setf test (cfold test))
-    (setf then (cfold then))
-    (setf else (cfold else))
+    (setf test (cfold test cmp-ctx))
+    (setf then (cfold then cmp-ctx))
+    (setf else (cfold else cmp-ctx))
     o))
 
-(defmethod cfold ((o ssad-funcall))
+(defmethod cfold ((o ssad-funcall) cmp-ctx)
   (with-slots (func args) o
-    (setf func (cfold func))
-    (setf args (mapcar #'cfold args))
+    (setf func (cfold func cmp-ctx))
+    (setf args (mapcar (lambda (x) (cfold x cmp-ctx))
+                       args))
     o))
 
-(defmethod cfold ((o ssad-var))
+(defmethod cfold ((o ssad-var) cmp-ctx)
   (with-slots (binding) o
     (with-slots (name form type) binding
       (cond
         ((null name)
          (if (typep form 'ssad-var)
              (progn
+               (mark-changed cmp-ctx)
                (setf binding (slot-value form 'binding))
                o)
              form))
         ((foldable-constant-p form)
+         (mark-changed cmp-ctx)
          form)
         (t o)))))
 
-(defmethod cfold ((o symbol)) o)
-(defmethod cfold ((o ssad-constant)) o)
-(defmethod cfold ((o ssad-constructed)) o)
+(defmethod cfold ((o symbol) cmp-ctx) o)
+(defmethod cfold ((o ssad-constant) cmp-ctx) o)
+(defmethod cfold ((o ssad-constructed) cmp-ctx) o)
 
 (defun foldable-constant-p (constant)
   (typep constant 'ssad-constant))

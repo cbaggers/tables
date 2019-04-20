@@ -6,11 +6,11 @@
 
 ;;------------------------------------------------------------
 
-(defun run-pass (ssad-let)
+(defun run-pass (ssad-let cmp-ctx)
   (let* ((live-set (make-hash-table)))
     (find-live ssad-let live-set)
-    (remove-dead ssad-let live-set)
-    ssad-let))
+    (remove-dead ssad-let live-set cmp-ctx)
+    (values)))
 
 ;;------------------------------------------------------------
 
@@ -49,37 +49,39 @@
 
 ;;------------------------------------------------------------
 
-(defmethod remove-dead ((o ssad-let1) live)
+(defmethod remove-dead ((o ssad-let1) live cmp-ctx)
   (with-slots (bindings body-form type) o
-    (setf bindings
-          (remove-if-not (lambda (b) (gethash b live))
-                         bindings))
-    (map nil (lambda (b) (remove-dead (slot-value b 'form) live))
+    (let ((new-bindings (remove-if-not (lambda (b) (gethash b live))
+                                       bindings)))
+      (when (/= (length bindings) (length new-bindings))
+        (mark-changed cmp-ctx))
+      (setf bindings new-bindings))
+    (map nil (lambda (b) (remove-dead (slot-value b 'form) live cmp-ctx))
          bindings)
-    (remove-dead body-form live)
+    (remove-dead body-form live cmp-ctx)
     (values)))
 
-(defmethod remove-dead ((o ssad-lambda) live)
+(defmethod remove-dead ((o ssad-lambda) live cmp-ctx)
   (with-slots (body-form) o
-    (remove-dead body-form live)
+    (remove-dead body-form live cmp-ctx)
     (values)))
 
-(defmethod remove-dead ((o ssad-if) live)
+(defmethod remove-dead ((o ssad-if) live cmp-ctx)
   (with-slots (test then else) o
-    (remove-dead test live)
-    (remove-dead then live)
-    (remove-dead else live)
+    (remove-dead test live cmp-ctx)
+    (remove-dead then live cmp-ctx)
+    (remove-dead else live cmp-ctx)
     (values)))
 
-(defmethod remove-dead ((o ssad-funcall) live)
+(defmethod remove-dead ((o ssad-funcall) live cmp-ctx)
   (with-slots (func args) o
-    (remove-dead func live)
-    (map nil (lambda (a) (remove-dead a live)) args)
+    (remove-dead func live cmp-ctx)
+    (map nil (lambda (a) (remove-dead a live cmp-ctx)) args)
     (values)))
 
-(defmethod remove-dead ((o ssad-var) live) (values))
-(defmethod remove-dead ((o symbol) live) (values))
-(defmethod remove-dead ((o ssad-constant) live) (values))
-(defmethod remove-dead ((o ssad-constructed) live) (values))
+(defmethod remove-dead ((o ssad-var) live cmp-ctx) (values))
+(defmethod remove-dead ((o symbol) live cmp-ctx) (values))
+(defmethod remove-dead ((o ssad-constant) live cmp-ctx) (values))
+(defmethod remove-dead ((o ssad-constructed) live cmp-ctx) (values))
 
 ;;------------------------------------------------------------

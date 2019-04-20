@@ -1,41 +1,56 @@
 (in-package :tables.compile)
 
-(defun first-run (ctx code)
-  (let ((ast (infer ctx code)))
-    (tables.compile.stage-0.inline-top-level-functions:run-pass
-     (tables.compile.stage-0.dead-binding-removal:run-pass
-      (tables.compile.stage-0.dead-if-branch-removal:run-pass
-       (tables.compile.stage-0.early-constant-folding:run-pass
-        (tables.compile.stage-0.inline-direct-calls:run-pass
-         (tables.compile.stage-0.dead-binding-removal:run-pass
-          (tables.compile.stage-0.early-constant-folding:run-pass
-           (tables.compile.stage-0.dead-binding-removal:run-pass
-            (tables.compile.stage-0.ast-to-ir:run-pass ast)))))))))))
+(defun type-check (code)
+  (let ((ctx (make-check-context 'tables)))
+    (infer ctx code)))
+
+(defun typed-ast->ir (typed-ast)
+  (tables.compile.stage-0.ast-to-ir:run-pass typed-ast))
+
+(defun first-pass (ir ctx)
+  (tables.compile.stage-0.dead-binding-removal:run-pass ir ctx)
+  (tables.compile.stage-0.early-constant-folding:run-pass ir ctx)
+  (tables.compile.stage-0.dead-binding-removal:run-pass ir ctx)
+  (tables.compile.stage-0.inline-direct-calls:run-pass ir ctx)
+  (tables.compile.stage-0.early-constant-folding:run-pass ir ctx)
+  (tables.compile.stage-0.dead-if-branch-removal:run-pass ir ctx)
+  (tables.compile.stage-0.dead-binding-removal:run-pass ir ctx)
+  (tables.compile.stage-0.inline-top-level-functions:run-pass ir ctx)
+  (values))
+
+(defun run-passes (ir ctx)
+  (tables.compile.stage-0.dead-if-branch-removal:run-pass ir ctx)
+  (tables.compile.stage-0.inline-direct-calls:run-pass ir ctx)
+  (tables.compile.stage-0.dead-binding-removal:run-pass ir ctx)
+  (tables.compile.stage-0.early-constant-folding:run-pass ir ctx)
+  (tables.compile.stage-0.subexpression-elim:run-pass ir ctx)
+  (tables.compile.stage-0.uniform-propagation:run-pass ir ctx)
+  (tables.compile.stage-0.uniform-local-lift:run-pass ir ctx)
+  (tables.compile.stage-0.compiler-macro-expand:run-pass ir ctx)
+  (tables.compile.stage-0.inline-conditional-call:run-pass ir ctx)
+  (tables.compile.stage-0.inline-conditional-constants:run-pass ir ctx)
+  (values))
 
 (defun test (&optional code uniforms)
-  (let* ((ctx (make-check-context 'tables))
-         (code
+  (let* ((code
           `(let ,(loop
                     :for (n d) :in uniforms
                     :collect `(,n (checkmate.lang:construct ,d :arg)))
              ,code))
-         (hi (first-run ctx code)))
+         (typed-ast (type-check code))
+         (ir (typed-ast->ir typed-ast))
+         (compile-ctx (make-compile-context))
+         (passes 0))
+    (first-pass ir compile-ctx)
     (loop
-       :for i :below 10
-       :do (setf
-            hi
-            (tables.compile.stage-0.inline-conditional-constants:run-pass
-             (tables.compile.stage-0.inline-conditional-call:run-pass
-              (tables.compile.stage-0.compiler-macro-expand:run-pass
-               (tables.compile.stage-0.uniform-local-lift:run-pass
-                (tables.compile.stage-0.uniform-propagation:run-pass
-                 (tables.compile.stage-0.subexpression-elim:run-pass
-                  (tables.compile.stage-0.early-constant-folding:run-pass
-                   (tables.compile.stage-0.dead-binding-removal:run-pass
-                    (tables.compile.stage-0.inline-direct-calls:run-pass
-                     (tables.compile.stage-0.dead-if-branch-removal:run-pass
-                      hi))))))))))))
-    hi))
+       :do
+         (incf passes)
+         (clear-mark compile-ctx)
+         (run-passes ir compile-ctx)
+       :while (marked-changed-p compile-ctx)
+       :when (> passes 1000)
+       :do (error "Too many passes"))
+    (values ir passes)))
 
 #+nil
 ;; BUG: infinite loop in print (well designator-from-type really)

@@ -35,11 +35,16 @@
 
 (uiop:define-package #:tables.compile
     (:use #:cl #:checkmate #:tables.utils #:tables.lang)
-  (:reexport #:tables.lang))
+  (:reexport #:tables.lang)
+  (:export :make-compile-context
+           :mark-changed
+           :marked-changed-p
+           :clear-mark))
 
 (uiop:define-package #:tables.compile.stage-0
     (:use #:cl #:checkmate #:tables.utils #:tables.compile)
   (:reexport #:tables.lang)
+  (:reexport #:tables.compile)
   (:export :ir-node
            :ssad-let1
            :ssad-binding

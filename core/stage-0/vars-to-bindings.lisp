@@ -11,23 +11,24 @@
 ;; WARNING: Pass mutates graph
 ;;
 
-(defun run-pass (ssad-let)
-  (vars-to-bindings ssad-let nil))
+(defun run-pass (ssad-let cmp-ctx)
+  (vars-to-bindings ssad-let nil cmp-ctx)
+  (values))
 
-(defun push-into-env (bindings env)
+(defun push-into-env (bindings env cmp-ctx)
   (labels ((proc (env binding)
              (with-slots (name form) binding
-               (setf form (vars-to-bindings form env))
+               (setf form (vars-to-bindings form env cmp-ctx))
                (acons name binding env))))
     (reduce #'proc bindings :initial-value env)))
 
-(defmethod vars-to-bindings ((o ssad-let1) env)
+(defmethod vars-to-bindings ((o ssad-let1) env cmp-ctx)
   (with-slots (bindings body-form) o
-    (let ((env (push-into-env bindings env)))
-      (setf body-form (vars-to-bindings body-form env))
+    (let ((env (push-into-env bindings env cmp-ctx)))
+      (setf body-form (vars-to-bindings body-form env cmp-ctx))
       o)))
 
-(defmethod vars-to-bindings ((o ssad-lambda) env)
+(defmethod vars-to-bindings ((o ssad-lambda) env cmp-ctx)
   (with-slots (args body-form result-type) o
     (let* ((bindings
             (loop
@@ -39,37 +40,38 @@
                                               :type type
                                               :form :arg)
                          :type type)))
-           (env (push-into-env bindings env)))
-      (setf body-form (vars-to-bindings body-form env))
+           (env (push-into-env bindings env cmp-ctx)))
+      (setf body-form (vars-to-bindings body-form env cmp-ctx))
       o)))
 
-(defmethod vars-to-bindings ((o ssad-if) env)
+(defmethod vars-to-bindings ((o ssad-if) env cmp-ctx)
   (with-slots (test then else) o
-    (setf test (vars-to-bindings test env)
-          then (vars-to-bindings then env)
-          else (vars-to-bindings else env))
+    (setf test (vars-to-bindings test env cmp-ctx)
+          then (vars-to-bindings then env cmp-ctx)
+          else (vars-to-bindings else env cmp-ctx))
     o))
 
-(defmethod vars-to-bindings ((o ssad-funcall) env)
+(defmethod vars-to-bindings ((o ssad-funcall) env cmp-ctx)
   (with-slots (func args) o
-    (setf func (vars-to-bindings func env))
-    (setf args (mapcar (lambda (a) (vars-to-bindings a env)) args))
+    (setf func (vars-to-bindings func env cmp-ctx))
+    (setf args (mapcar (lambda (a) (vars-to-bindings a env cmp-ctx))
+                       args))
     o))
 
-(defmethod vars-to-bindings ((o symbol) env)
+(defmethod vars-to-bindings ((o symbol) env cmp-ctx)
   (let ((binding (assocr o env)))
     (if binding
         (make-instance 'ssad-var :binding binding)
         o)))
 
-(defmethod vars-to-bindings ((o ssad-constant) env)
+(defmethod vars-to-bindings ((o ssad-constant) env cmp-ctx)
   (declare (ignore env))
   o)
 
-(defmethod vars-to-bindings ((o ssad-var) env)
+(defmethod vars-to-bindings ((o ssad-var) env cmp-ctx)
   (declare (ignore env))
   o)
 
-(defmethod vars-to-bindings ((o ssad-constructed) env)
+(defmethod vars-to-bindings ((o ssad-constructed) env cmp-ctx)
   (declare (ignore env))
   o)

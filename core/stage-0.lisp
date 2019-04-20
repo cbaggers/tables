@@ -153,3 +153,25 @@
   (:method ((o ssad-constructed))
     (with-slots (form) o
       form)))
+
+;;------------------------------------------------------------
+
+(defclass compile-context ()
+  ((changed :initform t)))
+
+(defun make-compile-context ()
+  (make-instance 'compile-context))
+
+(defun mark-changed (ctx)
+  (with-slots (changed) ctx
+    (setf changed t)
+    ctx))
+
+(defun marked-changed-p (ctx)
+  (with-slots (changed) ctx
+    changed))
+
+(defun clear-mark (ctx)
+  (with-slots (changed) ctx
+    (setf changed nil)
+    ctx))

@@ -7,11 +7,11 @@
 ;; need to look at data dependencies for that.
 ;; Once that is done this pass may be redundant.
 
-(defun run-pass (ssad-let)
-  (u-lift ssad-let)
-  ssad-let)
+(defun run-pass (ssad-let cmp-ctx)
+  (u-lift ssad-let cmp-ctx)
+  (values))
 
-(defmethod u-lift ((o ssad-let1))
+(defmethod u-lift ((o ssad-let1) cmp-ctx)
   ;;
   (with-slots (bindings body-form) o
     (setf bindings
@@ -22,23 +22,23 @@
              :else
              :collect b :into normal
              :finally (return (append uniform normal))))
-    (u-lift body-form)
+    (u-lift body-form cmp-ctx)
     (values)))
 
-(defmethod u-lift ((o ssad-lambda))
+(defmethod u-lift ((o ssad-lambda) cmp-ctx)
   (with-slots (body-form) o
-    (u-lift o)
+    (u-lift o cmp-ctx)
     (values)))
 
-(defmethod u-lift ((o ssad-if))
+(defmethod u-lift ((o ssad-if) cmp-ctx)
   (with-slots (test then else) o
-    (u-lift test)
-    (u-lift then)
-    (u-lift else)
+    (u-lift test cmp-ctx)
+    (u-lift then cmp-ctx)
+    (u-lift else cmp-ctx)
     (values)))
 
-(defmethod u-lift ((o ssad-funcall)) (values))
-(defmethod u-lift ((o ssad-var)) (values))
-(defmethod u-lift ((o symbol)) (values))
-(defmethod u-lift ((o ssad-constant)) (values))
-(defmethod u-lift ((o ssad-constructed)) (values))
+(defmethod u-lift ((o ssad-funcall) cmp-ctx) (values))
+(defmethod u-lift ((o ssad-var) cmp-ctx) (values))
+(defmethod u-lift ((o symbol) cmp-ctx) (values))
+(defmethod u-lift ((o ssad-constant) cmp-ctx) (values))
+(defmethod u-lift ((o ssad-constructed) cmp-ctx) (values))

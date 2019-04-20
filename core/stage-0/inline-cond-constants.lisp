@@ -3,10 +3,11 @@
 ;; if a function call has args which are 'if's which have the same
 ;; test and constant branches then move the if around the function call
 
-(defun run-pass (ssad-let)
-  (inline-cond-const ssad-let nil))
+(defun run-pass (ssad-let cmp-ctx)
+  (inline-cond-const ssad-let nil cmp-ctx)
+  (values))
 
-(defmethod inline-cond-const ((o ssad-let1) ftype)
+(defmethod inline-cond-const ((o ssad-let1) ftype cmp-ctx)
   (declare (ignore ftype))
   (with-slots (bindings body-form type) o
     (setf bindings
@@ -14,7 +15,7 @@
              :for binding :in bindings
              :for type := (slot-value binding 'type)
              :for old-form := (slot-value binding 'form)
-             :for new-form := (inline-cond-const old-form type)
+             :for new-form := (inline-cond-const old-form type cmp-ctx)
              :do (setf (slot-value binding 'form) new-form)
              :if (typep old-form 'ssad-let1)
              :append (progn
@@ -24,10 +25,10 @@
                                (list binding)))
              :else
              :collect binding))
-    (setf body-form (inline-cond-const body-form type))
+    (setf body-form (inline-cond-const body-form type cmp-ctx))
     o))
 
-(defmethod inline-cond-const ((o ssad-funcall) return-type)
+(defmethod inline-cond-const ((o ssad-funcall) return-type cmp-ctx)
   (declare (optimize debug))
   (with-slots (func args) o
     (if (typep func 'ssad-constant)
@@ -71,6 +72,7 @@
                               :name (gensym)
                               :form fc
                               :type return-type)))
+                     (mark-changed cmp-ctx)
                      (make-instance
                       'ssad-let1
                       :bindings (list b)
@@ -88,6 +90,7 @@
                   (let ((test (make-instance
                                'ssad-var
                                :binding (test-binding first-if-form))))
+                    (mark-changed cmp-ctx)
                     (make-instance
                      'ssad-if
                      :test test
@@ -96,31 +99,31 @@
                   o))))
         o)))
 
-(defmethod inline-cond-const ((o ssad-lambda) type)
+(defmethod inline-cond-const ((o ssad-lambda) type cmp-ctx)
   (with-slots (body-form result-type) o
-    (setf body-form (inline-cond-const body-form result-type))
+    (setf body-form (inline-cond-const body-form result-type cmp-ctx))
     o))
 
-(defmethod inline-cond-const ((o ssad-if) type)
+(defmethod inline-cond-const ((o ssad-if) type cmp-ctx)
   (declare (ignore type))
   (with-slots (test then else) o
-    (setf test (inline-cond-const test nil))
-    (setf then (inline-cond-const then nil))
-    (setf else (inline-cond-const else nil))
+    (setf test (inline-cond-const test nil cmp-ctx))
+    (setf then (inline-cond-const then nil cmp-ctx))
+    (setf else (inline-cond-const else nil cmp-ctx))
     o))
 
-(defmethod inline-cond-const ((o ssad-var) type)
+(defmethod inline-cond-const ((o ssad-var) type cmp-ctx)
   (declare (ignore type))
   o)
 
-(defmethod inline-cond-const ((o symbol) type)
+(defmethod inline-cond-const ((o symbol) type cmp-ctx)
   (declare (ignore type))
   o)
 
-(defmethod inline-cond-const ((o ssad-constant) type)
+(defmethod inline-cond-const ((o ssad-constant) type cmp-ctx)
   (declare (ignore type))
   o)
 
-(defmethod inline-cond-const ((o ssad-constructed) type)
+(defmethod inline-cond-const ((o ssad-constructed) type cmp-ctx)
   (declare (ignore type))
   o)
