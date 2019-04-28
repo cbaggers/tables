@@ -38,3 +38,10 @@
                  (return-from search elem))))
       (subst-if nil #'apply-test tree)
       nil)))
+
+(defun string-desig-and= (a b)
+  (and (or (stringp a)
+           (symbolp a))
+       (or (stringp b)
+           (symbolp b))
+       (string= a b)))

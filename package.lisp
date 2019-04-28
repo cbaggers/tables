@@ -7,12 +7,14 @@
            :gensym-named
            :rehome-symbol
            :vbind
-           :find-in-tree-if))
+           :find-in-tree-if
+           :string-desig-and=))
 
 (uiop:define-package #:tables.macros (:use))
 
 (uiop:define-package #:tables.lang
     (:use #:cl #:checkmate #:tables.utils)
+  (:intern :outputs)
   (:export :tables
            ;;
            :integer
