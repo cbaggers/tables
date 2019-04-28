@@ -153,9 +153,24 @@
       `(truly-the ,ttype ,expression))))
 
 (defun infer-special-form (context name args)
-  (when (eq name 'if)
-    (assert (= (length args) 3))
-    (infer-if context (first args) (second args) (third args))))
+  (cond
+    ((eq name 'if)
+     (assert (= (length args) 3))
+     (infer-if context (first args) (second args) (third args)))
+    ((string= name 'output)
+     (infer-outputs context name args))))
+
+(defun infer-outputs (context name args)
+  ;; {TODO} make user-data a hash-table
+  (let* ((outputs (check-context-user-data context))
+         (typed-args
+          (loop
+             :for (key val) :on args :by #'cddr
+             :for (aname type-desig) :=
+               (find key outputs :test #'string-desig-and= :key #'first)
+             :append (list key (infer context `(the ,type-desig ,val))))))
+    `(truly-the ,(find-ttype context 'tables.lang::outputs)
+                ,(cons name typed-args))))
 
 (defun infer-if (context test then else)
   (let* (;; {TODO} support any object in test

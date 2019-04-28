@@ -120,6 +120,7 @@
               new-binding))))))
 
 (defmethod s-elim ((o ssad-funcall) env cmp-ctx) nil)
+(defmethod s-elim ((o ssad-output) env cmp-ctx) nil)
 (defmethod s-elim ((o ssad-var) env cmp-ctx) nil)
 (defmethod s-elim ((o symbol) env cmp-ctx) nil)
 (defmethod s-elim ((o ssad-constant) env cmp-ctx) nil)

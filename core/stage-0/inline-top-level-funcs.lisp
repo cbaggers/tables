@@ -33,6 +33,13 @@
                        args))
     o))
 
+(defmethod find-top-level-funcs ((o ssad-output) ht cmp-ctx)
+  (with-slots (args) o
+    (setf args (mapcar (lambda (arg)
+                         (find-top-level-funcs arg ht cmp-ctx))
+                       args))
+    o))
+
 (defmethod find-top-level-funcs ((o ssad-lambda) ht cmp-ctx)
   (with-slots (body-form) o
     (setf body-form (find-top-level-funcs body-form ht cmp-ctx))

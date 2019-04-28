@@ -27,6 +27,13 @@
      :func (copy-for-inlining func env)
      :args (loop :for a :in args :collect (copy-for-inlining a env)))))
 
+(defmethod copy-for-inlining ((o ssad-output) env)
+  (with-slots (names args) o
+    (make-instance
+     'ssad-output
+     :names names
+     :args (loop :for a :in args :collect (copy-for-inlining a env)))))
+
 (defmethod copy-for-inlining ((o ssad-lambda) env)
   (with-slots (args body-form result-type) o
     (make-instance

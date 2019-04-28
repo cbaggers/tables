@@ -53,6 +53,7 @@
     (values)))
 
 (defmethod u-prop ((o ssad-funcall) cmp-ctx) (values))
+(defmethod u-prop ((o ssad-output) cmp-ctx) (values))
 (defmethod u-prop ((o ssad-var) cmp-ctx) (values))
 (defmethod u-prop ((o symbol) cmp-ctx) (values))
 (defmethod u-prop ((o ssad-constant) cmp-ctx) (values))

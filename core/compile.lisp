@@ -1,7 +1,7 @@
 (in-package :tables.compile)
 
-(defun type-check (code)
-  (let ((ctx (make-check-context 'tables)))
+(defun type-check (code outputs)
+  (let ((ctx (make-check-context 'tables :user-data outputs)))
     (infer ctx code)))
 
 (defun typed-ast->ir (typed-ast)
@@ -31,38 +31,117 @@
   (tables.compile.stage-0.inline-conditional-constants:run-pass ir ctx)
   (values))
 
+(defun run-passes-until-stablized (ir &key (max-passes 1000))
+  (let ((compile-ctx (make-compile-context)))
+    (first-pass ir compile-ctx)
+    (loop
+       :for passes :from 1
+       :do
+         (clear-mark compile-ctx)
+         (run-passes ir compile-ctx)
+       :while (marked-changed-p compile-ctx)
+       :when (> passes max-passes)
+       :do (error "Too many passes")
+       :finally (return passes))))
+
+(defun macroexpand-query (body)
+  body)
+
+(defun split-queries (ir)
+  ir)
+
+(defun process-varying-declarations (varyings)
+  (let (inputs outputs)
+    (loop
+       :for (name type direction) :in varyings
+       :do
+         (assert (not (find name inputs :key #'first)) ()
+                 "Duplicate argument named ~a in query" name)
+         (assert (not (find name outputs :key #'first)) ()
+                 "Duplicate argument named ~a in query" name)
+         (when (keywordp type)
+           (if (and (find type #(:in :out :in/out)) (null direction))
+               (error "missing type for varying ~a" name)
+               (error "invalid type ~s for varying ~a" type name)))
+         (if (eq direction :in/out)
+             (progn
+               (push (list name type) inputs)
+               (push (list name type) outputs))
+             (case direction
+               ((nil :in) (push (list name type) inputs))
+               (:out (push (list name type) outputs))
+               (otherwise (error "Invalid varying direction ~a for ~a"
+                                 direction name)))))
+    (values
+     (reverse inputs)
+     (reverse outputs))))
+
+(defun process-outputs (outputs body)
+  (labels ((outputs-p (x)
+             (and (listp x) (eq (first x) 'output)))
+           (dispatch-err ()
+             (let ((misplaced (find-in-tree-if #'outputs-p body)))
+               (if misplaced
+                   (error "Output form found but not in tail position")
+                   (error "A query must contain an output form in tail position"))))
+           (find-outputs (form)
+             (unless (atom form)
+               (case (first form)
+                 ((let progn)
+                   (find-outputs (last1 form)))
+                 (output form))))
+           (match-outputs (output-plist)
+             (let (onames)
+               (loop
+                  :for (oname oval) :on output-plist :by #'cddr
+                  :for (aname atype) := (find oname outputs :key #'first
+                                              :test #'string-desig-and=)
+                  :do (push oname onames)
+                  :unless aname
+                  :do (error "Unknown output ~a.~%Val: ~a" oname oval))
+               (loop
+                  :for (aname) :in outputs
+                  :unless (find aname onames :test #'string-desig-and=)
+                  :do (error "'~a' declared as output but not written to"
+                             aname)))))
+    (let* ((output-form (find-outputs body)))
+      (if output-form
+          (match-outputs (rest output-form))
+          (dispatch-err))
+      (values body outputs))))
+
+(defun add-args (inputs uniforms body)
+  `(let ,(loop
+            :for (n d) :in (append inputs uniforms)
+            :collect `(,n (checkmate.lang:construct ,d :arg)))
+     ,body))
+
+;;#+nil
+(defun compile-query (varyings uniforms body)
+  (let ((body (macroexpand-query body)))
+    (multiple-value-bind (inputs outputs)
+        (process-varying-declarations varyings)
+      (multiple-value-bind (body used-sorted-outputs)
+          (process-outputs outputs body)
+        (let* ((body (add-args inputs uniforms body))
+               (typed-ast (type-check body used-sorted-outputs))
+               (ir (typed-ast->ir typed-ast))
+               (passes (run-passes-until-stablized ir))
+               (queries (split-queries
+                         (tables.compile.stage-0:copy-for-inlining
+                          ir (make-hash-table)))))
+          (values queries passes))))))
+
 (defun test (&optional code uniforms)
   (let* ((code
           `(let ,(loop
                     :for (n d) :in uniforms
                     :collect `(,n (checkmate.lang:construct ,d :arg)))
              ,code))
-         (typed-ast (type-check code))
+         (typed-ast (type-check code nil))
          (ir (typed-ast->ir typed-ast))
-         (compile-ctx (make-compile-context))
-         (passes 0))
-    (first-pass ir compile-ctx)
-    (loop
-       :do
-         (incf passes)
-         (clear-mark compile-ctx)
-         (run-passes ir compile-ctx)
-       :while (marked-changed-p compile-ctx)
-       :when (> passes 1000)
-       :do (error "Too many passes"))
+         (passes (run-passes-until-stablized ir)))
     (values ir passes)))
-
-#+nil
-;; BUG: infinite loop in print (well designator-from-type really)
-;;      as the type is properly recursive! The are type is the
-;;      function type. I love that the checker was happy to do this
-;;      it's rather mind bending.
-;;      I guess we need a *print-circle* for types XD. or actually..
-;;      we just need to make the designator circular, and punt to
-;;      CL for the printing shiz.
-(infer 'tables
-       '(lambda ((f (function ((function (?a) ?b)) ?b)))
-          (funcall f f)))
 
 ;; {TODO}
 ;;
@@ -73,21 +152,3 @@
 ;; - track number of things depending on binding?
 ;;
 ;; Amongst others..
-
-#||
-
-funcalls of ifs returning lambdas is still super interesting. One thing
-I need to work out is, when is there ever other bindings in an 'if' branch
-which also returns a lambda?
-
-Anything that isnt returned, or isnt depended on by the thing returned is
-stripped. That means the other thing needs to be used by the lambda.
-
-This means closures.
-
-Now we have no mutation so once it's captured it wont change. This feels
-like it gives us an opportunity for simplifying the handling here.
-
-
-
-||#

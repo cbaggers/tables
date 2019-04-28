@@ -44,7 +44,7 @@
          (blockified (blockify-form context form type)))
     (etypecase blockified
       ((or ssad-lambda ssad-if ssad-funcall ssad-constant
-           ssad-constructed ssad-var)
+           ssad-constructed ssad-var ssad-output)
        (list (make-instance 'ssad-binding
                             :name (gensym)
                             :form blockified
@@ -79,6 +79,7 @@
        (let (blockify-let-form context form))
        (progn (blockify-progn-form context form))
        (funcall (blockify-funcall-form context form))
+       (output (blockify-output-form context form))
        (function (blockify-function-form context form type))
        (:construct (blockify-construct-form context form type))
        (otherwise (error "not sure what to do with ~s" (first form)))))
@@ -208,5 +209,29 @@
                    :body-form (make-instance 'ssad-funcall
                                              :func (first ssad-names)
                                              :args (rest ssad-names)))))
+
+(defun blockify-output-form (context expr-ast)
+  (multiple-value-bind (names forms)
+      (loop
+         :for (name val) :on (rest expr-ast) :by #'cddr
+         :do (assert (keywordp name))
+         :collect name :into onames
+         :collect val :into ovals
+         :finally (return (values onames ovals)))
+    (destructuring-bind (ssad-names prior-lets)
+        (loop
+           :for arg :in forms
+           :for blocked-arg := (blockify context arg)
+           :for ssad-name := (slot-value (last1 blocked-arg) 'name)
+           :collect ssad-name :into names
+           :append blocked-arg :into bindings
+           :finally (return (list names bindings)))
+      (make-instance
+       'ssad-let1
+       :bindings prior-lets
+       :body-form (make-instance
+                   'ssad-output
+                   :names names
+                   :args ssad-names)))))
 
 ;;------------------------------------------------------------

@@ -60,6 +60,12 @@
                  (inline-funcs copied cmp-ctx)))
              o))))))
 
+(defmethod inline-funcs ((o ssad-output) cmp-ctx)
+  (with-slots (args) o
+    (setf args (mapcar (lambda (x) (inline-funcs x cmp-ctx))
+                       args))
+    o))
+
 (defmethod inline-funcs ((o ssad-lambda) cmp-ctx)
   (with-slots (body-form) o
     (setf body-form (inline-funcs body-form cmp-ctx))

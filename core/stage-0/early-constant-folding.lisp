@@ -64,6 +64,12 @@
                        args))
     o))
 
+(defmethod cfold ((o ssad-output) cmp-ctx)
+  (with-slots (args) o
+    (setf args (mapcar (lambda (x) (cfold x cmp-ctx))
+                       args))
+    o))
+
 (defmethod cfold ((o ssad-var) cmp-ctx)
   (with-slots (binding) o
     (with-slots (name form type) binding

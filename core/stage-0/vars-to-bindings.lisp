@@ -58,6 +58,12 @@
                        args))
     o))
 
+(defmethod vars-to-bindings ((o ssad-output) env cmp-ctx)
+  (with-slots (args) o
+    (setf args (mapcar (lambda (a) (vars-to-bindings a env cmp-ctx))
+                       args))
+    o))
+
 (defmethod vars-to-bindings ((o symbol) env cmp-ctx)
   (let ((binding (assocr o env)))
     (if binding

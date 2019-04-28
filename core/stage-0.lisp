@@ -44,6 +44,10 @@
   ((form :initarg :form)
    (type :initarg :type)))
 
+(defclass ssad-output (ir-node)
+  ((names :initarg :names)
+   (args :initarg :args)))
+
 ;;------------------------------------------------------------
 
 (defgeneric as-debug-form (o))
@@ -79,6 +83,13 @@
     `(ssad-funcall ,(as-debug-form func)
                    ,@(mapcar #'as-debug-form args))))
 
+(defmethod as-debug-form ((o ssad-output))
+  (with-slots (names args) o
+    `(ssad-output
+      ,@(loop
+           :for n :in names :for a :in args
+           :append (list n (as-debug-form a))))))
+
 (defmethod as-debug-form ((o ssad-constant))
   (with-slots (form) o
     (list :constant form)))
@@ -105,6 +116,9 @@
   (format stream "#~a" (as-debug-form o)))
 
 (defmethod print-object ((o ssad-funcall) stream)
+  (format stream "#~a" (as-debug-form o)))
+
+(defmethod print-object ((o ssad-output) stream)
   (format stream "#~a" (as-debug-form o)))
 
 ;;------------------------------------------------------------
@@ -147,12 +161,19 @@
             (cons (second form) (mapcar #'dumb-to-sexp args)))
           `(funcall ,(dumb-to-sexp func)
                     ,@(mapcar #'dumb-to-sexp args)))))
+  (:method ((o ssad-output))
+    (with-slots (names args) o
+      `(output ,@(loop
+                    :for n :in names :for a :in args
+                    :append (list n (dumb-to-sexp a))))))
   (:method ((o ssad-constant))
     (with-slots (form) o
       form))
   (:method ((o ssad-constructed))
     (with-slots (form) o
-      form)))
+      form))
+  (:method ((o symbol))
+    (list :unprocessed-symbol o)))
 
 ;;------------------------------------------------------------
 

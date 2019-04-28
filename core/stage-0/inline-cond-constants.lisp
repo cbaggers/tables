@@ -116,6 +116,10 @@
   (declare (ignore type))
   o)
 
+(defmethod inline-cond-const ((o ssad-output) type cmp-ctx)
+  (declare (ignore type))
+  o)
+
 (defmethod inline-cond-const ((o symbol) type cmp-ctx)
   (declare (ignore type))
   o)

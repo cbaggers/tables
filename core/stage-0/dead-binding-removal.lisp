@@ -39,6 +39,11 @@
     (loop :for a :in args :do (find-live a live))
     (values)))
 
+(defmethod find-live ((o ssad-output) live)
+  (with-slots (args) o
+    (loop :for a :in args :do (find-live a live))
+    (values)))
+
 (defmethod find-live ((o ssad-var) live)
   (with-slots (binding) o
     (setf (gethash binding live) t)))
@@ -76,6 +81,11 @@
 (defmethod remove-dead ((o ssad-funcall) live cmp-ctx)
   (with-slots (func args) o
     (remove-dead func live cmp-ctx)
+    (map nil (lambda (a) (remove-dead a live cmp-ctx)) args)
+    (values)))
+
+(defmethod remove-dead ((o ssad-output) live cmp-ctx)
+  (with-slots (args) o
     (map nil (lambda (a) (remove-dead a live cmp-ctx)) args)
     (values)))
 

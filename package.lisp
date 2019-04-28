@@ -31,6 +31,8 @@
            :f32
            :vec3
            ;;
+           :output
+           ;;
            :*registered-top-level-functions*
            :*registered-constant-folds*
            :*registered-compiler-macros*
@@ -57,6 +59,7 @@
            :ssad-var
            :ssad-constant
            :ssad-constructed
+           :ssad-output
            ;;
            :args
            :arg-bindings
