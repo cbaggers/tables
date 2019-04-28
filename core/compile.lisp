@@ -34,15 +34,17 @@
 (defun run-passes-until-stablized (ir &key (max-passes 1000))
   (let ((compile-ctx (make-compile-context)))
     (first-pass ir compile-ctx)
-    (loop
-       :for passes :from 1
-       :do
-         (clear-mark compile-ctx)
-         (run-passes ir compile-ctx)
-       :while (marked-changed-p compile-ctx)
-       :when (> passes max-passes)
-       :do (error "Too many passes")
-       :finally (return passes))))
+    (prog1
+        (loop
+           :for passes :from 1
+           :do
+             (clear-mark compile-ctx)
+             (run-passes ir compile-ctx)
+           :while (marked-changed-p compile-ctx)
+           :when (> passes max-passes)
+           :do (error "Too many passes")
+           :finally (return passes))
+      (tables.compile.stage-0.cleanup-outputs:run-pass ir compile-ctx))))
 
 (defun macroexpand-query (body)
   body)
