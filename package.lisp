@@ -6,7 +6,8 @@
            :last1
            :gensym-named
            :rehome-symbol
-           :vbind))
+           :vbind
+           :find-in-tree-if))
 
 (uiop:define-package #:tables.macros (:use))
 

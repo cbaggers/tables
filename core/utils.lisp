@@ -30,3 +30,11 @@
        ,@(reduce (lambda (accum x)
                    (list (append x accum)))
                  (cons body d-forms)))))
+
+(defun find-in-tree-if (test tree)
+  (block search
+    (labels ((apply-test (elem)
+               (when (funcall test elem)
+                 (return-from search elem))))
+      (subst-if nil #'apply-test tree)
+      nil)))
