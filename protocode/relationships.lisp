@@ -3,7 +3,7 @@
 #|| TO CONSIDER
 
 id-stability != memory-stability. We can rearrange chunks in a table's
-columns (perhaps invalidating ids) without invalidating points into the
+columns (perhaps invalidating ids) without invalidating pointers into the
 chunks.
 
 ||#
