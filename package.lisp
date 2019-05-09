@@ -77,6 +77,7 @@
            :then
            :type
            :is-uniform
+           :names
            ;;
            :as-debug-form
            :var-eq
@@ -139,6 +140,10 @@
 (uiop:define-package #:tables.compile.stage-0.cleanup-outputs
     (:use #:cl #:checkmate #:tables.utils #:tables.compile.stage-0)
   (:export :run-pass))
+
+(uiop:define-package #:tables.compile.stage-0.split-vertically
+    (:use #:cl #:checkmate #:tables.utils #:tables.compile.stage-0)
+  (:export :run-transform))
 
 (uiop:define-package #:tables
     (:use)

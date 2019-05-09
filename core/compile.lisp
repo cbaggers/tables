@@ -49,9 +49,6 @@
 (defun macroexpand-query (body)
   body)
 
-(defun split-queries (ir)
-  ir)
-
 (defun process-varying-declarations (varyings)
   (let (inputs outputs)
     (loop
@@ -129,9 +126,10 @@
                (typed-ast (type-check body used-sorted-outputs))
                (ir (typed-ast->ir typed-ast))
                (passes (run-passes-until-stablized ir))
-               (queries (split-queries
-                         (tables.compile.stage-0:copy-for-inlining
-                          ir (make-hash-table)))))
+               (queries
+                (tables.compile.stage-0.split-vertically:run-transform
+                 (tables.compile.stage-0:copy-for-inlining
+                  ir (make-hash-table)))))
           (values queries passes))))))
 
 (defun test (&optional code uniforms)
