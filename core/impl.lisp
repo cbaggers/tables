@@ -618,7 +618,15 @@
 
 ;;------------------------------------------------------------
 
+(defparameter *reserved-names*
+  '(let*))
+
+(defun check-macro-name (name package)
+  (unless (string= (print (package-name package)) "TABLES.LANG")
+    (assert (not (find name *reserved-names*)))))
+
 (defmacro define-optimize-macro (func-name args &body body)
+  (check-macro-name func-name *package*)
   (let ((func (gen-macro-function-code func-name args body)))
     `(progn
        (setf (gethash ',func-name *registered-compiler-macros*)
@@ -626,6 +634,7 @@
        ',func-name)))
 
 (defmacro define-tables-macro (name lambda-list &body body)
+  (check-macro-name name *package*)
   (let ((func (gen-macro-function-code name lambda-list body)))
     `(progn
        (setf (gethash ',name *registered-macros*)
