@@ -39,6 +39,10 @@
            :*registered-macros*
            :record-ctor-slots))
 
+(uiop:define-package #:tables.tables
+    (:use #:cl #:checkmate #:tables.utils #:tables.lang)
+  (:export))
+
 (uiop:define-package #:tables.compile
     (:use #:cl #:checkmate #:tables.utils #:tables.lang)
   (:reexport #:tables.lang)

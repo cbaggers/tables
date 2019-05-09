@@ -44,5 +44,6 @@
                (:file "core/stage-0/cleanup-outputs")
                (:file "core/stage-0/split-vertically")
 
+               (:file "core/tables")
                (:file "core/macroexpand")
                (:file "core/compile")))
