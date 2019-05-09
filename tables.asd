@@ -17,6 +17,7 @@
                ;;
                ;; standard lib
                (:file "std-lib/outputs")
+               (:file "std-lib/early-macros")
                (:file "std-lib/type-parameters")
                (:file "std-lib/logical-types")
                (:file "std-lib/early-traits")
