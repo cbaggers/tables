@@ -36,7 +36,7 @@
                :collect (make-instance
                          'ssad-binding
                          :name name
-                         :form (make-instance 'ssad-read-col
+                         :form (make-instance 'ssad-read-val
                                               :type type
                                               :name name)
                          :type type)))
@@ -82,6 +82,6 @@
   (declare (ignore env))
   o)
 
-(defmethod vars-to-bindings ((o ssad-read-col) env cmp-ctx)
+(defmethod vars-to-bindings ((o ssad-read-val) env cmp-ctx)
   (declare (ignore env))
   o)

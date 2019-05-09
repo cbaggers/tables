@@ -51,7 +51,7 @@
 (defmethod find-live ((o symbol) live))
 (defmethod find-live ((o ssad-constant) live))
 (defmethod find-live ((o ssad-constructed) live))
-(defmethod find-live ((o ssad-read-col) live))
+(defmethod find-live ((o ssad-read-val) live))
 
 ;;------------------------------------------------------------
 
@@ -94,6 +94,6 @@
 (defmethod remove-dead ((o symbol) live cmp-ctx) (values))
 (defmethod remove-dead ((o ssad-constant) live cmp-ctx) (values))
 (defmethod remove-dead ((o ssad-constructed) live cmp-ctx) (values))
-(defmethod remove-dead ((o ssad-read-col) live cmp-ctx) (values))
+(defmethod remove-dead ((o ssad-read-val) live cmp-ctx) (values))
 
 ;;------------------------------------------------------------

@@ -88,7 +88,7 @@
 (defmethod trace-dependencies ((node ssad-var) (dep dep))
   (with-slots (binding) node
     (with-slots (form name) binding
-      (if (typep form 'ssad-read-col)
+      (if (typep form 'ssad-read-val)
           (pushnew name (dep-cols dep))
           (progn
             (setf (dep-vars dep) (cons (slot-value binding 'name)

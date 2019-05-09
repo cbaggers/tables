@@ -89,6 +89,6 @@
 (defmethod cm-expand ((o ssad-constructed) check-env cmp-ctx)
   (declare (ignore check-env))
   o)
-(defmethod cm-expand ((o ssad-read-col) check-env cmp-ctx)
+(defmethod cm-expand ((o ssad-read-val) check-env cmp-ctx)
   (declare (ignore check-env))
   o)

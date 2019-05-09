@@ -112,7 +112,7 @@
 (defun add-args (inputs uniforms body)
   `(let ,(loop
             :for (n d) :in (append inputs uniforms)
-            :collect `(,n (tables.lang::read-col ,d ,n)))
+            :collect `(,n (tables.lang::read-val ,d ,n)))
      ,body))
 
 ;;#+nil

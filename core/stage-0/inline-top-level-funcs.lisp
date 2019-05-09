@@ -97,7 +97,7 @@
   (declare (ignore ht))
   o)
 
-(defmethod find-top-level-funcs ((o ssad-read-col) ht cmp-ctx)
+(defmethod find-top-level-funcs ((o ssad-read-val) ht cmp-ctx)
   (declare (ignore ht))
   o)
 

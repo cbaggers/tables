@@ -157,8 +157,8 @@
     ((eq name 'if)
      (assert (= (length args) 3))
      (infer-if context (first args) (second args) (third args)))
-    ((eq name 'read-col)
-     (infer-read-col context name args))
+    ((eq name 'read-val)
+     (infer-read-val context name args))
     ((string= name 'output)
      (infer-outputs context name args))))
 
@@ -174,7 +174,7 @@
     `(truly-the ,(find-ttype context 'tables.lang::outputs)
                 ,(cons name typed-args))))
 
-(defun infer-read-col (context name args)
+(defun infer-read-val (context name args)
   (destructuring-bind (type column-name) args
     (let ((type (find-ttype context type)))
       `(truly-the ,type ,(list name type column-name)))))
