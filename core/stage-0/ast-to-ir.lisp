@@ -44,7 +44,7 @@
          (blockified (blockify-form context form type)))
     (etypecase blockified
       ((or ssad-lambda ssad-if ssad-funcall ssad-constant
-           ssad-constructed ssad-var ssad-output)
+           ssad-constructed ssad-var ssad-output ssad-read-col)
        (list (make-instance 'ssad-binding
                             :name (gensym)
                             :form blockified
@@ -81,12 +81,19 @@
        (funcall (blockify-funcall-form context form))
        (output (blockify-output-form context form))
        (function (blockify-function-form context form type))
+       (tables.lang::read-col (blockify-read-col-form context form type))
        (:construct (blockify-construct-form context form type))
        (otherwise (error "not sure what to do with ~s" (first form)))))
     (otherwise
      (make-instance 'ssad-constant
                     :form form
                     :type type))))
+
+(defun blockify-read-col-form (context form type)
+  (declare (ignore context))
+  (make-instance 'ssad-read-col
+                 :name (third form)
+                 :type type))
 
 (defun blockify-construct-form (context form type)
   (declare (ignore context))

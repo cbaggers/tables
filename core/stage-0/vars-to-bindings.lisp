@@ -36,9 +36,9 @@
                :collect (make-instance
                          'ssad-binding
                          :name name
-                         :form (make-instance 'ssad-constructed
+                         :form (make-instance 'ssad-read-col
                                               :type type
-                                              :form :arg)
+                                              :name name)
                          :type type)))
            (env (push-into-env bindings env cmp-ctx)))
       (setf body-form (vars-to-bindings body-form env cmp-ctx))
@@ -79,5 +79,9 @@
   o)
 
 (defmethod vars-to-bindings ((o ssad-constructed) env cmp-ctx)
+  (declare (ignore env))
+  o)
+
+(defmethod vars-to-bindings ((o ssad-read-col) env cmp-ctx)
   (declare (ignore env))
   o)

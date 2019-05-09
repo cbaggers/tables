@@ -64,6 +64,13 @@
      :form form
      :type type)))
 
+(defmethod copy-for-inlining ((o ssad-read-col) env)
+  (with-slots (name type) o
+    (make-instance
+     'ssad-read-col
+     :name name
+     :type type)))
+
 (defmethod copy-for-inlining ((o ssad-constant) env)
   (with-slots (form type) o
     (make-instance

@@ -60,6 +60,7 @@
            :ssad-constant
            :ssad-constructed
            :ssad-output
+           :ssad-read-col
            ;;
            :args
            :arg-bindings

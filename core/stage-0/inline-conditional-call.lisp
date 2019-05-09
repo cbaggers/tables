@@ -88,3 +88,4 @@
 (defmethod inline-cond-calls ((o symbol) cmp-ctx) o)
 (defmethod inline-cond-calls ((o ssad-constant) cmp-ctx) o)
 (defmethod inline-cond-calls ((o ssad-constructed) cmp-ctx) o)
+(defmethod inline-cond-calls ((o ssad-read-col) cmp-ctx) o)

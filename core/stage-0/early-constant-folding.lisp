@@ -89,6 +89,7 @@
 (defmethod cfold ((o symbol) cmp-ctx) o)
 (defmethod cfold ((o ssad-constant) cmp-ctx) o)
 (defmethod cfold ((o ssad-constructed) cmp-ctx) o)
+(defmethod cfold ((o ssad-read-col) cmp-ctx) o)
 
 (defun foldable-constant-p (constant)
   (typep constant 'ssad-constant))

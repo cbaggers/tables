@@ -112,7 +112,7 @@
 (defun add-args (inputs uniforms body)
   `(let ,(loop
             :for (n d) :in (append inputs uniforms)
-            :collect `(,n (checkmate.lang:construct ,d :arg)))
+            :collect `(,n (tables.lang::read-col ,d ,n)))
      ,body))
 
 ;;#+nil
@@ -131,17 +131,6 @@
                  (tables.compile.stage-0:copy-for-inlining
                   ir (make-hash-table)))))
           (values queries passes))))))
-
-(defun test (&optional code uniforms)
-  (let* ((code
-          `(let ,(loop
-                    :for (n d) :in uniforms
-                    :collect `(,n (checkmate.lang:construct ,d :arg)))
-             ,code))
-         (typed-ast (type-check code nil))
-         (ir (typed-ast->ir typed-ast))
-         (passes (run-passes-until-stablized ir)))
-    (values ir passes)))
 
 ;; {TODO}
 ;;

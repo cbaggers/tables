@@ -125,3 +125,4 @@
 (defmethod s-elim ((o symbol) env cmp-ctx) nil)
 (defmethod s-elim ((o ssad-constant) env cmp-ctx) nil)
 (defmethod s-elim ((o ssad-constructed) env cmp-ctx) nil)
+(defmethod s-elim ((o ssad-read-col) env cmp-ctx) nil)
