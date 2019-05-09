@@ -4,6 +4,11 @@
   (vars nil)
   (cols nil))
 
+(defstruct group
+  vars
+  outputs
+  (cols nil))
+
 (defun run-transform (ir)
   (check-type ir ssad-let1)
   (with-slots (body-form) ir
@@ -15,23 +20,33 @@
 
 (defun trace-and-group (names args)
   (let* ((groups
-          (make-array (length names) :fill-pointer 0 :adjustable t)))
+          (make-array (length names) :fill-pointer 0 :adjustable t
+                      :element-type 'group
+                      :initial-element (make-group :vars :invalid))))
     (loop
        :for name :in names
        :for arg :in args
        :for dep := (make-dep)
        :do (trace-dependencies arg dep)
-         (progn
-           (loop
-              :for group :across groups
-              :for (vars . members) := group
-              :when (intersection (dep-vars dep) vars)
-              :do
-                (setf (cdr group) (cons name members))
-                (return)
-              :finally (vector-push-extend
-                        (cons (dep-vars dep) (list name))
-                        groups))))
+         (loop
+            :for group :across groups
+            :when (intersection (dep-vars dep) (group-vars group))
+            :do
+              (progn
+                (push name (group-outputs group))
+                (loop
+                   :for v :in (dep-vars dep)
+                   :do (pushnew v (group-vars group)))
+                (loop
+                   :for c :in (dep-cols dep)
+                   :do (pushnew c (group-cols group)))
+                (return))
+            :finally (vector-push-extend
+                      (make-group
+                       :vars (dep-vars dep)
+                       :outputs (list name)
+                       :cols (dep-cols dep))
+                      groups)))
     groups))
 
 (defun split-vertically (groups ir)
@@ -65,14 +80,16 @@
                   :body-form new-output
                   :bindings (extract-bindings used-args))))))
     (loop
-       :for (used-args . output-names) :across groups
-       :collect (extract output-names used-args))))
+       :for group :across groups
+       :collect (extract (group-outputs group)
+                         (append (group-vars group)
+                                 (group-cols group))))))
 
 (defmethod trace-dependencies ((node ssad-var) (dep dep))
   (with-slots (binding) node
-    (with-slots (form) binding
+    (with-slots (form name) binding
       (if (typep form 'ssad-read-col)
-          (setf (dep-cols dep) (cons form (dep-cols dep)))
+          (pushnew name (dep-cols dep))
           (progn
             (setf (dep-vars dep) (cons (slot-value binding 'name)
                                        (dep-vars dep)))
