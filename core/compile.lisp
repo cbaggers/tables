@@ -46,9 +46,6 @@
            :finally (return passes))
       (tables.compile.stage-0.cleanup-outputs:run-pass ir compile-ctx))))
 
-(defun macroexpand-query (body)
-  body)
-
 (defun process-varying-declarations (varyings)
   (let (inputs outputs)
     (loop
@@ -122,6 +119,7 @@
         (process-varying-declarations varyings)
       (multiple-value-bind (body used-sorted-outputs)
           (process-outputs outputs body)
+        ;;(validate-table-columns table-name inputs uniforms outputs)
         (let* ((body (add-args inputs uniforms body))
                (typed-ast (type-check body used-sorted-outputs))
                (ir (typed-ast->ir typed-ast))
@@ -132,12 +130,9 @@
                   ir (make-hash-table)))))
           (values queries passes))))))
 
-;; {TODO}
-;;
-;; - code hoisting
-;; - make and & or special forms?
-;; - add arg name to arg bindings
-;; - query if var/form depends on var (lets us do limited lamdba fold)
-;; - track number of things depending on binding?
-;;
-;; Amongst others..
+(defun validate-table-columns (table-name inputs uniforms outputs)
+  (declare (ignore table-name inputs uniforms outputs))
+  ;; Here is want to extract the table info check that the required
+  ;; columns exist and add any additional metadata we have on that column.
+  ;; For example whether the column is clustered
+  t)

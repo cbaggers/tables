@@ -59,6 +59,7 @@
 (defvar *registered-value-types* (make-hash-table :test #'eq))
 (defvar *registered-traits* (make-hash-table :test #'eq))
 (defvar *registered-compiler-macros* (make-hash-table :test #'eq))
+(defvar *registered-macros* (make-hash-table :test #'eq))
 
 ;; {TODO} This is temporary, will be replaced with something more
 ;;        general
@@ -623,6 +624,13 @@
        (setf (gethash ',func-name *registered-compiler-macros*)
              ,func)
        ',func-name)))
+
+(defmacro define-tables-macro (name lambda-list &body body)
+  (let ((func (gen-macro-function-code name lambda-list body)))
+    `(progn
+       (setf (gethash ',name *registered-macros*)
+             ,func)
+       ',name)))
 
 ;;------------------------------------------------------------
 

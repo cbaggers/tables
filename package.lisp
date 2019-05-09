@@ -36,6 +36,7 @@
            :*registered-top-level-functions*
            :*registered-constant-folds*
            :*registered-compiler-macros*
+           :*registered-macros*
            :record-ctor-slots))
 
 (uiop:define-package #:tables.compile
