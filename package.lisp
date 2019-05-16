@@ -156,4 +156,6 @@
 
 (uiop:define-package #:tables
     (:use)
-  (:import-from :tables.lang))
+  (:import-from :tables.lang)
+  (:export :tmem
+           :tmem-ptr))
