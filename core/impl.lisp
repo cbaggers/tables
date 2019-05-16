@@ -242,12 +242,16 @@
 
 ;;------------------------------------------------------------
 
-(defun get-type-spec (context designator)
+(defun get-type-spec (context type-designator)
   (declare (ignore context))
-  (let ((principle-name (first (alexandria:ensure-list designator))))
+  (let ((principle-name
+         (etypecase type-designator
+           (symbol type-designator)
+           (list (first type-designator))
+           (type-ref (ttype-principle-name type-designator)))))
     (or (gethash principle-name *registered-user-types*)
         (error "Could not identify type for designator: ~a"
-               designator))))
+               type-designator))))
 
 (defun get-parameter-spec (context name)
   (declare (ignore context))
