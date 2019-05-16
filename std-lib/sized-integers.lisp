@@ -2,15 +2,15 @@
 
 ;;------------------------------------------------------------
 
-(define-ttype i8)
-(define-ttype i16)
-(define-ttype i32)
-(define-ttype i64)
+(define-value-type i8 (8))
+(define-value-type i16 (16))
+(define-value-type i32 (32))
+(define-value-type i64 (64))
 
-(define-ttype u8)
-(define-ttype u16)
-(define-ttype u32)
-(define-ttype u64)
+(define-value-type u8 (8))
+(define-value-type u16 (16))
+(define-value-type u32 (32))
+(define-value-type u64 (64))
 
 ;;------------------------------------------------------------
 
