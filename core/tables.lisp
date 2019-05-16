@@ -15,7 +15,7 @@
 (defclass validated-column-spec ()
   ((name :initarg :name)
    (type :initarg :type)
-   (element-size :initarg :element-size)
+   (element-byte-size :initarg :element-byte-size)
    (qualities :initform nil :initarg :qualities)))
 
 (defclass validated-table-spec ()
@@ -23,11 +23,12 @@
    (validated-against :initarg :validated-against)))
 
 (defclass chunk ()
-  ((columns :initarg :columns)))
+  ((columns :initarg :columns)
+   (fill-pointer :initarg :fill-pointer)))
 
 (defclass column ()
   ((data :initarg :data) ;; :type tmem
-   (count :initarg :count)))
+   (element-byte-size :initarg :element-byte-size)))
 
 (defclass table-info ()
   ((chunk-size :initform 1000)
@@ -43,6 +44,9 @@
 (defstruct tmem
   (raw (error "") :type cffi:foreign-pointer)
   (ptr (error "") :type cffi:foreign-pointer))
+
+(defun column-ptr (column)
+  (tmem-ptr (slot-value column 'data)))
 
 ;;------------------------------------------------------------
 
@@ -63,12 +67,14 @@
 ;;
 ;; First version restrictions are
 ;; - implementing map & delete
-;; - only supporting delete within chunk, no cross chunk stuff movement yet
+;; - only supporting delete within chunk, no cross chunk stuff
+;;   movement yet
 ;; - no aos columns
-;; - no struct columns (we need to add output destructuring to optimizer first)
+;; - no struct columns (we need to add output destructuring to
+;;   optimizer first)
 ;; - no column qualities (e.g. cluster)
 
-(defun calc-element-size (context type qualities)
+(defun calc-element-byte-size (context type qualities)
   (declare (ignore qualities))
   (assert (value-type-p type)) ;; {TODO} handle structs and layouts
   (ceiling (value-type-size context type) 8))
@@ -87,8 +93,8 @@
                     'validated-column-spec
                     :name name
                     :type type
-                    :element-size (calc-element-size
-                                   context type qualities))))))
+                    :element-byte-size (calc-element-byte-size
+                                        context type qualities))))))
       (let ((column-specs
              (mapcar #'validate-column (slot-value spec 'column-specs))))
         (make-instance 'validated-table-spec
@@ -101,11 +107,14 @@
   (declare (ignore context))
   (with-slots (chunk-size) table-info
     (labels ((spec-to-column (spec)
-               (with-slots (name type element-size) spec
-                 (let ((data (t-alloc (* element-size chunk-size))))
-                   (make-instance 'column :data data :count 0)))))
+               (with-slots (name type element-byte-size) spec
+                 (let ((data (t-alloc (* element-byte-size chunk-size))))
+                   (make-instance
+                    'column
+                    :data data
+                    :element-byte-size element-byte-size)))))
       (let ((columns (mapcar #'spec-to-column column-specs)))
-        (make-instance 'chunk :columns columns)))))
+        (make-instance 'chunk :columns columns :fill-pointer 0)))))
 
 (defun init-chunks (type-system column-specs table-info)
   (with-slots (chunk-size min-reserved-size) table-info
