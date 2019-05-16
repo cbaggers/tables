@@ -37,7 +37,10 @@
            :*registered-constant-folds*
            :*registered-compiler-macros*
            :*registered-macros*
-           :record-ctor-slots))
+           :record-ctor-slots
+           :record-type-p
+           :value-type-p
+           :value-type-size))
 
 (uiop:define-package #:tables.tables
     (:use #:cl #:checkmate #:tables.utils #:tables.lang)

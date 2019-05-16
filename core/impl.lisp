@@ -119,6 +119,20 @@
     (format t "~%;; Registered value-type ~a" name)
     (setf (gethash name *registered-value-types*) spec)))
 
+(defun record-type-p (type-ref)
+  (and (gethash (ttype-of type-ref) *registered-records*)
+       t))
+
+(defun value-type-p (type-ref)
+  (and (gethash (ttype-of type-ref) *registered-value-types*)
+       t))
+
+(defun value-type-size (context type-ref)
+  (let* ((sdata (spec-custom-data (get-type-spec context type-ref)))
+         (vdata (slot-value sdata 'aggregate-info)))
+    (check-type vdata value-type-spec)
+    (slot-value vdata 'size)))
+
 ;;------------------------------------------------------------
 
 (defun infer-atom (context expression)
