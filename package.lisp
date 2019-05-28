@@ -17,19 +17,105 @@
   (:intern :outputs)
   (:export :tables
            ;;
-           :integer
+           :or
+           :and
+           :bits
            :boolean
-           :unordered-set
-           :i8
+           :outputs
+           ;;
+           :b1
+           :b8
            :i16
            :i32
            :i64
-           :u8
+           :i8
            :u16
            :u32
            :u64
+           :u8
            :f32
+           ;;
            :vec3
+           ;;
+           :addable
+           :subtractable
+           :dividable
+           :multiplyable
+           :partial-numeric-equality
+           :zeroable-numeric
+           :negatable
+           :absolutable
+           ;;
+           :f32+
+           :f32-
+           :f32*
+           :f32/
+           :f32=
+           :f32-negate
+           :f32-sqrt
+           :f32-abs
+           :i8+
+           :i8-
+           :i8*
+           :i8/
+           :i16+
+           :i16-
+           :i16*
+           :i16/
+           :i32+
+           :i32-
+           :i32*
+           :i32/
+           :i64+
+           :i64-
+           :i64*
+           :i64/
+           :u8+
+           :u8-
+           :u8*
+           :u8/
+           :u16+
+           :u16-
+           :u16*
+           :u16/
+           :u32+
+           :u32-
+           :u32*
+           :u32/
+           :u64+
+           :u64-
+           :u64*
+           :u64/
+           :i8=
+           :i16=
+           :i32=
+           :i64=
+           :u8=
+           :u16=
+           :u32=
+           :u64=
+           :i8-negate
+           :i16-negate
+           :i32-negate
+           :i64-negate
+           ;;
+           :vec3+
+           :vec3-
+           :vec3*
+           :vec3/
+           :vec3-zerop
+           :vec3+s
+           :vec3-s
+           :vec3*s
+           :vec3/s
+           :vec3-negate
+           :vec3-dot
+           :vec3-cross
+           :vec3-length-squared
+           :vec3-length
+           :vec3-distance-squared
+           :vec3-distance
+           :vec3-abs
            ;;
            :output
            ;;
@@ -40,7 +126,13 @@
            :record-ctor-slots
            :record-type-p
            :value-type-p
-           :value-type-size))
+           :value-type-size
+           ;;
+           :define-backend
+           :define-op-func
+           :define-op-emitter
+           :find-backend
+           :find-op-emitter-function))
 
 (uiop:define-package #:tables.tables
     (:use #:cl #:checkmate #:tables.utils #:tables.lang)
@@ -153,6 +245,12 @@
 (uiop:define-package #:tables.compile.stage-0.split-vertically
     (:use #:cl #:checkmate #:tables.utils #:tables.compile.stage-0)
   (:export :run-transform))
+
+(uiop:define-package #:tables.backends.fallback
+    (:use #:cl
+          #:tables.utils #:tables.lang #:tables.compile.stage-0
+          #:wrap-sized)
+  (:export :emit))
 
 (uiop:define-package #:tables
     (:use)

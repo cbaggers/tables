@@ -7,10 +7,10 @@
   (exponent 8)
   (mantissa 23))
 
-(define-dummy-func f32+ (f32 f32) f32)
-(define-dummy-func f32- (f32 f32) f32)
-(define-dummy-func f32* (f32 f32) f32)
-(define-dummy-func f32/ (f32 f32) f32)
+(define-op-func f32+ (f32 f32) f32)
+(define-op-func f32- (f32 f32) f32)
+(define-op-func f32* (f32 f32) f32)
+(define-op-func f32/ (f32 f32) f32)
 
 (define-trait-impl addable () f32
   (+ f32+))
@@ -26,25 +26,25 @@
 
 ;;------------------------------------------------------------
 
-(define-dummy-func f32= (f32 f32) boolean)
+(define-op-func f32= (f32 f32) boolean)
 
 (define-trait-impl partial-numeric-equality () f32
   (= f32=))
 
 ;;------------------------------------------------------------
 
-(define-dummy-func f32-negate (f32) f32)
+(define-op-func f32-negate (f32) f32)
 
 (define-trait-impl negatable () f32
   (negate f32-negate))
 
 ;;------------------------------------------------------------
 
-(define-dummy-func f32-sqrt (f32) f32)
+(define-op-func f32-sqrt (f32) f32)
 
 ;;------------------------------------------------------------
 
-(define-dummy-func f32-abs (f32) f32)
+(define-op-func f32-abs (f32) f32)
 
 (define-trait-impl absolutable () f32
   (abs f32-abs))

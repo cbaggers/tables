@@ -14,10 +14,10 @@
 
 ;;------------------------------------------------------------
 
-(define-dummy-func i8+ (i8 i8) i8)
-(define-dummy-func i8- (i8 i8) i8)
-(define-dummy-func i8* (i8 i8) i8)
-(define-dummy-func i8/ (i8 i8) i8)
+(define-op-func i8+ (i8 i8) i8)
+(define-op-func i8- (i8 i8) i8)
+(define-op-func i8* (i8 i8) i8)
+(define-op-func i8/ (i8 i8) i8)
 
 (define-optimize-macro i8+ (&whole whole arg-0 arg-1)
   (labels ((refactor (form-arg constant-arg)
@@ -106,64 +106,64 @@
 
 ;;------------------------------------------------------------
 
-(define-dummy-func i16+ (i16 i16) i16)
-(define-dummy-func i16- (i16 i16) i16)
-(define-dummy-func i16* (i16 i16) i16)
-(define-dummy-func i16/ (i16 i16) i16)
+(define-op-func i16+ (i16 i16) i16)
+(define-op-func i16- (i16 i16) i16)
+(define-op-func i16* (i16 i16) i16)
+(define-op-func i16/ (i16 i16) i16)
 
 ;;------------------------------------------------------------
 
-(define-dummy-func i32+ (i32 i32) i32)
-(define-dummy-func i32- (i32 i32) i32)
-(define-dummy-func i32* (i32 i32) i32)
-(define-dummy-func i32/ (i32 i32) i32)
+(define-op-func i32+ (i32 i32) i32)
+(define-op-func i32- (i32 i32) i32)
+(define-op-func i32* (i32 i32) i32)
+(define-op-func i32/ (i32 i32) i32)
 
 ;;------------------------------------------------------------
 
-(define-dummy-func i64+ (i64 i64) i64)
-(define-dummy-func i64- (i64 i64) i64)
-(define-dummy-func i64* (i64 i64) i64)
-(define-dummy-func i64/ (i64 i64) i64)
+(define-op-func i64+ (i64 i64) i64)
+(define-op-func i64- (i64 i64) i64)
+(define-op-func i64* (i64 i64) i64)
+(define-op-func i64/ (i64 i64) i64)
 
 ;;------------------------------------------------------------
 
-(define-dummy-func u8+ (u8 u8) u8)
-(define-dummy-func u8- (u8 u8) u8)
-(define-dummy-func u8* (u8 u8) u8)
-(define-dummy-func u8/ (u8 u8) u8)
+(define-op-func u8+ (u8 u8) u8)
+(define-op-func u8- (u8 u8) u8)
+(define-op-func u8* (u8 u8) u8)
+(define-op-func u8/ (u8 u8) u8)
 
 ;;------------------------------------------------------------
 
-(define-dummy-func u16+ (u16 u16) u16)
-(define-dummy-func u16- (u16 u16) u16)
-(define-dummy-func u16* (u16 u16) u16)
-(define-dummy-func u16/ (u16 u16) u16)
+(define-op-func u16+ (u16 u16) u16)
+(define-op-func u16- (u16 u16) u16)
+(define-op-func u16* (u16 u16) u16)
+(define-op-func u16/ (u16 u16) u16)
 
 ;;------------------------------------------------------------
 
-(define-dummy-func u32+ (u32 u32) u32)
-(define-dummy-func u32- (u32 u32) u32)
-(define-dummy-func u32* (u32 u32) u32)
-(define-dummy-func u32/ (u32 u32) u32)
+(define-op-func u32+ (u32 u32) u32)
+(define-op-func u32- (u32 u32) u32)
+(define-op-func u32* (u32 u32) u32)
+(define-op-func u32/ (u32 u32) u32)
 
 ;;------------------------------------------------------------
 
-(define-dummy-func u64+ (u64 u64) u64)
-(define-dummy-func u64- (u64 u64) u64)
-(define-dummy-func u64* (u64 u64) u64)
-(define-dummy-func u64/ (u64 u64) u64)
+(define-op-func u64+ (u64 u64) u64)
+(define-op-func u64- (u64 u64) u64)
+(define-op-func u64* (u64 u64) u64)
+(define-op-func u64/ (u64 u64) u64)
 
 ;;------------------------------------------------------------
 
-(define-dummy-func i8= (i8 i8) boolean)
-(define-dummy-func i16= (i16 i16) boolean)
-(define-dummy-func i32= (i32 i32) boolean)
-(define-dummy-func i64= (i64 i64) boolean)
+(define-op-func i8= (i8 i8) boolean)
+(define-op-func i16= (i16 i16) boolean)
+(define-op-func i32= (i32 i32) boolean)
+(define-op-func i64= (i64 i64) boolean)
 
-(define-dummy-func u8= (u8 u8) boolean)
-(define-dummy-func u16= (u16 u16) boolean)
-(define-dummy-func u32= (u32 u32) boolean)
-(define-dummy-func u64= (u64 u64) boolean)
+(define-op-func u8= (u8 u8) boolean)
+(define-op-func u16= (u16 u16) boolean)
+(define-op-func u32= (u32 u32) boolean)
+(define-op-func u64= (u64 u64) boolean)
 
 (define-optimize-macro i8= (&whole whole a b)
   (if (and (numberp a) (numberp b))
@@ -172,15 +172,10 @@
 
 ;;------------------------------------------------------------
 
-(define-dummy-func i8-negate (i8) i8)
-(define-dummy-func i16-negate (i16) i16)
-(define-dummy-func i32-negate (i32) i32)
-(define-dummy-func i64-negate (i64) i64)
-
-(define-dummy-func u8-negate (u8) u8)
-(define-dummy-func u16-negate (u16) u16)
-(define-dummy-func u32-negate (u32) u32)
-(define-dummy-func u64-negate (u64) u64)
+(define-op-func i8-negate (i8) i8)
+(define-op-func i16-negate (i16) i16)
+(define-op-func i32-negate (i32) i32)
+(define-op-func i64-negate (i64) i64)
 
 ;;------------------------------------------------------------
 
@@ -325,17 +320,5 @@
 
 (define-trait-impl negatable () i64
   (negate i64-negate))
-
-(define-trait-impl negatable () u8
-  (negate u8-negate))
-
-(define-trait-impl negatable () u16
-  (negate u16-negate))
-
-(define-trait-impl negatable () u32
-  (negate u32-negate))
-
-(define-trait-impl negatable () u64
-  (negate u64-negate))
 
 ;;------------------------------------------------------------

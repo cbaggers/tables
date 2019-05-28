@@ -5,7 +5,7 @@
   :author "Chris Bagley (Baggers) <chris.bagley@gmail.com>"
   :license "BSD 2 Clause"
   :serial t
-  :depends-on (:checkmate)
+  :depends-on (:checkmate :wrap-sized)
   :components ((:file "package")
                (:file "core/utils")
                ;;
@@ -43,7 +43,15 @@
                (:file "core/stage-0/inline-cond-constants")
                (:file "core/stage-0/cleanup-outputs")
                (:file "core/stage-0/split-vertically")
-
+               ;;
+               ;;
                (:file "core/tables")
                (:file "core/macroexpand")
+               ;;
+               ;; backends
+               (:file "core/backends/fallback/definition")
+               (:file "core/backends/fallback/ops")
+               (:file "core/backends/fallback/emit")
+               ;;
+               ;;
                (:file "core/compile")))

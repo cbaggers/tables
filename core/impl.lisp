@@ -51,6 +51,7 @@
 
 ;;------------------------------------------------------------
 
+(defvar *registered-backends* (make-hash-table :test #'eq))
 (defvar *registered-user-types* (make-hash-table :test #'eq))
 (defvar *registered-parameter-types* (make-hash-table :test #'eq))
 (defvar *registered-constraints* (make-hash-table :test #'eq))
@@ -429,7 +430,7 @@
              :for acc-name := (intern
                                (format nil "~a-~a" name slot-name)
                                (symbol-package name))
-             :collect `(define-dummy-func ,acc-name (,name)
+             :collect `(define-op-func ,acc-name (,name)
                          ,slot-type-desig))))
     (register-record spec)
     `(progn
@@ -469,7 +470,32 @@
 
 ;;------------------------------------------------------------
 
-(defmacro define-dummy-func (name args return)
+(defclass backend ()
+  ((name :initarg :name)
+   (op-emitters :initform (make-hash-table))))
+
+(defun register-backend (name)
+  (unless (gethash name *registered-backends*)
+    (setf (gethash name *registered-backends*)
+          (make-instance 'backend :name name))))
+
+(defmacro define-backend (name)
+  (register-backend name)
+  `(register-backend ',name))
+
+(defun unregister-all-from-backend (backend-name)
+  (with-slots (op-emitters) (find-backend backend-name)
+    (clrhash op-emitters))
+  backend-name)
+
+(defun find-backend (backend-name)
+  (let ((backend (gethash backend-name *registered-backends*)))
+    (assert backend () "No backend known with name ~s" backend-name)
+    backend))
+
+;;------------------------------------------------------------
+
+(defmacro define-op-func (name args return)
   (let ((type `(function ,args ,return)))
     (register-tlf-from-type name type nil nil nil nil)
     `(register-tlf-from-type ',name ',type nil nil nil nil)))
@@ -478,6 +504,26 @@
   (let ((type `(function ,args ,return)))
     (register-tlf-from-type name type nil t nil nil)
     `(register-tlf-from-type ',name ',type nil',slot-func-names nil nil)))
+
+(defun register-op-emitter (backend-name op-name emitter-function)
+  (check-type emitter-function function)
+  (with-slots (op-emitters) (find-backend backend-name)
+    (setf (gethash op-name op-emitters) emitter-function)))
+
+(defmacro define-op-emitter ((op-name &rest args) backend-name &body body)
+  (let ((gargs (gensym "args")))
+    `(register-op-emitter ',backend-name ',op-name
+                          (lambda (,gargs)
+                            (destructuring-bind ,args ,gargs
+                              ,@body)))))
+
+(defun find-op-emitter-function (op-name backend)
+  (with-slots (op-emitters) backend
+    (let ((emitter (gethash op-name op-emitters)))
+      (assert emitter ()
+              "No op-emitter known with name ~s in backend ~a"
+              op-name (slot-value backend 'name))
+      emitter)))
 
 ;;------------------------------------------------------------
 

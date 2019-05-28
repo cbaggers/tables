@@ -136,3 +136,14 @@
   ;; columns exist and add any additional metadata we have on that column.
   ;; For example whether the column is clustered
   t)
+
+(defun test ()
+  (let ((sub-queries
+         (compile-query
+          '((a i8 :in/out) (b f32 :in/out) (c i8 :in/out))
+          '((d i8))
+          '(let* ((x (+ c (* a 10)))
+                  (z (* b (+ b b)))
+                  (y (+ x 1)))
+            (output :a y :b z :c d)))))
+    (mapcar #'tables.backends.fallback:emit sub-queries)))

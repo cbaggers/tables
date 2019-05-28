@@ -23,8 +23,8 @@
 
 ;;------------------------------------------------------------
 
-(define-dummy-func i8foo (i8 i32) i32)
-(define-dummy-func i8foop (i8 i32) i8)
+(define-op-func i8foo (i8 i32) i32)
+(define-op-func i8foop (i8 i32) i8)
 
 (define-trait (fooable ?a) ()
   ((foo (function (?b ?c) ?c))
@@ -40,7 +40,7 @@
 
 (define-ttype (unordered-set ?x))
 
-(define-dummy-func u-set-next ((unordered-set ?x)) ?x)
+(define-op-func u-set-next ((unordered-set ?x)) ?x)
 
 (define-trait-impl iter (?b) (unordered-set ?b)
   (next u-set-next))
