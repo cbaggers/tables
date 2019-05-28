@@ -9,11 +9,13 @@
 ;;   backends. I guess we can say which backends use them. Yeah, do this
 ;;   for now. The best solution will reveal itself in time.
 
-(defun emit (ssad-let)
-  (let* ((backend (find-backend 'fallback))
-         (body (simple-emit ssad-let backend)))
-    `(lambda (:todo-args)
-       ,body)))
+(defun emit (subquery)
+  (with-slots (ir varying-args) subquery
+    (let* ((backend (find-backend 'fallback))
+           (body (simple-emit ir backend)))
+      `(lambda ,varying-args
+         (declare (type cffi:foreign-pointer ,@varying-args))
+         ,body))))
 
 (defmethod simple-emit ((o ssad-let1) backend)
   (with-slots (bindings body-form) o
@@ -76,7 +78,9 @@
 (defmethod simple-emit ((o ssad-read-val) backend)
   (with-slots (type name) o
     ;; {TODO} type decl here
-    `(:read-val ',name)))
+    (multiple-value-bind (read-emitter)
+        (find-value-rw-emitters (checkmate:ttype-of type) backend)
+      (funcall read-emitter name))))
 
 (defmethod simple-emit ((o symbol) backend)
   (error "unprocessed symbol in emit stream: ~a" o))

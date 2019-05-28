@@ -71,19 +71,37 @@
                   :for b :in bindings
                   :when (find (slot-value b 'name) used-args)
                   :collect b)))
-           (extract (output-names used-args)
+           (extract (output-names vars cols)
              (with-slots (body-form) ir
-               (let ((new-output (gen-ouput body-form output-names)))
+               (let* ((used-args (append vars cols))
+                      (new-output (gen-ouput body-form output-names))
+                      (bindings (extract-bindings used-args))
+                      (new-ir (make-instance
+                               'ssad-let1
+                               :type (slot-value ir 'type)
+                               :body-form new-output
+                               :bindings bindings))
+                      (varying-names
+                       (loop
+                          :for col :in cols
+                          :for b := (find col bindings
+                                          :key (lambda (x)
+                                                 (slot-value x 'name)))
+                          :when b
+                          :collect
+                            (slot-value
+                             (slot-value b 'form)
+                             'name))))
                  (make-instance
-                  'ssad-let1
-                  :type (slot-value ir 'type)
-                  :body-form new-output
-                  :bindings (extract-bindings used-args))))))
+                  'subquery
+                  :varying-args varying-names
+                  :uniform-args '(:todo-uniforms)
+                  :ir new-ir)))))
     (loop
        :for group :across groups
        :collect (extract (group-outputs group)
-                         (append (group-vars group)
-                                 (group-cols group))))))
+                         (group-vars group)
+                         (group-cols group)))))
 
 (defmethod trace-dependencies ((node ssad-var) (dep dep))
   (with-slots (binding) node

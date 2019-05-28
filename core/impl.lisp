@@ -443,6 +443,10 @@
 
 ;;------------------------------------------------------------
 
+(defstruct rw-pair
+  (read-emitter (error "") :type (function (t) t))
+  (write-emitter (error "") :type (function (t t) t)))
+
 (defmacro define-value-type (name (size) &body slots)
   (assert (and (> size 0) (<= size 64)))
   (let ((spec (make-instance
@@ -455,6 +459,35 @@
        (register-value-type ,spec)
        (define-ttype ,name :aggregate-info ,spec)
        ',name)))
+
+(defun register-value-rw-emitters (backend-name type-name
+                                   read-emitter-func
+                                   write-emitter-func)
+  (check-type read-emitter-func function)
+  (check-type write-emitter-func function)
+  (with-slots (rw-emitters) (find-backend backend-name)
+    (setf (gethash type-name rw-emitters)
+          (make-rw-pair
+           :read-emitter read-emitter-func
+           :write-emitter write-emitter-func))))
+
+(defmacro define-value-rw-emitters ((type-name ptr-arg val-arg)
+                                    backend-name
+                                    &key read write)
+  `(register-value-rw-emitters ',backend-name ',type-name
+                               (lambda (,ptr-arg) ,read)
+                               (lambda (,ptr-arg ,val-arg) ,write)))
+
+(defun find-value-rw-emitters (type-name backend)
+  (with-slots (rw-emitters) backend
+    (let ((emitter (gethash type-name rw-emitters)))
+      (assert
+       emitter ()
+       "No value-rw-emitters known for a type named ~s in backend ~a"
+       type-name (slot-value backend 'name))
+      (values
+       (rw-pair-read-emitter emitter)
+       (rw-pair-write-emitter emitter)))))
 
 ;;------------------------------------------------------------
 
@@ -472,7 +505,8 @@
 
 (defclass backend ()
   ((name :initarg :name)
-   (op-emitters :initform (make-hash-table))))
+   (op-emitters :initform (make-hash-table))
+   (rw-emitters :initform (make-hash-table))))
 
 (defun register-backend (name)
   (unless (gethash name *registered-backends*)

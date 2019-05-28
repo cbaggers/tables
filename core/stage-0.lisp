@@ -52,6 +52,11 @@
   ((name :initarg :name)
    (type :initarg :type)))
 
+(defclass subquery ()
+  ((varying-args :initarg :varying-args)
+   (uniform-args :initarg :uniform-args)
+   (ir :initarg :ir)))
+
 ;;------------------------------------------------------------
 
 (defgeneric as-debug-form (o))

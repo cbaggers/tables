@@ -132,7 +132,11 @@
            :define-op-func
            :define-op-emitter
            :find-backend
-           :find-op-emitter-function))
+           :find-op-emitter-function
+           ;;
+           :define-value-type
+           :define-value-rw-emitters
+           :find-value-rw-emitters))
 
 (uiop:define-package #:tables.tables
     (:use #:cl #:checkmate #:tables.utils #:tables.lang)
@@ -161,6 +165,10 @@
            :ssad-constructed
            :ssad-output
            :ssad-read-val
+           :subquery
+           :ir
+           :varying-args
+           :uniform-args
            ;;
            :args
            :arg-bindings
