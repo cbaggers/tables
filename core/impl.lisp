@@ -40,14 +40,37 @@
 
 ;;------------------------------------------------------------
 
+(defstruct (purpose (:constructor %make-purpose))
+  (name (error "bug: purpose must be named") :type keyword)
+  (target nil :type t))
+
+(defun purpose (name &optional target)
+  (assert (find name #(:trait :record-accessor :record-contructor)))
+  (%make-purpose :name name :target target))
+
+(defun valid-purpose-p (purpose)
+  (typep purpose '(or null purpose)))
+
+(defmethod make-load-form ((obj purpose)
+                           &optional environment)
+  (declare (ignore environment))
+  (with-slots (name target) obj
+    `(%make-purpose :name ',name :target ',target)))
+
+;;------------------------------------------------------------
+
 (defclass function-info ()
   ((type :initarg :type :reader function-type)
-   (is-trait-func-p :initarg :is-trait-func-p :reader is-trait-func-p)
+   (purpose :initarg :purpose)
    (ast :initarg :ast :initform nil :reader function-ast)
    (record-ctor-slots :initarg :record-ctor-slots
                       :reader record-ctor-slots)
    (trait-impls :initarg :trait-impls :initform (make-hash-table)
                 :reader trait-impls)))
+
+(defun is-trait-func-p (function-info)
+  (with-slots (purpose) function-info
+    (and purpose (eq (purpose-name purpose) :trait))))
 
 ;;------------------------------------------------------------
 
@@ -84,18 +107,20 @@
     (format t "~%;; Registered param type ~a" name)
     (setf (gethash name *registered-parameter-types*) spec)))
 
-(defun register-tlf-from-code (func-name code is-trait-func)
+(defun register-tlf-from-code (func-name code purpose)
+  (assert (valid-purpose-p purpose))
   (let* ((ast (infer 'tables code))
          (type (type-of-typed-expression ast)))
     (format t "~%;; Registered function ~a" func-name)
     (setf (gethash func-name *registered-top-level-functions*)
           (make-instance 'function-info
                          :type (generalize type)
-                         :is-trait-func-p is-trait-func
+                         :purpose purpose
                          :ast ast))))
 
-(defun register-tlf-from-type (func-name type-designator is-trait-func
+(defun register-tlf-from-type (func-name type-designator purpose
                                record-ctor-slots unknowns declarations)
+  (assert (valid-purpose-p purpose))
   (destructuring-bind (f args ret) type-designator
     (assert (eq f 'function))
     (let* ((unknowns (or unknowns (make-hash-table)))
@@ -106,7 +131,7 @@
       (setf (gethash func-name *registered-top-level-functions*)
             (make-instance 'function-info
                            :type (generalize type)
-                           :is-trait-func-p is-trait-func
+                           :purpose purpose
                            :record-ctor-slots record-ctor-slots
                            :ast nil)))))
 
@@ -177,6 +202,8 @@
      (infer-read-val context name args))
     ((eq name 'read-uniform)
      (infer-read-val context name args))
+    ((eq name 'slot-value)
+     (infer-slot-value context name args))
     ((string= name 'output)
      (infer-outputs context name args))))
 
@@ -196,6 +223,24 @@
   (destructuring-bind (type column-name) args
     (let ((type (find-ttype context type)))
       `(truly-the ,type ,(list name type column-name)))))
+
+(defun infer-slot-value (context name args)
+  (declare (ignore name))
+  (destructuring-bind (form slot-name) args
+    (let* ((infered (infer context form))
+           (type-ref (type-of-typed-expression infered))
+           (type-name (ttype-of type-ref))
+           (aggregate-spec (gethash type-name *registered-records*)))
+      (assert aggregate-spec ()
+              "slot-value only works on records. Found ~a~%:form~a"
+              type-name form)
+      (with-slots (slots) aggregate-spec
+        (let ((slot (find slot-name slots :key #'slot-name)))
+          (assert slot ()
+                  "The record type ~a has no slot named ~s.~%Slots:~a"
+                  type-name slot-name slots)
+          (with-slots (type) slot
+            `(truly-the ,type (slot-value ,infered ,slot-name))))))))
 
 (defun infer-if (context test then else)
   (let* (;; {TODO} support any object in test
@@ -285,13 +330,18 @@
         (error "Could not identify constraint for designator: ~a"
                designator))))
 
+(defun get-top-level-function-purpose (context name)
+  (declare (ignore context))
+  (slot-value (gethash name *registered-top-level-functions*)
+              'purpose))
+
 (defun get-top-level-function-type (context name arg-types-provided-p
                                     arg-types)
   (declare (ignore context))
   (let ((func-info (gethash name *registered-top-level-functions*)))
     (if func-info
-        (with-slots (is-trait-func-p trait-impls type) func-info
-          (if is-trait-func-p
+        (with-slots (trait-impls type) func-info
+          (if (is-trait-func-p func-info)
               (if arg-types-provided-p
                   (let* ((impl-name
                           (gethash
@@ -394,6 +444,10 @@
        (register-parameter-type ,spec)
        ',name)))
 
+(defun ttype-aggregate-info (type-ref)
+  (slot-value (checkmate:ttype-custom-data type-ref)
+              'aggregate-info))
+
 ;;------------------------------------------------------------
 
 (defmacro defn-host-func (name arg-types return-type)
@@ -433,21 +487,23 @@
                                (format nil "~a-~a" name slot-name)
                                (symbol-package name))
              :collect `(define-op-func ,acc-name (,name)
-                         ,slot-type-desig))))
+                         ,slot-type-desig
+                         :purpose ,(purpose :record-accessor
+                                            slot-name)))))
     (register-record spec)
     `(progn
        (register-record ,spec)
        (define-ttype ,name :aggregate-info ,spec)
        (define-record-ctor-func ,constructor-name ,slot-type-desigs ,name
-                                ,(mapcar #'second slot-funcs))
+                                ,(mapcar #'first slots))
        ,@slot-funcs
        ',name)))
 
 ;;------------------------------------------------------------
 
 (defstruct rw-pair
-  (read-emitter (error "") :type (function (t) t))
-  (write-emitter (error "") :type (function (t t) t)))
+  (read-emitter (error "") :type (function (t fixnum) t))
+  (write-emitter (error "") :type (function (t fixnum t) t)))
 
 (defmacro define-value-type (name (size) &body slots)
   (assert (and (> size 0) (<= size 64)))
@@ -473,12 +529,14 @@
            :read-emitter read-emitter-func
            :write-emitter write-emitter-func))))
 
-(defmacro define-value-rw-emitters ((type-name ptr-arg val-arg)
+(defmacro define-value-rw-emitters ((type-name ptr-arg index-arg val-arg)
                                     backend-name
                                     &key read write)
   `(register-value-rw-emitters ',backend-name ',type-name
-                               (lambda (,ptr-arg) ,read)
-                               (lambda (,ptr-arg ,val-arg) ,write)))
+                               (lambda (,ptr-arg ,index-arg)
+                                 ,read)
+                               (lambda (,ptr-arg ,index-arg ,val-arg)
+                                 ,write)))
 
 (defun find-value-rw-emitters (type-name backend)
   (with-slots (rw-emitters) backend
@@ -531,15 +589,18 @@
 
 ;;------------------------------------------------------------
 
-(defmacro define-op-func (name args return)
+(defmacro define-op-func (name args return &key purpose)
+  (assert (valid-purpose-p purpose))
   (let ((type `(function ,args ,return)))
-    (register-tlf-from-type name type nil nil nil nil)
-    `(register-tlf-from-type ',name ',type nil nil nil nil)))
+    (register-tlf-from-type name type purpose nil nil nil)
+    `(register-tlf-from-type ',name ',type ,purpose nil nil nil)))
 
-(defmacro define-record-ctor-func (name args return slot-func-names)
+(defmacro define-record-ctor-func (name args return slot-names)
   (let ((type `(function ,args ,return)))
-    (register-tlf-from-type name type nil t nil nil)
-    `(register-tlf-from-type ',name ',type nil',slot-func-names nil nil)))
+    (register-tlf-from-type
+     name type (purpose :record-contructor) t nil nil)
+    `(register-tlf-from-type
+      ',name ',type (purpose :record-contructor) ',slot-names nil nil)))
 
 (defun register-op-emitter (backend-name op-name emitter-function)
   (check-type emitter-function function)
@@ -593,7 +654,7 @@
                        (rest trait-designator)))
        :initial-value unknowns))
     (setf (gethash principle-name *registered-traits*)
-        trait-info)
+          trait-info)
     (loop
        :for fspec :in funcs
        :do (gen-and-register-trait-func fspec unknowns))
@@ -605,7 +666,8 @@
     (assert (eq d-type 'function))
     (let* ((decls (loop :for s :in satisfies :collect `(satisfies ,@s)))
            (ftype `(function ,d-args ,d-ret)))
-      (register-tlf-from-type name ftype t nil unknowns decls)
+      (register-tlf-from-type name ftype (purpose :trait) nil
+                              unknowns decls)
       (values))))
 
 (defmacro define-trait-impl (trait-name (&optional associated-type) type

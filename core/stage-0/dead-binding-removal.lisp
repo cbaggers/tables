@@ -39,6 +39,11 @@
     (loop :for a :in args :do (find-live a live))
     (values)))
 
+(defmethod find-live ((o ssad-slot-value) live)
+  (with-slots (form) o
+    (find-live form live)
+    (values)))
+
 (defmethod find-live ((o ssad-output) live)
   (with-slots (args) o
     (loop :for a :in args :do (find-live a live))
@@ -71,6 +76,11 @@
 (defmethod remove-dead ((o ssad-lambda) live cmp-ctx)
   (with-slots (body-form) o
     (remove-dead body-form live cmp-ctx)
+    (values)))
+
+(defmethod remove-dead ((o ssad-slot-value) live cmp-ctx)
+  (with-slots (form) o
+    (remove-dead form live cmp-ctx)
     (values)))
 
 (defmethod remove-dead ((o ssad-if) live cmp-ctx)

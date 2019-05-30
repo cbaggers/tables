@@ -82,6 +82,7 @@
        (funcall (blockify-funcall-form context form))
        (output (blockify-output-form context form))
        (function (blockify-function-form context form type))
+       (slot-value (blockify-slot-value-form context form type))
        (tables.lang::read-varying (blockify-read-varying-form context form type))
        (tables.lang::read-uniform (blockify-read-uniform-form context form type))
        (:construct (blockify-construct-form context form type))
@@ -224,6 +225,17 @@
                    :body-form (make-instance 'ssad-funcall
                                              :func (first ssad-names)
                                              :args (rest ssad-names)))))
+
+(defun blockify-slot-value-form (context form type)
+  (destructuring-bind (expr slot-name) (rest form)
+    (let* ((blocked-expr (blockify context expr))
+           (ssad-name (slot-value (last1 blocked-expr) 'name)))
+      (make-instance 'ssad-let1
+                     :bindings blocked-expr
+                     :body-form (make-instance 'ssad-slot-value
+                                               :form ssad-name
+                                               :name slot-name
+                                               :type type)))))
 
 (defun blockify-output-form (context expr-ast)
   (multiple-value-bind (names forms)

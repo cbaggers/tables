@@ -32,14 +32,19 @@
       (s-elim body-form env cmp-ctx)
       (values keys nil))))
 
-(defun form-key (binding-name form)
-  (typecase form
-    (ssad-funcall
-     (labels ((arg-key (arg)
+(defun form-key (binding-name node)
+  (labels ((arg-key (arg)
                 (etypecase arg
                   (ssad-var (slot-value (slot-value arg 'binding) 'name))
                   (ssad-constant (slot-value arg 'form)))))
-       (with-slots (func args) form
+    (typecase node
+      (ssad-slot-value
+       (with-slots (form name) node
+         (values
+          `(slot-value ,(arg-key form) ,name)
+          nil)))
+      (ssad-funcall
+       (with-slots (func args) node
          (when (typep func 'ssad-constant)
            (let* ((func-name
                    (second (slot-value func 'form)))
@@ -57,7 +62,7 @@
                                   (ssad-var (slot-value a 'binding))
                                   (ssad-constant a))
                    :when elim
-                   :collect (cons `(funcall ,s ,binding-name)
+                   :collect (cons `(slot-value ,binding-name ,s)
                                   elim)))))))))))
 
 (defun s-elim-binding (o env cmp-ctx)
@@ -120,6 +125,7 @@
               new-binding))))))
 
 (defmethod s-elim ((o ssad-funcall) env cmp-ctx) nil)
+(defmethod s-elim ((o ssad-slot-value) env cmp-ctx) nil)
 (defmethod s-elim ((o ssad-output) env cmp-ctx) nil)
 (defmethod s-elim ((o ssad-var) env cmp-ctx) nil)
 (defmethod s-elim ((o symbol) env cmp-ctx) nil)

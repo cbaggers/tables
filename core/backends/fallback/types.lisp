@@ -15,3 +15,17 @@
       (f32 '(signed-byte 32))
       (b1 '(unsigned-byte 1))
       (b8 '(unsigned-byte 8)))))
+
+(defun ttype->cffi-type (ttype)
+  (let ((principle-type-name (checkmate:ttype-principle-name ttype)))
+    (ecase principle-type-name
+      (i8 :int8)
+      (u8 :uint8)
+      (i16 :int16)
+      (u16 :uint16)
+      (i32 :int32)
+      (u32 :uint32)
+      (i64 :int64)
+      (u64 :uint64)
+      (f32 :float)
+      (b8 :uint8))))

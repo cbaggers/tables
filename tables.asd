@@ -33,6 +33,7 @@
                (:file "core/stage-0/dead-binding-removal")
                (:file "core/stage-0/early-constant-folding")
                (:file "core/stage-0/inline-direct-calls")
+               (:file "core/stage-0/record-to-slot-forms")
                (:file "core/stage-0/dead-if-branch-removal")
                (:file "core/stage-0/inline-top-level-funcs")
                (:file "core/stage-0/subexpression-elim")
@@ -50,6 +51,7 @@
                ;;
                ;; backends
                (:file "core/backends/fallback/definition")
+               (:file "core/backends/fallback/types")
                (:file "core/backends/fallback/ops")
                (:file "core/backends/fallback/rw")
                (:file "core/backends/fallback/emit")

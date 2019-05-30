@@ -134,6 +134,11 @@
     (trace-dependencies form dep)
     (values)))
 
+(defmethod trace-dependencies ((binding ssad-slot-value) (dep dep))
+  (with-slots (form) binding
+    (trace-dependencies form dep)
+    (values)))
+
 (defmethod trace-dependencies ((node ssad-if) (dep dep))
   (with-slots (test then else) node
     (trace-dependencies test dep)

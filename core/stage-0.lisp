@@ -36,6 +36,11 @@
   ((func :initarg :func)
    (args :initarg :args)))
 
+(defclass ssad-slot-value (ir-node)
+  ((form :initarg :form)
+   (name :initarg :name)
+   (type :initarg :type)))
+
 (defclass ssad-constant (ir-node)
   ((form :initarg :form)
    (type :initarg :type)))
@@ -97,6 +102,10 @@
     `(ssad-funcall ,(as-debug-form func)
                    ,@(mapcar #'as-debug-form args))))
 
+(defmethod as-debug-form ((o ssad-slot-value))
+  (with-slots (form name) o
+    `(ssad-slot-value ,(as-debug-form form) ,name)))
+
 (defmethod as-debug-form ((o ssad-output))
   (with-slots (names args) o
     `(ssad-output
@@ -138,6 +147,9 @@
   (format stream "#~a" (as-debug-form o)))
 
 (defmethod print-object ((o ssad-funcall) stream)
+  (format stream "#~a" (as-debug-form o)))
+
+(defmethod print-object ((o ssad-slot-value) stream)
   (format stream "#~a" (as-debug-form o)))
 
 (defmethod print-object ((o ssad-output) stream)

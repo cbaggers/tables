@@ -118,15 +118,22 @@
            :vec3-abs
            ;;
            :output
+           :slots
+           :name
+           :type
            ;;
            :*registered-top-level-functions*
            :*registered-constant-folds*
            :*registered-compiler-macros*
            :*registered-macros*
            :record-ctor-slots
+           :get-top-level-function-purpose
+           :purpose-name
+           :purpose-target
            :record-type-p
            :value-type-p
            :value-type-size
+           :ttype-aggregate-info
            ;;
            :define-backend
            :define-op-func
@@ -166,6 +173,7 @@
            :ssad-output
            :ssad-read-varying
            :ssad-read-uniform
+           :ssad-slot-value
            :subquery
            :ir
            :input-varyings
@@ -213,6 +221,10 @@
   (:export :run-pass))
 
 (uiop:define-package #:tables.compile.stage-0.inline-direct-calls
+    (:use #:cl #:checkmate #:tables.utils #:tables.compile.stage-0)
+  (:export :run-pass))
+
+(uiop:define-package #:tables.compile.stage-0.record-to-slot-forms
     (:use #:cl #:checkmate #:tables.utils #:tables.compile.stage-0)
   (:export :run-pass))
 

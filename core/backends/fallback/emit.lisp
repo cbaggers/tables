@@ -79,6 +79,31 @@
                      (lambda (x) (simple-emit x backend output-varyings))
                      args)))))
 
+(defmethod simple-emit ((o ssad-slot-value) backend output-varyings)
+  (with-slots (form name) o
+    (assert (typep form 'ssad-var))
+    (let* ((aggregate-info
+            (ttype-aggregate-info
+             (slot-value (slot-value form 'binding) 'type))))
+      (with-slots (slots) aggregate-info
+        (let* ((offset 0)
+               (slot
+                (find-if
+                 (lambda (slot)
+                   (with-slots ((slot-name name) (slot-type type))
+                       slot
+                     (if (eq name slot-name)
+                         slot
+                         (let* ((l-type (ttype->cffi-type slot-type))
+                                (size (cffi:foreign-type-size l-type)))
+                           (incf offset size)
+                           nil))))
+                 slots)))
+          (with-slots (type) slot
+            (multiple-value-bind (read-emitter)
+                (find-value-rw-emitters (checkmate:ttype-of type) backend)
+              (funcall read-emitter name offset))))))))
+
 (defmethod simple-emit ((o ssad-output) backend output-varyings)
   (with-slots (names args) o
     `(progn
@@ -99,8 +124,7 @@
                        (checkmate:ttype-of dest-type) backend)
                     (declare (ignore read-emitter))
                     (funcall write-emitter dest-name a)))))
-       (values))
-    ))
+       (values))))
 
 (defmethod simple-emit ((o ssad-constant) backend output-varyings)
   (with-slots (form) o

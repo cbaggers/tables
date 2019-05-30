@@ -12,6 +12,7 @@
   (tables.compile.stage-0.early-constant-folding:run-pass ir ctx)
   (tables.compile.stage-0.dead-binding-removal:run-pass ir ctx)
   (tables.compile.stage-0.inline-direct-calls:run-pass ir ctx)
+  (tables.compile.stage-0.record-to-slot-forms:run-pass ir ctx)
   (tables.compile.stage-0.early-constant-folding:run-pass ir ctx)
   (tables.compile.stage-0.dead-if-branch-removal:run-pass ir ctx)
   (tables.compile.stage-0.dead-binding-removal:run-pass ir ctx)
@@ -21,6 +22,7 @@
 (defun run-passes (ir ctx)
   (tables.compile.stage-0.dead-if-branch-removal:run-pass ir ctx)
   (tables.compile.stage-0.inline-direct-calls:run-pass ir ctx)
+  (tables.compile.stage-0.record-to-slot-forms:run-pass ir ctx)
   (tables.compile.stage-0.dead-binding-removal:run-pass ir ctx)
   (tables.compile.stage-0.early-constant-folding:run-pass ir ctx)
   (tables.compile.stage-0.subexpression-elim:run-pass ir ctx)
@@ -155,7 +157,6 @@
             sub-queries)))
 
 (defun test2 (&optional (optimize '((speed 3) (safety 1) (debug 1))))
-  optimize
   (mapcar (lambda (x) (tables.backends.fallback:emit x optimize))
           (compile-query
            '((a vec3 :in/out) (b vec3 :in))
