@@ -72,18 +72,30 @@
                                             'ssad-var
                                             :binding binding)
                                      :slot-id slot-name)))))))
-                      (list arg))))
-               (ssad-constant (list arg)))))
+                      (let ((foo (make-instance
+                                  'ssad-write-varying
+                                  :name output-name
+                                  :form arg
+                                  :slot-id nil)))
+                        (list (list nil foo))))))
+               (ssad-constant
+                (let ((foo (make-instance
+                                  'ssad-write-varying
+                                  :name output-name
+                                  :form arg
+                                  :slot-id nil)))
+                  (list (list nil foo)))))))
     (with-slots (names args) o
       ;; all args will be constants or vars
       (loop
          :for name :in names
          :for arg :in args
          :for new := (split-arg name arg)
-         :for new-bindings := (mapcar #'first new)
+         :for new-bindings := (remove nil (mapcar #'first new))
          :for new-args := (mapcar #'second new)
          :append new-args :into final-args
-         :append (make-list 3 :initial-element name) :into final-names
+         :append (make-list (length new-args)
+                            :initial-element name) :into final-names
          :append new-bindings :into final-bindings
          :finally (progn
                     (setf names final-names

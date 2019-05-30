@@ -172,4 +172,4 @@
           (compile-query
            '((a vec3 :in/out) (b vec3 :in))
            '()
-           '(output :a (+ a b)))))
+           '(output :a (vec3*s (+ a (* b b)) 2.0)))))

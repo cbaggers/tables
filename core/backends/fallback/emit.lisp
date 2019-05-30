@@ -130,16 +130,31 @@
             "Could not find a valid destination for varying ~s~%~s"
             name output-varyings)
     (destructuring-bind (dest-name dest-type) destination
-      (with-slots (form slot-id) node
-        (multiple-value-bind (slot offset) (find-slot dest-type slot-id)
-          (multiple-value-bind (read-emitter write-emitter)
-              (find-value-rw-emitters
-               (checkmate:ttype-of (slot-value slot 'type)) backend)
-            (declare (ignore read-emitter))
-            (funcall write-emitter
-                     dest-name
-                     offset
-                     (simple-emit form backend output-varyings))))))))
+      (with-slots ((node-name name) form slot-id) node
+        (if slot-id
+            (multiple-value-bind (slot offset) (find-slot dest-type slot-id)
+              (multiple-value-bind (read-emitter write-emitter)
+                  (find-value-rw-emitters
+                   (checkmate:ttype-of (slot-value slot 'type)) backend)
+                (declare (ignore read-emitter))
+                (funcall write-emitter
+                         dest-name
+                         offset
+                         (simple-emit form backend output-varyings))))
+            (let ((var-type
+                   (etypecase form
+                     (ssad-constant
+                      (slot-value form 'type))
+                     (ssad-var
+                      (slot-value (slot-value form 'binding) 'type)))))
+              (multiple-value-bind (read-emitter write-emitter)
+                  (find-value-rw-emitters
+                   (checkmate:ttype-of var-type) backend)
+                (declare (ignore read-emitter))
+                (funcall write-emitter
+                         dest-name
+                         0
+                         (simple-emit form backend output-varyings)))))))))
 
 (defmethod simple-emit ((o ssad-constant) backend output-varyings)
   (with-slots (form) o
@@ -158,7 +173,7 @@
         ;; {TODO} type decl here
         (multiple-value-bind (read-emitter)
             (find-value-rw-emitters (checkmate:ttype-of type) backend)
-          (funcall read-emitter name)))))
+          (funcall read-emitter name 0)))))
 
 (defmethod simple-emit ((o ssad-read-uniform) backend output-varyings)
   (with-slots (type name) o
