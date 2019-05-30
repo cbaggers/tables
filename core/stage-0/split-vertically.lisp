@@ -71,15 +71,16 @@
                   :when (find (slot-value b 'name) used-args)
                   :collect b)))
            (scan-for-used-vals (node-type val-bindings)
-             (reduce
-              (lambda (a b)
-                (with-slots (form) b
-                  (if (typep form node-type)
-                      (with-slots (name type) form
-                        (cons (list name type) a))
-                      a)))
-              val-bindings
-              :initial-value nil))
+             (reverse
+              (reduce
+               (lambda (a b)
+                 (with-slots (form) b
+                   (if (typep form node-type)
+                       (with-slots (name type) form
+                         (cons (list name type) a))
+                       a)))
+               val-bindings
+               :initial-value nil)))
            (extract (output-names vars cols)
              (with-slots (body-form) ir
                (let* ((used-args (append vars cols))
