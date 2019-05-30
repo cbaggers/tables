@@ -14,7 +14,8 @@
           (progn (mexpand-progn (rest form)))
           (funcall (mexpand-funcall (rest form)))
           (output (mexpand-output (rest form)))
-          ((function :construct tables.lang::read-val) form)
+          ((function :construct tables.lang::read-varying) form)
+          ((function :construct tables.lang::read-uniform) form)
           (otherwise
            (let ((macro-func (find-tables-macro-func head)))
              (if macro-func

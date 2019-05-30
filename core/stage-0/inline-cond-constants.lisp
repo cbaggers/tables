@@ -132,6 +132,10 @@
   (declare (ignore type))
   o)
 
-(defmethod inline-cond-const ((o ssad-read-val) type cmp-ctx)
+(defmethod inline-cond-const ((o ssad-read-varying) type cmp-ctx)
+  (declare (ignore type))
+  o)
+
+(defmethod inline-cond-const ((o ssad-read-uniform) type cmp-ctx)
   (declare (ignore type))
   o)

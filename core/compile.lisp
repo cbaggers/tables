@@ -107,9 +107,13 @@
       (values body outputs))))
 
 (defun add-args (inputs uniforms body)
-  `(let ,(loop
-            :for (n d) :in (append inputs uniforms)
-            :collect `(,n (tables.lang::read-val ,d ,n)))
+  `(let ,(append
+          (loop
+             :for (n d) :in inputs
+             :collect `(,n (tables.lang::read-varying ,d ,n)))
+          (loop
+             :for (n d) :in uniforms
+             :collect `(,n (tables.lang::read-uniform ,d ,n))))
      ,body))
 
 ;;#+nil
@@ -140,10 +144,11 @@
 (defun test ()
   (let ((sub-queries
          (compile-query
-          '((a i8 :in/out) (b f32 :in/out) (c i8 :in/out))
+          '((a i8 :in/out) (b i8 :in/out) (c i8 :in/out))
           '((d i8))
-          '(let* ((x (+ c (* a 10)))
-                  (z (* b (+ b b)))
-                  (y (+ x 1)))
-            (output :a y :b z :c d)))))
+          '(let* ((x (+ c (* a d)))
+                  (z (* b (+ d b)))
+                  (y (funcall (lambda ((g i8)) (+ g 1))
+                              x)))
+            (output :a y :b z :c a)))))
     (mapcar #'tables.backends.fallback:emit sub-queries)))

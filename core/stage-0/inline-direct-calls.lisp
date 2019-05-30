@@ -82,4 +82,5 @@
 (defmethod inline-funcs ((o symbol) cmp-ctx) o)
 (defmethod inline-funcs ((o ssad-constant) cmp-ctx) o)
 (defmethod inline-funcs ((o ssad-constructed) cmp-ctx) o)
-(defmethod inline-funcs ((o ssad-read-val) cmp-ctx) o)
+(defmethod inline-funcs ((o ssad-read-varying) cmp-ctx) o)
+(defmethod inline-funcs ((o ssad-read-uniform) cmp-ctx) o)

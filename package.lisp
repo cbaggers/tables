@@ -164,7 +164,8 @@
            :ssad-constant
            :ssad-constructed
            :ssad-output
-           :ssad-read-val
+           :ssad-read-varying
+           :ssad-read-uniform
            :subquery
            :ir
            :varying-args

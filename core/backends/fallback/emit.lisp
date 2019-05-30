@@ -10,10 +10,10 @@
 ;;   for now. The best solution will reveal itself in time.
 
 (defun emit (subquery)
-  (with-slots (ir varying-args) subquery
+  (with-slots (ir varying-args uniform-args) subquery
     (let* ((backend (find-backend 'fallback))
            (body (simple-emit ir backend)))
-      `(lambda ,varying-args
+      `(lambda ,(append varying-args uniform-args)
          (declare (type cffi:foreign-pointer ,@varying-args))
          ,body))))
 
@@ -75,12 +75,17 @@
     ;; {TODO} type decl here
     form))
 
-(defmethod simple-emit ((o ssad-read-val) backend)
+(defmethod simple-emit ((o ssad-read-varying) backend)
   (with-slots (type name) o
     ;; {TODO} type decl here
     (multiple-value-bind (read-emitter)
         (find-value-rw-emitters (checkmate:ttype-of type) backend)
       (funcall read-emitter name))))
+
+(defmethod simple-emit ((o ssad-read-uniform) backend)
+  (with-slots (type name) o
+    ;; {TODO} type decl here
+    name))
 
 (defmethod simple-emit ((o symbol) backend)
   (error "unprocessed symbol in emit stream: ~a" o))

@@ -48,7 +48,11 @@
   ((names :initarg :names)
    (args :initarg :args)))
 
-(defclass ssad-read-val (ir-node)
+(defclass ssad-read-varying (ir-node)
+  ((name :initarg :name)
+   (type :initarg :type)))
+
+(defclass ssad-read-uniform (ir-node)
   ((name :initarg :name)
    (type :initarg :type)))
 
@@ -110,9 +114,13 @@
   (with-slots (type form) o
     (list :construct type form)))
 
-(defmethod as-debug-form ((o ssad-read-val))
+(defmethod as-debug-form ((o ssad-read-varying))
   (with-slots (type name) o
-    (list 'ssad-read-val type name)))
+    (list 'ssad-read-varying type name)))
+
+(defmethod as-debug-form ((o ssad-read-uniform))
+  (with-slots (type name) o
+    (list 'ssad-read-uniform type name)))
 
 ;;------------------------------------------------------------
 
@@ -134,7 +142,10 @@
 (defmethod print-object ((o ssad-output) stream)
   (format stream "#~a" (as-debug-form o)))
 
-(defmethod print-object ((o ssad-read-val) stream)
+(defmethod print-object ((o ssad-read-varying) stream)
+  (format stream "#~a" (as-debug-form o)))
+
+(defmethod print-object ((o ssad-read-uniform) stream)
   (format stream "#~a" (as-debug-form o)))
 
 ;;------------------------------------------------------------

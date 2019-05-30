@@ -71,6 +71,16 @@
                   :for b :in bindings
                   :when (find (slot-value b 'name) used-args)
                   :collect b)))
+           (scan-for-used-vals (type val-bindings)
+             (reduce
+              (lambda (a b)
+                (with-slots (form) b
+                  (if (typep form type)
+                      (with-slots (name) form
+                        (cons name a))
+                      a)))
+              val-bindings
+              :initial-value nil))
            (extract (output-names vars cols)
              (with-slots (body-form) ir
                (let* ((used-args (append vars cols))
@@ -81,21 +91,14 @@
                                :type (slot-value ir 'type)
                                :body-form new-output
                                :bindings bindings))
-                      (varying-names
-                       (loop
-                          :for col :in cols
-                          :for b := (find col bindings
-                                          :key (lambda (x)
-                                                 (slot-value x 'name)))
-                          :when b
-                          :collect
-                            (slot-value
-                             (slot-value b 'form)
-                             'name))))
+                      (used-varying-names
+                       (scan-for-used-vals 'ssad-read-varying bindings))
+                      (used-uniform-names
+                       (scan-for-used-vals 'ssad-read-uniform bindings)))
                  (make-instance
                   'subquery
-                  :varying-args varying-names
-                  :uniform-args '(:todo-uniforms)
+                  :varying-args used-varying-names
+                  :uniform-args used-uniform-names
                   :ir new-ir)))))
     (loop
        :for group :across groups
@@ -106,12 +109,15 @@
 (defmethod trace-dependencies ((node ssad-var) (dep dep))
   (with-slots (binding) node
     (with-slots (form name) binding
-      (if (typep form 'ssad-read-val)
-          (pushnew name (dep-cols dep))
-          (progn
-            (setf (dep-vars dep) (cons (slot-value binding 'name)
-                                       (dep-vars dep)))
-            (trace-dependencies binding dep))))
+      (typecase form
+        (ssad-read-varying
+         (pushnew name (dep-cols dep)))
+        (ssad-read-uniform
+         (pushnew name (dep-cols dep)))
+        (t
+          (setf (dep-vars dep) (cons (slot-value binding 'name)
+                                     (dep-vars dep)))
+          (trace-dependencies binding dep))))
     (values)))
 
 (defmethod trace-dependencies ((binding ssad-binding) (dep dep))

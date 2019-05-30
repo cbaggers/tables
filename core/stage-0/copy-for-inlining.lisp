@@ -64,10 +64,17 @@
      :form form
      :type type)))
 
-(defmethod copy-for-inlining ((o ssad-read-val) env)
+(defmethod copy-for-inlining ((o ssad-read-varying) env)
   (with-slots (name type) o
     (make-instance
-     'ssad-read-val
+     'ssad-read-varying
+     :name name
+     :type type)))
+
+(defmethod copy-for-inlining ((o ssad-read-uniform) env)
+  (with-slots (name type) o
+    (make-instance
+     'ssad-read-uniform
      :name name
      :type type)))
 

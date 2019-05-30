@@ -30,7 +30,8 @@
                (with-slots (func args) form
                  (and (typep func 'ssad-constant)
                       (every #'arg-is-uniform-p args))))
-              (ssad-read-val t)
+              (ssad-read-varying t)
+              (ssad-read-uniform t)
               (ssad-if
                (with-slots (test then else) form
                  (and (arg-is-uniform-p test)
@@ -56,4 +57,5 @@
 (defmethod u-prop ((o symbol) cmp-ctx) (values))
 (defmethod u-prop ((o ssad-constant) cmp-ctx) (values))
 (defmethod u-prop ((o ssad-constructed) cmp-ctx) (values))
-(defmethod u-prop ((o ssad-read-val) cmp-ctx) (values))
+(defmethod u-prop ((o ssad-read-varying) cmp-ctx) (values))
+(defmethod u-prop ((o ssad-read-uniform) cmp-ctx) (values))

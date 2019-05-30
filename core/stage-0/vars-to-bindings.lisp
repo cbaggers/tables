@@ -36,7 +36,7 @@
                :collect (make-instance
                          'ssad-binding
                          :name name
-                         :form (make-instance 'ssad-read-val
+                         :form (make-instance 'ssad-read-varying
                                               :type type
                                               :name name)
                          :type type)))
@@ -82,6 +82,10 @@
   (declare (ignore env))
   o)
 
-(defmethod vars-to-bindings ((o ssad-read-val) env cmp-ctx)
+(defmethod vars-to-bindings ((o ssad-read-varying) env cmp-ctx)
+  (declare (ignore env))
+  o)
+
+(defmethod vars-to-bindings ((o ssad-read-uniform) env cmp-ctx)
   (declare (ignore env))
   o)

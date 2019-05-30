@@ -75,6 +75,7 @@
 (defmethod remove-dead ((o symbol) cmp-ctx) o)
 (defmethod remove-dead ((o ssad-constant) cmp-ctx) o)
 (defmethod remove-dead ((o ssad-constructed) cmp-ctx) o)
-(defmethod remove-dead ((o ssad-read-val) cmp-ctx) o)
+(defmethod remove-dead ((o ssad-read-varying) cmp-ctx) o)
+(defmethod remove-dead ((o ssad-read-uniform) cmp-ctx) o)
 
 ;;------------------------------------------------------------
