@@ -24,6 +24,78 @@
 (define-op-emitter (i8= x y) fallback
   `(= ,x ,y))
 
+(define-op-emitter (u16* x y) fallback
+  `(uop 16 (* ,x ,y)))
+(define-op-emitter (u16+ x y) fallback
+  `(uop 16 (+ ,x ,y)))
+(define-op-emitter (u16- x y) fallback
+  `(uop 16 (- ,x ,y)))
+(define-op-emitter (u16/ x y) fallback
+  `(uop 16 (/ ,x ,y)))
+(define-op-emitter (u16= x y) fallback
+  `(= ,x ,y))
+
+(define-op-emitter (i16* x y) fallback
+  `(iop 16 (* ,x ,y)))
+(define-op-emitter (i16+ x y) fallback
+  `(iop 16 (+ ,x ,y)))
+(define-op-emitter (i16- x y) fallback
+  `(iop 16 (- ,x ,y)))
+(define-op-emitter (i16/ x y) fallback
+  `(iop 16 (/ ,x ,y)))
+(define-op-emitter (i16-negate x) fallback
+  `(the (signed-byte 16) (- ,x)))
+(define-op-emitter (i16= x y) fallback
+  `(= ,x ,y))
+
+(define-op-emitter (u32* x y) fallback
+  `(uop 32 (* ,x ,y)))
+(define-op-emitter (u32+ x y) fallback
+  `(uop 32 (+ ,x ,y)))
+(define-op-emitter (u32- x y) fallback
+  `(uop 32 (- ,x ,y)))
+(define-op-emitter (u32/ x y) fallback
+  `(uop 32 (/ ,x ,y)))
+(define-op-emitter (u32= x y) fallback
+  `(= ,x ,y))
+
+(define-op-emitter (i32* x y) fallback
+  `(iop 32 (* ,x ,y)))
+(define-op-emitter (i32+ x y) fallback
+  `(iop 32 (+ ,x ,y)))
+(define-op-emitter (i32- x y) fallback
+  `(iop 32 (- ,x ,y)))
+(define-op-emitter (i32/ x y) fallback
+  `(iop 32 (/ ,x ,y)))
+(define-op-emitter (i32-negate x) fallback
+  `(the (signed-byte 32) (- ,x)))
+(define-op-emitter (i32= x y) fallback
+  `(= ,x ,y))
+
+(define-op-emitter (u64* x y) fallback
+  `(uop 64 (* ,x ,y)))
+(define-op-emitter (u64+ x y) fallback
+  `(uop 64 (+ ,x ,y)))
+(define-op-emitter (u64- x y) fallback
+  `(uop 64 (- ,x ,y)))
+(define-op-emitter (u64/ x y) fallback
+  `(uop 64 (/ ,x ,y)))
+(define-op-emitter (u64= x y) fallback
+  `(= ,x ,y))
+
+(define-op-emitter (i64* x y) fallback
+  `(iop 64 (* ,x ,y)))
+(define-op-emitter (i64+ x y) fallback
+  `(iop 64 (+ ,x ,y)))
+(define-op-emitter (i64- x y) fallback
+  `(iop 64 (- ,x ,y)))
+(define-op-emitter (i64/ x y) fallback
+  `(iop 64 (/ ,x ,y)))
+(define-op-emitter (i64-negate x) fallback
+  `(the (signed-byte 64) (- ,x)))
+(define-op-emitter (i64= x y) fallback
+  `(= ,x ,y))
+
 (define-op-emitter (f32* x y) fallback
   `(* ,x ,y))
 (define-op-emitter (f32+ x y) fallback
@@ -38,36 +110,3 @@
 :f32-abs
 :f32-negate
 :f32-sqrt
-:i16*
-:i16+
-:i16-
-:i16-negate
-:i16/
-:i16=
-:i32*
-:i32+
-:i32-
-:i32-negate
-:i32/
-:i32=
-:i64*
-:i64+
-:i64-
-:i64-negate
-:i64/
-:i64=
-:u16*
-:u16+
-:u16-
-:u16/
-:u16=
-:u32*
-:u32+
-:u32-
-:u32/
-:u32=
-:u64*
-:u64+
-:u64-
-:u64/
-:u64=
