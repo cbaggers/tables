@@ -141,14 +141,23 @@
   ;; For example whether the column is clustered
   t)
 
-(defun test ()
+(defun test (&optional (optimize '((speed 3) (safety 1) (debug 1))))
   (let ((sub-queries
          (compile-query
           '((a i8 :in/out) (b i8 :in/out) (c i8 :in/out))
           '((d i8))
           '(let* ((x (+ c (* a d)))
-                  (z (* b (+ d b)))
+                  (z (* b (+ d x)))
                   (y (funcall (lambda ((g i8)) (+ g 1))
                               x)))
             (output :a y :b z :c a)))))
-    (mapcar #'tables.backends.fallback:emit sub-queries)))
+    (mapcar (lambda (x) (tables.backends.fallback:emit x optimize))
+            sub-queries)))
+
+(defun test2 (&optional (optimize '((speed 3) (safety 1) (debug 1))))
+  optimize
+  (mapcar (lambda (x) (tables.backends.fallback:emit x optimize))
+          (compile-query
+           '((a vec3 :in/out) (b vec3 :in))
+           '()
+           '(output :a (+ a b)))))

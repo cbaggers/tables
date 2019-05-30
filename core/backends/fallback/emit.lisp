@@ -9,7 +9,7 @@
 ;;   backends. I guess we can say which backends use them. Yeah, do this
 ;;   for now. The best solution will reveal itself in time.
 
-(defun emit (subquery)
+(defun emit (subquery optimize)
   (with-slots (ir uniform-args input-varyings output-varyings) subquery
     (let* ((backend (find-backend 'fallback))
            (varying-names-in (mapcar #'first input-varyings))
@@ -22,7 +22,7 @@
            (varying-names-out (mapcar #'second outputs))
            (body (simple-emit ir backend outputs)))
       `(lambda ,(append varying-names-in varying-names-out uniform-names)
-         (declare (optimize (speed 3) (safety 0) (debug 0))
+         (declare (optimize ,@optimize)
                   (type cffi:foreign-pointer
                         ,@varying-names-in
                         ,@varying-names-out)
@@ -114,10 +114,12 @@
 
 (defmethod simple-emit ((o ssad-read-varying) backend output-varyings)
   (with-slots (type name) o
-    ;; {TODO} type decl here
-    (multiple-value-bind (read-emitter)
-        (find-value-rw-emitters (checkmate:ttype-of type) backend)
-      (funcall read-emitter name))))
+    (if (record-type-p type)
+        name
+        ;; {TODO} type decl here
+        (multiple-value-bind (read-emitter)
+            (find-value-rw-emitters (checkmate:ttype-of type) backend)
+          (funcall read-emitter name)))))
 
 (defmethod simple-emit ((o ssad-read-uniform) backend output-varyings)
   (with-slots (type name) o
