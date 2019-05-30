@@ -5,7 +5,7 @@
   :author "Chris Bagley (Baggers) <chris.bagley@gmail.com>"
   :license "BSD 2 Clause"
   :serial t
-  :depends-on (:checkmate :wrap-sized)
+  :depends-on (:checkmate :wrap-sized :cffi)
   :components ((:file "package")
                (:file "core/utils")
                ;;
@@ -51,6 +51,7 @@
                ;; backends
                (:file "core/backends/fallback/definition")
                (:file "core/backends/fallback/ops")
+               (:file "core/backends/fallback/rw")
                (:file "core/backends/fallback/emit")
                ;;
                ;;
