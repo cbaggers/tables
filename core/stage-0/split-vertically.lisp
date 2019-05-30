@@ -14,9 +14,7 @@
   (with-slots (body-form) ir
     (check-type body-form ssad-output)
     (with-slots (names args) body-form
-      (if (<= (length names) 1)
-          (list ir)
-          (split-vertically (trace-and-group names args) ir)))))
+      (split-vertically (trace-and-group names args) ir))))
 
 (defun trace-and-group (names args)
   (let* ((groups
@@ -92,7 +90,6 @@
                                :type (slot-value ir 'type)
                                :body-form new-output
                                :bindings bindings))
-                      ;; (moo (break "ugh ~a ~a" (slot-value ir 'bindings) output-names))
                       (output-varyings
                        (loop
                           :for b :in (slot-value ir 'bindings)
