@@ -173,7 +173,9 @@
            :ssad-output
            :ssad-read-varying
            :ssad-read-uniform
+           :ssad-write-varying
            :ssad-slot-value
+           :slot-id
            :subquery
            :ir
            :input-varyings
@@ -265,6 +267,10 @@
   (:export :run-pass))
 
 (uiop:define-package #:tables.compile.stage-0.split-vertically
+    (:use #:cl #:checkmate #:tables.utils #:tables.compile.stage-0)
+  (:export :run-transform))
+
+(uiop:define-package #:tables.compile.stage-0.split-outputs
     (:use #:cl #:checkmate #:tables.utils #:tables.compile.stage-0)
   (:export :run-transform))
 

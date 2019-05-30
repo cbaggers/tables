@@ -38,6 +38,11 @@
     (setf form (find-top-level-funcs form ht cmp-ctx))
     o))
 
+(defmethod find-top-level-funcs ((o ssad-write-varying) ht cmp-ctx)
+  (with-slots (form) o
+    (setf form (find-top-level-funcs form ht cmp-ctx))
+    o))
+
 (defmethod find-top-level-funcs ((o ssad-output) ht cmp-ctx)
   (with-slots (args) o
     (setf args (mapcar (lambda (arg)

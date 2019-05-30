@@ -134,7 +134,18 @@
                 (tables.compile.stage-0.split-vertically:run-transform
                  (tables.compile.stage-0:copy-for-inlining
                   ir (make-hash-table)))))
-          (values queries passes))))))
+          (loop
+             :for sub-query :in queries
+             :do (tables.compile.stage-0.split-outputs:run-transform
+                  (slot-value sub-query 'tables.compile.stage-0:ir)))
+          (let ((query-passes
+                 (loop
+                    :for sub-query :in queries
+                    :collect (+ passes
+                                (run-passes-until-stablized
+                                 (slot-value sub-query
+                                             'tables.compile.stage-0:ir))))))
+            (values queries query-passes)))))))
 
 (defun validate-table-columns (table-name inputs uniforms outputs)
   (declare (ignore table-name inputs uniforms outputs))

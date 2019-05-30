@@ -71,6 +71,11 @@
     (remove-dead form cmp-ctx)
     o))
 
+(defmethod remove-dead ((o ssad-write-varying) cmp-ctx)
+  (with-slots (form) o
+    (remove-dead form cmp-ctx)
+    o))
+
 (defmethod remove-dead ((o ssad-output) cmp-ctx)
   (with-slots (args) o
     (map nil (lambda (a) (remove-dead a cmp-ctx)) args)

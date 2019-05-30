@@ -65,6 +65,11 @@
     (setf form (inline-funcs form cmp-ctx))
     o))
 
+(defmethod inline-funcs ((o ssad-write-varying) cmp-ctx)
+  (with-slots (form) o
+    (setf form (inline-funcs form cmp-ctx))
+    o))
+
 (defmethod inline-funcs ((o ssad-output) cmp-ctx)
   (with-slots (args) o
     (setf args (mapcar (lambda (x) (inline-funcs x cmp-ctx))

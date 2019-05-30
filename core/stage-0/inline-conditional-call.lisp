@@ -76,6 +76,11 @@
     (setf form (inline-cond-calls form cmp-ctx))
     o))
 
+(defmethod inline-cond-calls ((o ssad-write-varying) cmp-ctx)
+  (with-slots (form) o
+    (setf form (inline-cond-calls form cmp-ctx))
+    o))
+
 (defmethod inline-cond-calls ((o ssad-lambda) cmp-ctx)
   (with-slots (body-form) o
     (setf body-form (inline-cond-calls body-form cmp-ctx))

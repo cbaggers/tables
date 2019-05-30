@@ -69,6 +69,11 @@
     (setf form (cfold form cmp-ctx))
     o))
 
+(defmethod cfold ((o ssad-write-varying) cmp-ctx)
+  (with-slots (form) o
+    (setf form (cfold form cmp-ctx))
+    o))
+
 (defmethod cfold ((o ssad-output) cmp-ctx)
   (with-slots (args) o
     (setf args (mapcar (lambda (x) (cfold x cmp-ctx))

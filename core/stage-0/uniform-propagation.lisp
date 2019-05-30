@@ -53,6 +53,7 @@
 
 (defmethod u-prop ((o ssad-funcall) cmp-ctx) (values))
 (defmethod u-prop ((o ssad-slot-value) cmp-ctx) (values))
+(defmethod u-prop ((o ssad-write-varying) cmp-ctx) (values))
 (defmethod u-prop ((o ssad-output) cmp-ctx) (values))
 (defmethod u-prop ((o ssad-var) cmp-ctx) (values))
 (defmethod u-prop ((o symbol) cmp-ctx) (values))

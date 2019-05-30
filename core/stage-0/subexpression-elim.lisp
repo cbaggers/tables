@@ -91,6 +91,18 @@
     (s-elim body-form env cmp-ctx)
     nil))
 
+(defmethod s-elim ((o ssad-write-varying) env cmp-ctx)
+  (with-slots (form) o
+    (s-elim form env cmp-ctx)
+    nil))
+
+(defmethod s-elim ((o ssad-output) env cmp-ctx)
+  (with-slots (args) o
+    (loop
+       :for arg :in args
+       :do (s-elim arg env cmp-ctx))
+    nil))
+
 (defmethod s-elim ((o ssad-if) env cmp-ctx)
   ;; returns bindings to inject into parent
   (with-slots (test then else) o
@@ -126,7 +138,6 @@
 
 (defmethod s-elim ((o ssad-funcall) env cmp-ctx) nil)
 (defmethod s-elim ((o ssad-slot-value) env cmp-ctx) nil)
-(defmethod s-elim ((o ssad-output) env cmp-ctx) nil)
 (defmethod s-elim ((o ssad-var) env cmp-ctx) nil)
 (defmethod s-elim ((o symbol) env cmp-ctx) nil)
 (defmethod s-elim ((o ssad-constant) env cmp-ctx) nil)

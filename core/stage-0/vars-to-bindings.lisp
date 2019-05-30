@@ -63,6 +63,11 @@
     (setf form (vars-to-bindings form env cmp-ctx))
     o))
 
+(defmethod vars-to-bindings ((o ssad-write-varying) env cmp-ctx)
+  (with-slots (form) o
+    (setf form (vars-to-bindings form env cmp-ctx))
+    o))
+
 (defmethod vars-to-bindings ((o ssad-output) env cmp-ctx)
   (with-slots (args) o
     (setf args (mapcar (lambda (a) (vars-to-bindings a env cmp-ctx))

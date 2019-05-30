@@ -44,6 +44,7 @@
                (:file "core/stage-0/inline-cond-constants")
                (:file "core/stage-0/cleanup-outputs")
                (:file "core/stage-0/split-vertically")
+               (:file "core/stage-0/split-outputs")
                ;;
                ;;
                (:file "core/tables")

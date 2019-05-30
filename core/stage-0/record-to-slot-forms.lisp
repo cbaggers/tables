@@ -55,8 +55,17 @@
     (setf else (transform-calls else cmp-ctx))
     o))
 
+(defmethod transform-calls ((o ssad-slot-value) cmp-ctx)
+  (with-slots (form) o
+    (setf form (transform-calls form cmp-ctx)))
+  o)
+
+(defmethod transform-calls ((o ssad-write-varying) cmp-ctx)
+  (with-slots (form) o
+    (setf form (transform-calls form cmp-ctx)))
+  o)
+
 (defmethod transform-calls ((o ssad-var) cmp-ctx) o)
-(defmethod transform-calls ((o ssad-slot-value) cmp-ctx) o)
 (defmethod transform-calls ((o symbol) cmp-ctx) o)
 (defmethod transform-calls ((o ssad-constant) cmp-ctx) o)
 (defmethod transform-calls ((o ssad-constructed) cmp-ctx) o)

@@ -105,6 +105,12 @@
     (setf form (inline-cond-const form nil cmp-ctx))
     o))
 
+(defmethod inline-cond-const ((o ssad-write-varying) type cmp-ctx)
+  (declare (ignore type))
+  (with-slots (form) o
+    (setf form (inline-cond-const form nil cmp-ctx))
+    o))
+
 (defmethod inline-cond-const ((o ssad-lambda) type cmp-ctx)
   (with-slots (body-form result-type) o
     (setf body-form (inline-cond-const body-form result-type cmp-ctx))

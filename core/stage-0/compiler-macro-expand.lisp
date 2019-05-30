@@ -46,6 +46,11 @@
     (cm-expand else check-env cmp-ctx)
     o))
 
+(defmethod cm-expand ((o ssad-write-varying) check-env cmp-ctx)
+  (with-slots (form) o
+    (cm-expand form check-env cmp-ctx)
+    o))
+
 (defmethod cm-expand ((o ssad-slot-value) check-env cmp-ctx)
   (with-slots (form) o
     (cm-expand form check-env cmp-ctx)

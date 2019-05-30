@@ -45,7 +45,8 @@
     (etypecase blockified
       ((or ssad-lambda ssad-if ssad-funcall ssad-constant
            ssad-constructed ssad-var ssad-output
-           ssad-read-varying ssad-read-uniform)
+           ssad-read-varying ssad-read-uniform
+           ssad-write-varying ssad-slot-value)
        (list (make-instance 'ssad-binding
                             :name (gensym)
                             :form blockified

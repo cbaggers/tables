@@ -53,6 +53,11 @@
   (with-slots (binding) o
     (setf (gethash binding live) t)))
 
+(defmethod find-live ((o ssad-write-varying) live)
+  (with-slots (form) o
+    (find-live form live)
+    (values)))
+
 (defmethod find-live ((o symbol) live))
 (defmethod find-live ((o ssad-constant) live))
 (defmethod find-live ((o ssad-constructed) live))
@@ -79,6 +84,11 @@
     (values)))
 
 (defmethod remove-dead ((o ssad-slot-value) live cmp-ctx)
+  (with-slots (form) o
+    (remove-dead form live cmp-ctx)
+    (values)))
+
+(defmethod remove-dead ((o ssad-write-varying) live cmp-ctx)
   (with-slots (form) o
     (remove-dead form live cmp-ctx)
     (values)))

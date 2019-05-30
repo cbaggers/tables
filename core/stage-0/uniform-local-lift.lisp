@@ -39,6 +39,7 @@
 
 (defmethod u-lift ((o ssad-funcall) cmp-ctx) (values))
 (defmethod u-lift ((o ssad-slot-value) cmp-ctx) (values))
+(defmethod u-lift ((o ssad-write-varying) cmp-ctx) (values))
 (defmethod u-lift ((o ssad-output) cmp-ctx) (values))
 (defmethod u-lift ((o ssad-var) cmp-ctx) (values))
 (defmethod u-lift ((o symbol) cmp-ctx) (values))

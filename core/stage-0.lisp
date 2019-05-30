@@ -57,6 +57,11 @@
   ((name :initarg :name)
    (type :initarg :type)))
 
+(defclass ssad-write-varying (ir-node)
+  ((name :initarg :name)
+   (form :initarg :form)
+   (slot-id :initarg :slot-id)))
+
 (defclass ssad-read-uniform (ir-node)
   ((name :initarg :name)
    (type :initarg :type)))
@@ -131,6 +136,10 @@
 (defmethod as-debug-form ((o ssad-read-uniform))
   (with-slots (type name) o
     (list 'ssad-read-uniform type name)))
+
+(defmethod as-debug-form ((o ssad-write-varying))
+  (with-slots (name form slot-id) o
+    (list 'ssad-write-varying name (as-debug-form form) slot-id)))
 
 ;;------------------------------------------------------------
 

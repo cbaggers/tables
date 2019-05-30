@@ -27,6 +27,14 @@
      :func (copy-for-inlining func env)
      :args (loop :for a :in args :collect (copy-for-inlining a env)))))
 
+(defmethod copy-for-inlining ((o ssad-write-varying) env)
+  (with-slots (form name slot-id) o
+    (make-instance
+     'ssad-write-varying
+     :form (copy-for-inlining form env)
+     :name name
+     :slot-id slot-id)))
+
 (defmethod copy-for-inlining ((o ssad-slot-value) env)
   (with-slots (form name type) o
     (make-instance

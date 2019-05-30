@@ -79,52 +79,67 @@
                      (lambda (x) (simple-emit x backend output-varyings))
                      args)))))
 
+(defun find-slot (type-ref name)
+  (let* ((aggregate-info (ttype-aggregate-info type-ref)))
+    (with-slots (slots) aggregate-info
+      (let* ((offset 0)
+             (slot
+              (loop
+                 :for slot :in slots
+                 :for slot-name := (slot-value slot 'name)
+                 :for slot-type := (slot-value slot 'type)
+                 :if (string= name slot-name)
+                 :return slot
+                 :else
+                 :do (let* ((l-type (ttype->cffi-type slot-type))
+                            (size (cffi:foreign-type-size l-type)))
+                       (incf offset size)
+                       nil))))
+        (when (null slot)
+          (break "dang? ~a ~a" aggregate-info slots))
+        (values slot offset)))))
+
 (defmethod simple-emit ((o ssad-slot-value) backend output-varyings)
   (with-slots (form name) o
     (assert (typep form 'ssad-var))
-    (let* ((aggregate-info
-            (ttype-aggregate-info
-             (slot-value (slot-value form 'binding) 'type))))
-      (with-slots (slots) aggregate-info
-        (let* ((offset 0)
-               (slot
-                (loop
-                   :for slot :in slots
-                   :for slot-name := (slot-value slot 'name)
-                   :for slot-type := (slot-value slot 'type)
-                   :if (eq name slot-name)
-                   :return slot
-                   :else
-                   :do (let* ((l-type (ttype->cffi-type slot-type))
-                              (size (cffi:foreign-type-size l-type)))
-                         (incf offset size)
-                         nil))))
-          (with-slots (type) slot
-            (multiple-value-bind (read-emitter)
-                (find-value-rw-emitters (checkmate:ttype-of type) backend)
-              (funcall read-emitter name offset))))))))
+    (let* ((record-type (slot-value (slot-value form 'binding) 'type)))
+      (multiple-value-bind (slot offset) (find-slot record-type name)
+        (with-slots (type) slot
+          (multiple-value-bind (read-emitter)
+              (find-value-rw-emitters (checkmate:ttype-of type) backend)
+            (funcall read-emitter
+                     (simple-emit form backend output-varyings)
+                     offset)))))))
 
 (defmethod simple-emit ((o ssad-output) backend output-varyings)
   (with-slots (names args) o
     `(progn
        ,@(loop
-            :for n :in names
-            :for raw-a :in args
-            :for a := (simple-emit raw-a backend output-varyings)
-            :collect
-              (let ((destination (rest (find n output-varyings
-                                             :key #'first
-                                             :test #'string=))))
-                (assert destination ()
-                        "Could not find a valid destination for varying ~s~%~s"
-                        n output-varyings)
-                (destructuring-bind (dest-name dest-type) destination
-                  (multiple-value-bind (read-emitter write-emitter)
-                      (find-value-rw-emitters
-                       (checkmate:ttype-of dest-type) backend)
-                    (declare (ignore read-emitter))
-                    (funcall write-emitter dest-name a)))))
+            :for name :in names
+            :for arg :in args
+            :collect (emit-write-varying
+                      name arg backend output-varyings))
        (values))))
+
+(defun emit-write-varying (name node backend output-varyings)
+  (check-type node ssad-write-varying)
+  (let ((destination (rest (find name output-varyings
+                                 :key #'first
+                                 :test #'string=))))
+    (assert destination ()
+            "Could not find a valid destination for varying ~s~%~s"
+            name output-varyings)
+    (destructuring-bind (dest-name dest-type) destination
+      (with-slots (form slot-id) node
+        (multiple-value-bind (slot offset) (find-slot dest-type slot-id)
+          (multiple-value-bind (read-emitter write-emitter)
+              (find-value-rw-emitters
+               (checkmate:ttype-of (slot-value slot 'type)) backend)
+            (declare (ignore read-emitter))
+            (funcall write-emitter
+                     dest-name
+                     offset
+                     (simple-emit form backend output-varyings))))))))
 
 (defmethod simple-emit ((o ssad-constant) backend output-varyings)
   (with-slots (form) o
