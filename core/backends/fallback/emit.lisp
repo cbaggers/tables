@@ -88,17 +88,17 @@
       (with-slots (slots) aggregate-info
         (let* ((offset 0)
                (slot
-                (find-if
-                 (lambda (slot)
-                   (with-slots ((slot-name name) (slot-type type))
-                       slot
-                     (if (eq name slot-name)
-                         slot
-                         (let* ((l-type (ttype->cffi-type slot-type))
-                                (size (cffi:foreign-type-size l-type)))
-                           (incf offset size)
-                           nil))))
-                 slots)))
+                (loop
+                   :for slot :in slots
+                   :for slot-name := (slot-value slot 'name)
+                   :for slot-type := (slot-value slot 'type)
+                   :if (eq name slot-name)
+                   :return slot
+                   :else
+                   :do (let* ((l-type (ttype->cffi-type slot-type))
+                              (size (cffi:foreign-type-size l-type)))
+                         (incf offset size)
+                         nil))))
           (with-slots (type) slot
             (multiple-value-bind (read-emitter)
                 (find-value-rw-emitters (checkmate:ttype-of type) backend)
