@@ -27,7 +27,8 @@
        :for name :in names
        :for arg :in args
        :for dep := (make-dep)
-       :do (trace-dependencies arg dep)
+       :do
+         (trace-dependencies arg dep)
          (loop
             :for group :across groups
             :when (intersection (dep-vars dep) (group-vars group))
@@ -71,13 +72,13 @@
                   :for b :in bindings
                   :when (find (slot-value b 'name) used-args)
                   :collect b)))
-           (scan-for-used-vals (type val-bindings)
+           (scan-for-used-vals (node-type val-bindings)
              (reduce
               (lambda (a b)
                 (with-slots (form) b
-                  (if (typep form type)
-                      (with-slots (name) form
-                        (cons name a))
+                  (if (typep form node-type)
+                      (with-slots (name type) form
+                        (cons (list name type) a))
                       a)))
               val-bindings
               :initial-value nil))
@@ -91,14 +92,25 @@
                                :type (slot-value ir 'type)
                                :body-form new-output
                                :bindings bindings))
-                      (used-varying-names
+                      ;; (moo (break "ugh ~a ~a" (slot-value ir 'bindings) output-names))
+                      (output-varyings
+                       (loop
+                          :for b :in (slot-value ir 'bindings)
+                          :for form := (slot-value b 'form)
+                          :when (and (typep form 'ssad-read-varying)
+                                     (find (slot-value form 'name) output-names
+                                           :test #'string=))
+                          :collect (list (slot-value form 'name)
+                                         (slot-value form 'type))))
+                      (used-varyings
                        (scan-for-used-vals 'ssad-read-varying bindings))
-                      (used-uniform-names
+                      (used-uniforms
                        (scan-for-used-vals 'ssad-read-uniform bindings)))
                  (make-instance
                   'subquery
-                  :varying-args used-varying-names
-                  :uniform-args used-uniform-names
+                  :uniform-args used-uniforms
+                  :input-varyings used-varyings
+                  :output-varyings output-varyings
                   :ir new-ir)))))
     (loop
        :for group :across groups

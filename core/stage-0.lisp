@@ -57,8 +57,9 @@
    (type :initarg :type)))
 
 (defclass subquery ()
-  ((varying-args :initarg :varying-args)
-   (uniform-args :initarg :uniform-args)
+  ((uniform-args :initarg :uniform-args)
+   (input-varyings :initarg :input-varyings)
+   (output-varyings :initarg :output-varyings)
    (ir :initarg :ir)))
 
 ;;------------------------------------------------------------

@@ -1,0 +1,17 @@
+(in-package :tables.backends.fallback)
+
+(defun ttype->lisp-type (ttype)
+  (let (;;(designator (checkmate:ttype-of ttype))
+        (principle-type-name (checkmate:ttype-principle-name ttype)))
+    (ecase principle-type-name
+      (i8 '(signed-byte 8))
+      (u8 '(unsigned-byte 8))
+      (i16 '(signed-byte 16))
+      (u16 '(unsigned-byte 16))
+      (i32 '(signed-byte 32))
+      (u32 '(unsigned-byte 32))
+      (i64 '(signed-byte 64))
+      (u64 '(unsigned-byte 64))
+      (f32 '(signed-byte 32))
+      (b1 '(unsigned-byte 1))
+      (b8 '(unsigned-byte 8)))))

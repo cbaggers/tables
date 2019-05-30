@@ -168,7 +168,8 @@
            :ssad-read-uniform
            :subquery
            :ir
-           :varying-args
+           :input-varyings
+           :output-varyings
            :uniform-args
            ;;
            :args
@@ -259,6 +260,8 @@
     (:use #:cl
           #:tables.utils #:tables.lang #:tables.compile.stage-0
           #:wrap-sized)
+  (:import-from :alexandria
+                :compose)
   (:export :emit))
 
 (uiop:define-package #:tables
