@@ -129,23 +129,12 @@
         (let* ((body (add-args inputs uniforms body))
                (typed-ast (type-check body used-sorted-outputs))
                (ir (typed-ast->ir typed-ast))
-               (passes (run-passes-until-stablized ir))
-               (queries
+               (pass-count (run-passes-until-stablized ir))
+               (sub-queries
                 (tables.compile.stage-0.split-vertically:run-transform
                  (tables.compile.stage-0:copy-for-inlining
                   ir (make-hash-table)))))
-          (loop
-             :for sub-query :in queries
-             :do (tables.compile.stage-0.split-outputs:run-transform
-                  (slot-value sub-query 'tables.compile.stage-0:ir)))
-          (let ((query-passes
-                 (loop
-                    :for sub-query :in queries
-                    :collect (+ passes
-                                (run-passes-until-stablized
-                                 (slot-value sub-query
-                                             'tables.compile.stage-0:ir))))))
-            (values queries query-passes)))))))
+          (tables.backends.fallback:transform sub-queries pass-count))))))
 
 (defun validate-table-columns (table-name inputs uniforms outputs)
   (declare (ignore table-name inputs uniforms outputs))

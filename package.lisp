@@ -155,9 +155,10 @@
   (:export :make-compile-context
            :mark-changed
            :marked-changed-p
-           :clear-mark))
+           :clear-mark
+           :run-passes-until-stablized))
 
-(uiop:define-package #:tables.compile.stage-0
+(UIOP:define-package #:tables.compile.stage-0
     (:use #:cl #:checkmate #:tables.utils #:tables.compile)
   (:reexport #:tables.lang)
   (:reexport #:tables.compile)
@@ -280,7 +281,7 @@
           #:wrap-sized)
   (:import-from :alexandria
                 :compose)
-  (:export :emit))
+  (:export :transform :emit))
 
 (uiop:define-package #:tables
     (:use)

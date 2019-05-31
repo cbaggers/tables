@@ -55,6 +55,7 @@
                (:file "core/backends/fallback/types")
                (:file "core/backends/fallback/ops")
                (:file "core/backends/fallback/rw")
+               (:file "core/backends/fallback/transform")
                (:file "core/backends/fallback/emit")
                ;;
                ;;
