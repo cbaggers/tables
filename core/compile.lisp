@@ -173,3 +173,17 @@
            '((a vec3 :in/out) (b vec3 :in))
            '()
            '(output :a (vec3*s (+ a (* b b)) 2.0)))))
+
+(defun test3 (&optional (optimize '((speed 3) (safety 1) (debug 1))))
+  (mapcar (lambda (x) (tables.backends.fallback:emit x optimize))
+          (compile-query
+           '((a vec3 :out))
+           '()
+           '(output :a (vec3 0.0 1.0 2.0)))))
+
+(defun test4 (&optional (optimize '((speed 3) (safety 1) (debug 1))))
+  (mapcar (lambda (x) (tables.backends.fallback:emit x optimize))
+          (compile-query
+           '((a f32 :out))
+           '()
+           '(output :a 0.0))))

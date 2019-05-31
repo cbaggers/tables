@@ -82,9 +82,9 @@
                val-bindings
                :initial-value nil)))
            (extract (output-names vars cols)
-             (with-slots (body-form) ir
+             (with-slots ((output-node body-form)) ir
                (let* ((used-args (append vars cols))
-                      (new-output (gen-ouput body-form output-names))
+                      (new-output (gen-ouput output-node output-names))
                       (bindings (extract-bindings used-args))
                       (new-ir (make-instance
                                'ssad-let1
@@ -93,13 +93,15 @@
                                :bindings bindings))
                       (output-varyings
                        (loop
-                          :for b :in (slot-value ir 'bindings)
-                          :for form := (slot-value b 'form)
-                          :when (and (typep form 'ssad-read-varying)
-                                     (find (slot-value form 'name) output-names
-                                           :test #'string=))
-                          :collect (list (slot-value form 'name)
-                                         (slot-value form 'type))))
+                          :for a :in (slot-value new-output 'args)
+                          :for n :in (slot-value new-output 'names)
+                          :for type :=
+                            (etypecase a
+                              (ssad-var
+                               (slot-value (slot-value a 'binding) 'type))
+                              (ssad-constant
+                               (slot-value a 'type)))
+                          :collect (list n type)))
                       (used-varyings
                        (scan-for-used-vals 'ssad-read-varying bindings))
                       (used-uniforms
