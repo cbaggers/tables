@@ -45,3 +45,29 @@
        (or (stringp b)
            (symbolp b))
        (string= a b)))
+
+(defun has-duplicates-p (seq)
+  (if (listp seq)
+      (loop
+         :for sub :on seq
+         :when (member (first sub) (rest sub))
+         :return t)
+      (loop
+         :for i :below (length seq)
+         :when (find (elt seq i) seq :start (1+ i))
+         :return t)))
+
+(defun find-duplicates (seq)
+  (let (result)
+    (if (listp seq)
+        (loop
+           :for sub :on seq
+           :for dup := (member (first sub) (rest sub))
+           :when dup
+           :do (pushnew (first dup) result))
+        (loop
+           :for i :below (length seq)
+           :for pos := (position (elt seq i) seq :start (1+ i))
+           :when pos
+           :do (pushnew (elt seq pos) result)))
+    result))

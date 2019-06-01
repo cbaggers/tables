@@ -1,4 +1,4 @@
-(in-package :tables.tables)
+(in-package :tables.internals)
 
 ;;------------------------------------------------------------
 
@@ -34,7 +34,10 @@
   ((chunk-size :initform 1000)
    (min-reserved-size :initform 1000)))
 
-(defclass unordered-table ()
+(defclass table ()
+  ((spec :initarg :spec)))
+
+(defclass unordered-table (table)
   ((info :initarg :info)
    (chunks :initarg :chunks)))
 
@@ -128,8 +131,18 @@
     (let ((info (make-instance 'table-info)))
       (make-instance
        'unordered-table
+       :spec table-spec
        :info info
        :chunks (init-chunks validated-against column-specs info)))))
+
+(defun find-table (table-designator)
+  (typecase table-designator
+    (table table-designator)
+    (symbol (error "find-table: not implemented yet for ~a" table-designator))
+    (t (error "Not a valid table designator"))))
+
+(defun table-spec (table)
+  (slot-value table 'spec))
 
 ;;------------------------------------------------------------
 ;; This will probably move to a memory management section in

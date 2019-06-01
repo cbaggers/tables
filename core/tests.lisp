@@ -1,9 +1,9 @@
-(in-package :tables.compile)
+(in-package :tables.internals)
 
 ;; hacky tests, will have proper ones once this is all a bit more worked
 ;; out
 
-(defun test (&optional (optimize '((speed 3) (safety 1) (debug 1))))
+(defun test0 (&optional (optimize '((speed 3) (safety 1) (debug 1))))
   (let ((sub-queries
          (compile-query
           '((a i8 :in/out) (b i8 :in/out) (c i8 :in/out))
@@ -36,3 +36,15 @@
            '((a f32 :out))
            '()
            '(output :a 0.0))))
+
+(defun test ()
+  (let* ((uspec (make-table-spec '((start-val i8)
+                                   (current-val i8)
+                                   (rate i8))))
+         (spec (validate-table-spec uspec))
+         (table (make-table spec))
+         (query-varyings `(,table (start-val :in)
+                                  (current-val :in/out)
+                                  (rate :in)))
+         (query-code '(output :current-val (+ current-val rate))))
+    (values table spec query-varyings query-code)))

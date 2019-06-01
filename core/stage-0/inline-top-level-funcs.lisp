@@ -73,10 +73,7 @@
                (seen-binding (gethash name ht)))
           (if seen-binding
               (make-instance 'ssad-var :binding seen-binding)
-              (let* ((info
-                      (gethash name tables.lang::*registered-top-level-functions*))
-                     (ast
-                      (slot-value info 'tables.lang::ast)))
+              (let ((ast (get-top-level-func-ast name)))
                 (if ast
                     (let* ((new-ssad-let
                             (find-top-level-funcs
@@ -85,10 +82,7 @@
                              ht
                              cmp-ctx))
                            (binding
-                            (first
-                             (slot-value
-                              new-ssad-let
-                              'tables.compile.stage-0:bindings))))
+                            (first (slot-value new-ssad-let 'bindings))))
                       (mark-changed cmp-ctx)
                       (setf (gethash name ht) binding)
                       (make-instance 'ssad-var :binding binding))

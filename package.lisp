@@ -8,14 +8,43 @@
            :rehome-symbol
            :vbind
            :find-in-tree-if
-           :string-desig-and=))
+           :string-desig-and=
+           :has-duplicates-p
+           :find-duplicates))
 
 (uiop:define-package #:tables.macros (:use))
 
 (uiop:define-package #:tables.lang
     (:use #:cl #:checkmate #:tables.utils)
-  (:intern :outputs)
-  (:export :tables
+  (:intern :outputs
+           :define-ttype
+           :define-parameter-type
+           :define-trait
+           :define-trait-impl
+           :define-value-type
+           :define-record
+           :define-layout
+           :define-type-macro
+           :define-optimize-macro
+           :define-tables-macro
+           :defn
+           :match-ir*
+           :match-ir*
+           :var-eq)
+  (:export :outputs
+           :define-ttype
+           :define-parameter-type
+           :define-trait
+           :define-trait-impl
+           :define-value-type
+           :define-record
+           :define-layout
+           :define-type-macro
+           :define-optimize-macro
+           :define-tables-macro
+           :defn
+           :match-ir*
+           :var-eq
            ;;
            :or
            :and
@@ -115,8 +144,12 @@
            :vec3-length
            :vec3-distance-squared
            :vec3-distance
-           :vec3-abs
-           ;;
+           :vec3-abs))
+
+(uiop:define-package #:tables.internals
+    (:use #:cl #:checkmate #:tables.utils #:tables.lang)
+  (:reexport :tables.lang)
+  (:export ;;
            :output
            :slots
            :name
@@ -127,6 +160,7 @@
            :*registered-compiler-macros*
            :*registered-macros*
            :record-ctor-slots
+           :get-top-level-func-ast
            :get-top-level-function-purpose
            :purpose-name
            :purpose-target
@@ -143,26 +177,21 @@
            ;;
            :define-value-type
            :define-value-rw-emitters
-           :find-value-rw-emitters))
+           :find-value-rw-emitters
 
-(uiop:define-package #:tables.tables
-    (:use #:cl #:checkmate #:tables.utils #:tables.lang)
-  (:export))
+           :tmem
+           :tmem-ptr
+           :make-table
+           :find-table
+           :table-spec
 
-(uiop:define-package #:tables.compile
-    (:use #:cl #:checkmate #:tables.utils #:tables.lang)
-  (:reexport #:tables.lang)
-  (:export :make-compile-context
+           :make-compile-context
            :mark-changed
            :marked-changed-p
            :clear-mark
-           :run-passes-until-stablized))
+           :run-passes-until-stablized
 
-(UIOP:define-package #:tables.compile.stage-0
-    (:use #:cl #:checkmate #:tables.utils #:tables.compile)
-  (:reexport #:tables.lang)
-  (:reexport #:tables.compile)
-  (:export :ir-node
+           :ir-node
            :ssad-let1
            :ssad-binding
            :ssad-lambda
@@ -182,6 +211,7 @@
            :input-varyings
            :output-varyings
            :uniform-args
+           :copy-for-inlining
            ;;
            :args
            :arg-bindings
@@ -208,77 +238,75 @@
            :copy-for-inlining))
 
 (uiop:define-package #:tables.compile.stage-0.ast-to-ir
-    (:use #:cl #:checkmate #:tables.utils #:tables.compile.stage-0)
+    (:use #:cl #:checkmate #:tables.utils #:tables.internals)
   (:export :run-pass))
 
 (uiop:define-package #:tables.compile.stage-0.vars-to-bindings
-    (:use #:cl #:checkmate #:tables.utils #:tables.compile.stage-0)
+    (:use #:cl #:checkmate #:tables.utils #:tables.internals)
   (:export :run-pass))
 
 (uiop:define-package #:tables.compile.stage-0.dead-binding-removal
-    (:use #:cl #:checkmate #:tables.utils #:tables.compile.stage-0)
+    (:use #:cl #:checkmate #:tables.utils #:tables.internals)
   (:export :run-pass))
 
 (uiop:define-package #:tables.compile.stage-0.early-constant-folding
-    (:use #:cl #:checkmate #:tables.utils #:tables.compile.stage-0)
+    (:use #:cl #:checkmate #:tables.utils #:tables.internals)
   (:export :run-pass))
 
 (uiop:define-package #:tables.compile.stage-0.inline-direct-calls
-    (:use #:cl #:checkmate #:tables.utils #:tables.compile.stage-0)
+    (:use #:cl #:checkmate #:tables.utils #:tables.internals)
   (:export :run-pass))
 
 (uiop:define-package #:tables.compile.stage-0.record-to-slot-forms
-    (:use #:cl #:checkmate #:tables.utils #:tables.compile.stage-0)
+    (:use #:cl #:checkmate #:tables.utils #:tables.internals)
   (:export :run-pass))
 
 (uiop:define-package #:tables.compile.stage-0.dead-if-branch-removal
-    (:use #:cl #:checkmate #:tables.utils #:tables.compile.stage-0)
+    (:use #:cl #:checkmate #:tables.utils #:tables.internals)
   (:export :run-pass))
 
 (uiop:define-package #:tables.compile.stage-0.inline-top-level-functions
-    (:use #:cl #:checkmate #:tables.utils #:tables.compile.stage-0)
+    (:use #:cl #:checkmate #:tables.utils #:tables.internals)
   (:export :run-pass))
 
 (uiop:define-package #:tables.compile.stage-0.subexpression-elim
-    (:use #:cl #:checkmate #:tables.utils #:tables.compile.stage-0)
+    (:use #:cl #:checkmate #:tables.utils #:tables.internals)
   (:export :run-pass))
 
 (uiop:define-package #:tables.compile.stage-0.uniform-propagation
-    (:use #:cl #:checkmate #:tables.utils #:tables.compile.stage-0)
+    (:use #:cl #:checkmate #:tables.utils #:tables.internals)
   (:export :run-pass))
 
 (uiop:define-package #:tables.compile.stage-0.uniform-local-lift
-    (:use #:cl #:checkmate #:tables.utils #:tables.compile.stage-0)
+    (:use #:cl #:checkmate #:tables.utils #:tables.internals)
   (:export :run-pass))
 
 (uiop:define-package #:tables.compile.stage-0.compiler-macro-expand
-    (:use #:cl #:checkmate #:tables.utils #:tables.compile.stage-0)
+    (:use #:cl #:checkmate #:tables.utils #:tables.internals)
   (:export :run-pass))
 
 (uiop:define-package #:tables.compile.stage-0.inline-conditional-call
-    (:use #:cl #:checkmate #:tables.utils #:tables.compile.stage-0)
+    (:use #:cl #:checkmate #:tables.utils #:tables.internals)
   (:export :run-pass))
 
 (uiop:define-package #:tables.compile.stage-0.inline-conditional-constants
-    (:use #:cl #:checkmate #:tables.utils #:tables.compile.stage-0)
+    (:use #:cl #:checkmate #:tables.utils #:tables.internals)
   (:export :run-pass))
 
 (uiop:define-package #:tables.compile.stage-0.cleanup-outputs
-    (:use #:cl #:checkmate #:tables.utils #:tables.compile.stage-0)
+    (:use #:cl #:checkmate #:tables.utils #:tables.internals)
   (:export :run-pass))
 
 (uiop:define-package #:tables.compile.stage-0.split-vertically
-    (:use #:cl #:checkmate #:tables.utils #:tables.compile.stage-0)
+    (:use #:cl #:checkmate #:tables.utils #:tables.internals)
   (:export :run-transform))
 
 (uiop:define-package #:tables.compile.stage-0.split-outputs
-    (:use #:cl #:checkmate #:tables.utils #:tables.compile.stage-0)
+    (:use #:cl #:checkmate #:tables.utils #:tables.internals)
   (:export :run-transform))
 
 (uiop:define-package #:tables.backends.fallback
-    (:use #:cl
-          #:tables.utils #:tables.lang #:tables.compile.stage-0
-          #:wrap-sized)
+    (:use #:cl #:tables.utils #:tables.internals #:wrap-sized)
   (:import-from :alexandria
                 :compose)
   (:export :transform :emit))
@@ -286,5 +314,4 @@
 (uiop:define-package #:tables
     (:use)
   (:import-from :tables.lang)
-  (:export :tmem
-           :tmem-ptr))
+  (:export))

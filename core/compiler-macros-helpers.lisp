@@ -1,4 +1,4 @@
-(in-package :tables.lang)
+(in-package :tables.internals)
 
 (defun extract-declares-and-doc-string (body &optional full-form)
   (labels ((declp (x) (and (listp x) (eq (first x) 'declare))))

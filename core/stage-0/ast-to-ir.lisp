@@ -70,9 +70,9 @@
                         :form form
                         :type 'boolean)
          (blockify-var-access context form)))
-    (tables.compile.stage-0:ssad-var
+    (ssad-var
      form)
-    (tables.compile.stage-0:ssad-constant
+    (ssad-constant
      form)
     (list
      (case (first form)

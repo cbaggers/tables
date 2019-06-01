@@ -1,4 +1,4 @@
-(in-package :tables.lang)
+(in-package :tables.internals)
 
 ;;------------------------------------------------------------
 
@@ -85,11 +85,6 @@
 (defvar *registered-compiler-macros* (make-hash-table :test #'eq))
 (defvar *registered-macros* (make-hash-table :test #'eq))
 
-;; {TODO} This is temporary, will be replaced with something more
-;;        general
-(defvar *registered-constant-folds* (make-hash-table :test #'eq))
-
-
 ;;------------------------------------------------------------
 
 (defun register-type (spec)
@@ -134,6 +129,10 @@
                            :purpose purpose
                            :record-ctor-slots record-ctor-slots
                            :ast nil)))))
+
+(defun get-top-level-func-ast (func-name)
+  (slot-value (gethash func-name *registered-top-level-functions*)
+              'tables.lang::ast))
 
 (defun register-record (spec)
   (let ((name (aggregate-name spec)))
@@ -184,12 +183,8 @@
            ;; ((unsigned-byte 32) (find-ttype context 'u32))
            ((unsigned-byte 64) (find-ttype context 'u64))
            (single-float (find-ttype context 'f32))
-           (tables.compile.stage-0:ssad-var
-            (slot-value
-             (slot-value expression 'tables.compile.stage-0:binding)
-             'tables.compile.stage-0:type))
-           (tables.compile.stage-0:ssad-constant
-            (slot-value expression 'tables.compile.stage-0:type)))))
+           (ssad-var (slot-value (slot-value expression 'binding) 'type))
+           (ssad-constant (slot-value expression 'type)))))
     (when ttype
       `(truly-the ,ttype ,expression))))
 
@@ -804,9 +799,3 @@
        ',name)))
 
 ;;------------------------------------------------------------
-
-(defmacro define-constant-folder (func-name args &body body)
-  `(progn
-     (setf (gethash ',func-name *registered-constant-folds*)
-           (lambda ,args ,@body))
-     ',func-name))

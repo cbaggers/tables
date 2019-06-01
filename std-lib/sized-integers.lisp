@@ -14,16 +14,16 @@
 
 ;;------------------------------------------------------------
 
-(define-op-func i8+ (i8 i8) i8)
-(define-op-func i8- (i8 i8) i8)
-(define-op-func i8* (i8 i8) i8)
-(define-op-func i8/ (i8 i8) i8)
+(tables.internals:define-op-func i8+ (i8 i8) i8)
+(tables.internals:define-op-func i8- (i8 i8) i8)
+(tables.internals:define-op-func i8* (i8 i8) i8)
+(tables.internals:define-op-func i8/ (i8 i8) i8)
 
 (define-optimize-macro i8+ (&whole whole arg-0 arg-1)
   (labels ((refactor (form-arg constant-arg)
              (if (= constant-arg 0)
                  form-arg
-                 (tables.compile.stage-0:match-ir* (form-arg)
+                 (match-ir* (form-arg)
                    ((:> (i8+ (:constant c) (:form f)))
                     `(i8+ ,f (i8+ ,c ,constant-arg)))
                    ((:> (i8+ (:form f) (:constant c)))
@@ -31,7 +31,7 @@
                    ((:> (i8+ (:form f0) (:form f1)))
                     `(i8+ ,f0 (i8+ ,f1 ,constant-arg)))
                    (otherwise whole)))))
-    (tables.compile.stage-0:match-ir* (arg-0 arg-1)
+    (match-ir* (arg-0 arg-1)
       ((:> (i8+ (:form a) (:form b))
            (i8+ (:form c) (:form d)))
        `(i8+ ,a (i8+ ,b (i8+ ,c ,d))))
@@ -59,7 +59,7 @@
 (define-optimize-macro i8- (&whole whole a b)
   (cond
     ((and (numberp a) (numberp b)) (- (mod (+ 127 (- a b)) 255) 127))
-    ((tables.compile.stage-0:var-eq a b) 0)
+    ((var-eq a b) 0)
     (t whole)))
 
 (define-optimize-macro i8* (&whole whole arg-0 arg-1)
@@ -68,7 +68,7 @@
                (0 0)
                (1 form-arg)
                (otherwise
-                (tables.compile.stage-0:match-ir* (form-arg)
+                (match-ir* (form-arg)
                   ((:> (i8* (:constant c) (:form f)))
                    `(i8* ,f (i8* ,c ,constant-arg)))
                   ((:> (i8* (:form f) (:constant c)))
@@ -82,7 +82,7 @@
                    `(i8+ (i8* ,f ,constant-arg)
                          (i8* ,c ,constant-arg)))
                   (otherwise whole))))))
-    (tables.compile.stage-0:match-ir* (arg-0 arg-1)
+    (match-ir* (arg-0 arg-1)
       ((:> (:constant a)
            (:constant b))
        (- (mod (+ 127 (* a b)) 255) 127))
@@ -101,69 +101,69 @@
 (define-optimize-macro i8/ (&whole whole a b)
   (cond
     ((eql a 0) 0)
-    ((tables.compile.stage-0:var-eq a b) 1)
+    ((var-eq a b) 1)
     (t whole)))
 
 ;;------------------------------------------------------------
 
-(define-op-func i16+ (i16 i16) i16)
-(define-op-func i16- (i16 i16) i16)
-(define-op-func i16* (i16 i16) i16)
-(define-op-func i16/ (i16 i16) i16)
+(tables.internals:define-op-func i16+ (i16 i16) i16)
+(tables.internals:define-op-func i16- (i16 i16) i16)
+(tables.internals:define-op-func i16* (i16 i16) i16)
+(tables.internals:define-op-func i16/ (i16 i16) i16)
 
 ;;------------------------------------------------------------
 
-(define-op-func i32+ (i32 i32) i32)
-(define-op-func i32- (i32 i32) i32)
-(define-op-func i32* (i32 i32) i32)
-(define-op-func i32/ (i32 i32) i32)
+(tables.internals:define-op-func i32+ (i32 i32) i32)
+(tables.internals:define-op-func i32- (i32 i32) i32)
+(tables.internals:define-op-func i32* (i32 i32) i32)
+(tables.internals:define-op-func i32/ (i32 i32) i32)
 
 ;;------------------------------------------------------------
 
-(define-op-func i64+ (i64 i64) i64)
-(define-op-func i64- (i64 i64) i64)
-(define-op-func i64* (i64 i64) i64)
-(define-op-func i64/ (i64 i64) i64)
+(tables.internals:define-op-func i64+ (i64 i64) i64)
+(tables.internals:define-op-func i64- (i64 i64) i64)
+(tables.internals:define-op-func i64* (i64 i64) i64)
+(tables.internals:define-op-func i64/ (i64 i64) i64)
 
 ;;------------------------------------------------------------
 
-(define-op-func u8+ (u8 u8) u8)
-(define-op-func u8- (u8 u8) u8)
-(define-op-func u8* (u8 u8) u8)
-(define-op-func u8/ (u8 u8) u8)
+(tables.internals:define-op-func u8+ (u8 u8) u8)
+(tables.internals:define-op-func u8- (u8 u8) u8)
+(tables.internals:define-op-func u8* (u8 u8) u8)
+(tables.internals:define-op-func u8/ (u8 u8) u8)
 
 ;;------------------------------------------------------------
 
-(define-op-func u16+ (u16 u16) u16)
-(define-op-func u16- (u16 u16) u16)
-(define-op-func u16* (u16 u16) u16)
-(define-op-func u16/ (u16 u16) u16)
+(tables.internals:define-op-func u16+ (u16 u16) u16)
+(tables.internals:define-op-func u16- (u16 u16) u16)
+(tables.internals:define-op-func u16* (u16 u16) u16)
+(tables.internals:define-op-func u16/ (u16 u16) u16)
 
 ;;------------------------------------------------------------
 
-(define-op-func u32+ (u32 u32) u32)
-(define-op-func u32- (u32 u32) u32)
-(define-op-func u32* (u32 u32) u32)
-(define-op-func u32/ (u32 u32) u32)
+(tables.internals:define-op-func u32+ (u32 u32) u32)
+(tables.internals:define-op-func u32- (u32 u32) u32)
+(tables.internals:define-op-func u32* (u32 u32) u32)
+(tables.internals:define-op-func u32/ (u32 u32) u32)
 
 ;;------------------------------------------------------------
 
-(define-op-func u64+ (u64 u64) u64)
-(define-op-func u64- (u64 u64) u64)
-(define-op-func u64* (u64 u64) u64)
-(define-op-func u64/ (u64 u64) u64)
+(tables.internals:define-op-func u64+ (u64 u64) u64)
+(tables.internals:define-op-func u64- (u64 u64) u64)
+(tables.internals:define-op-func u64* (u64 u64) u64)
+(tables.internals:define-op-func u64/ (u64 u64) u64)
 
 ;;------------------------------------------------------------
 
-(define-op-func i8= (i8 i8) boolean)
-(define-op-func i16= (i16 i16) boolean)
-(define-op-func i32= (i32 i32) boolean)
-(define-op-func i64= (i64 i64) boolean)
+(tables.internals:define-op-func i8= (i8 i8) boolean)
+(tables.internals:define-op-func i16= (i16 i16) boolean)
+(tables.internals:define-op-func i32= (i32 i32) boolean)
+(tables.internals:define-op-func i64= (i64 i64) boolean)
 
-(define-op-func u8= (u8 u8) boolean)
-(define-op-func u16= (u16 u16) boolean)
-(define-op-func u32= (u32 u32) boolean)
-(define-op-func u64= (u64 u64) boolean)
+(tables.internals:define-op-func u8= (u8 u8) boolean)
+(tables.internals:define-op-func u16= (u16 u16) boolean)
+(tables.internals:define-op-func u32= (u32 u32) boolean)
+(tables.internals:define-op-func u64= (u64 u64) boolean)
 
 (define-optimize-macro i8= (&whole whole a b)
   (if (and (numberp a) (numberp b))
@@ -172,10 +172,10 @@
 
 ;;------------------------------------------------------------
 
-(define-op-func i8-negate (i8) i8)
-(define-op-func i16-negate (i16) i16)
-(define-op-func i32-negate (i32) i32)
-(define-op-func i64-negate (i64) i64)
+(tables.internals:define-op-func i8-negate (i8) i8)
+(tables.internals:define-op-func i16-negate (i16) i16)
+(tables.internals:define-op-func i32-negate (i32) i32)
+(tables.internals:define-op-func i64-negate (i64) i64)
 
 ;;------------------------------------------------------------
 

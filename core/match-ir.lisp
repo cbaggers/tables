@@ -1,4 +1,10 @@
-(in-package :tables.compile.stage-0)
+(in-package :tables.internals)
+
+;;------------------------------------------------------------
+
+(defstruct var-pair
+  (symb nil :type symbol)
+  (gsymb nil :type symbol))
 
 ;;------------------------------------------------------------
 
@@ -73,10 +79,6 @@
   (if (listp pattern)
       (gen-list-match-check pattern symb seen-args)
       (cons (gen-straight-match-check pattern symb) nil)))
-
-(defstruct var-pair
-  (symb nil :type symbol)
-  (gsymb nil :type symbol))
 
 (defun gen-list-match-check (pattern symb seen-args)
   (let* ((focus (first pattern))

@@ -1,4 +1,4 @@
-(in-package :tables.compile.stage-0)
+(in-package :tables.internals)
 ;; {TODO} rename this file to ir-types
 
 ;;

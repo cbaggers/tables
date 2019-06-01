@@ -4,12 +4,11 @@
   (loop
      :for sub-query :in sub-queries
      :do (tables.compile.stage-0.split-outputs:run-transform
-          (slot-value sub-query 'tables.compile.stage-0:ir)))
+          (slot-value sub-query 'ir)))
   (let ((query-passes
          (loop
             :for sub-query :in sub-queries
             :collect (+ pass-count
-                        (tables.compile:run-passes-until-stablized
-                         (slot-value sub-query
-                                     'tables.compile.stage-0:ir))))))
+                        (run-passes-until-stablized
+                         (slot-value sub-query 'ir))))))
     (values sub-queries query-passes)))

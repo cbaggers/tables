@@ -1,4 +1,4 @@
-(in-package :tables.compile)
+(in-package :tables.internals)
 
 (defun macroexpand-query (form)
   (mexpand-form form))
@@ -14,8 +14,7 @@
           (progn (mexpand-progn (rest form)))
           (funcall (mexpand-funcall (rest form)))
           (output (mexpand-output (rest form)))
-          ((function :construct tables.lang::read-varying) form)
-          ((function :construct tables.lang::read-uniform) form)
+          ((function :construct read-varying read-uniform) form)
           (otherwise
            (let ((macro-func (find-tables-macro-func head)))
              (if macro-func

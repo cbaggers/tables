@@ -11,9 +11,10 @@
                ;;
                ;; language impl
                (:file "core/compiler-macros-helpers")
-               (:file "core/impl")
                (:file "core/stage-0")
+               (:file "core/impl")
                (:file "core/match-ir")
+               (:file "core/copy-ir")
                ;;
                ;; standard lib
                (:file "std-lib/outputs")
@@ -27,9 +28,8 @@
                (:file "std-lib/vectors/vec3")
                ;;
                ;; compilation
-               (:file "core/stage-0/copy-for-inlining")
-               (:file "core/stage-0/ast-to-ir")
                (:file "core/stage-0/vars-to-bindings")
+               (:file "core/stage-0/ast-to-ir")
                (:file "core/stage-0/dead-binding-removal")
                (:file "core/stage-0/early-constant-folding")
                (:file "core/stage-0/inline-direct-calls")
