@@ -59,4 +59,5 @@
                (:file "core/backends/fallback/emit")
                ;;
                ;;
-               (:file "core/compile")))
+               (:file "core/compile")
+               (:file "core/tests")))
